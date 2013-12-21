@@ -3653,6 +3653,7 @@ CONV is not applied to the initial value."
     (use-modules spec ...)))
 
 (include-from-path "ice-9/r6rs-libraries")
+(include-from-path "ice-9/r7rs-libraries")
 
 (define-syntax-rule (define-private foo bar)
   (define foo bar))
@@ -4104,6 +4105,19 @@ when none is available, reading FILE-NAME with READER."
   '(guile
     guile-2
     r5rs
+
+    r7rs
+    exact-closed
+    ieee-float                         ; XXX might not always be true
+    full-unicode
+    ratios
+    ;; XXX TODO where appropriate, add 'posix', 'windows', 'unix',
+    ;;          'darwin', 'gnu-linux', 'bsd', 'freebsd', 'solaris', per R7RS.
+    ;; XXX TODO where appropriate, add 'i386', 'x86-64', 'ppc',
+    ;;          'sparc', etc, per R7RS.
+    ;; XXX TODO where appropriate, add 'ilp32', 'lp64', 'ilp64', etc, per R7RS.
+    ;; XXX TODO add 'little-endian' or 'big-endian', per R7RS
+
     srfi-0   ;; cond-expand itself
     srfi-4   ;; homogeneous numeric vectors
     ;; We omit srfi-6 because the 'open-input-string' etc in Guile
@@ -4137,7 +4151,7 @@ when none is available, reading FILE-NAME with READER."
                      (append (hashq-ref %cond-expand-table mod '())
                              features)))))
 
-(define-syntax cond-expand
+(define %cond-expand
   (lambda (x)
     (define (module-has-feature? mod sym)
       (or-map (lambda (mod)
@@ -4152,6 +4166,7 @@ when none is available, reading FILE-NAME with READER."
          (or-map condition-matches? #'(c ...)))
         ((not c)
          (if (condition-matches? #'c) #f #t))
+        ;; XXX FIXME: Implement (library <library-name>) clause per R7RS
         (c
          (identifier? #'c)
          (let ((sym (syntax->datum #'c)))
@@ -4163,7 +4178,7 @@ when none is available, reading FILE-NAME with READER."
       (syntax-case clauses ()
         (((condition form ...) . rest)
          (if (condition-matches? #'condition)
-             #'(begin form ...)
+             #'(form ...)
              (match #'rest alternate)))
         (() (alternate))))
 
@@ -4171,11 +4186,15 @@ when none is available, reading FILE-NAME with READER."
       ((_ clause ... (else form ...))
        (match #'(clause ...)
          (lambda ()
-           #'(begin form ...))))
+           #'(form ...))))
       ((_ clause ...)
        (match #'(clause ...)
          (lambda ()
            (syntax-violation 'cond-expand "unfulfilled cond-expand" x)))))))
+
+(define-syntax cond-expand
+  (lambda (x)
+    #`(begin #,@(%cond-expand x))))
 
 ;; This procedure gets called from the startup code with a list of
 ;; numbers, which are the numbers of the SRFIs to be loaded on startup.
