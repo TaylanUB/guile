@@ -488,7 +488,7 @@ scm_i_init_guile (void *base)
   scm_init_symbols ();
   scm_init_values ();   /* Requires struct */
   scm_init_load ();     /* Requires strings */
-  scm_init_print ();	/* Requires strings, struct, smob */
+  scm_init_print ();	/* Requires strings, struct, smob, hashtab */
   scm_init_read ();
   scm_init_strorder ();
   scm_init_srfi_13 ();

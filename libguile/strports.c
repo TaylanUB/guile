@@ -370,31 +370,48 @@ scm_mkstrport (SCM pos, SCM str, long modes, const char *caller)
   return z;
 }
 
-/* Create a new string from the buffer of PORT, a string port, converting from
-   PORT's encoding to the standard string representation.  */
+/* Create a new string from the specified byte range of the buffer of
+   PORT, a string port, converting from PORT's encoding to the standard
+   string representation.  */
 SCM
-scm_strport_to_string (SCM port)
+scm_i_strport_to_string (SCM port, SCM start, SCM end)
 {
   SCM str;
+  size_t cstart, cend, len;
   scm_t_port *pt = SCM_PTAB_ENTRY (port);
 
   if (pt->rw_active == SCM_PORT_WRITE)
     st_flush (port);
 
-  if (pt->read_buf_size == 0)
+  cstart = SCM_UNBNDP (start) ? 0 : scm_to_size_t (start);
+  cend = SCM_UNBNDP (end) ? pt->read_buf_size : scm_to_size_t (end);
+
+  if (cstart < cend)
+    len = cend - cstart;
+  else if (cstart == cend)
     return scm_nullstr;
+  else
+    abort ();
 
   if (pt->encoding == NULL)
     {
       char *buf;
-      str = scm_i_make_string (pt->read_buf_size, &buf, 0);
-      memcpy (buf, pt->read_buf, pt->read_buf_size);
+      str = scm_i_make_string (len, &buf, 0);
+      memcpy (buf, pt->read_buf + cstart, len);
     }
   else
-    str = scm_from_stringn ((char *)pt->read_buf, pt->read_buf_size,
+    str = scm_from_stringn ((char *)pt->read_buf + cstart, len,
                             pt->encoding, pt->ilseq_handler);
   scm_remember_upto_here_1 (port);
   return str;
+}
+
+/* Create a new string from the buffer of PORT, a string port, converting from
+   PORT's encoding to the standard string representation.  */
+SCM
+scm_strport_to_string (SCM port)
+{
+  return scm_i_strport_to_string (port, SCM_UNDEFINED, SCM_UNDEFINED);
 }
 
 SCM_DEFINE (scm_object_to_string, "object->string", 1, 1, 0,

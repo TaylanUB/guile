@@ -3,7 +3,8 @@
 #ifndef SCM_STRPORTS_H
 #define SCM_STRPORTS_H
 
-/* Copyright (C) 1995,1996,2000,2001,2002, 2006, 2008, 2010 Free Software Foundation, Inc.
+/* Copyright (C) 1995,1996,2000,2001,2002, 2006, 2008, 2010,
+ *   2014 Free Software Foundation, Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -56,6 +57,7 @@ SCM_API SCM scm_c_eval_string (const char *expr);
 SCM_API SCM scm_c_eval_string_in_module (const char *expr, SCM module);
 SCM_API SCM scm_eval_string (SCM string);
 SCM_API SCM scm_eval_string_in_module (SCM string, SCM module);
+SCM_INTERNAL SCM scm_i_strport_to_string (SCM port, SCM start, SCM end);
 SCM_INTERNAL void scm_init_strports (void);
 
 #endif  /* SCM_STRPORTS_H */
