@@ -1,6 +1,7 @@
 ;;; Guile VM assembler
 
-;; Copyright (C) 2001, 2009, 2010, 2011, 2013 Free Software Foundation, Inc.
+;; Copyright (C) 2001, 2009, 2010, 2011, 2013,
+;;   2014 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -41,12 +42,34 @@
                            (proc (car pair) (cdr pair) s0 s1))
           (lp (1- i) s0 s1)))))
 
+(define (vhash-fold-right3 proc vhash s0 s1 s2)
+  (let lp ((i (vlist-length vhash)) (s0 s0) (s1 s1) (s2 s2))
+    (if (zero? i)
+        (values s0 s1 s2)
+        (receive (s0 s1 s2) (let ((pair (vlist-ref vhash (1- i))))
+                              (proc (car pair) (cdr pair) s0 s1 s2))
+          (lp (1- i) s0 s1 s2)))))
+
 (define (fold2 proc ls s0 s1)
   (let lp ((ls ls) (s0 s0) (s1 s1))
     (if (null? ls)
         (values s0 s1)
         (receive (s0 s1) (proc (car ls) s0 s1)
           (lp (cdr ls) s0 s1)))))
+
+(define (fold3 proc ls s0 s1 s2)
+  (let lp ((ls ls) (s0 s0) (s1 s1) (s2 s2))
+    (if (null? ls)
+        (values s0 s1 s2)
+        (receive (s0 s1 s2) (proc (car ls) s0 s1 s2)
+          (lp (cdr ls) s0 s1 s2)))))
+
+(define (fold2-3 proc ls1 ls2 s0 s1 s2)
+  (let lp ((ls1 ls1) (ls2 ls2) (s0 s0) (s1 s1) (s2 s2))
+    (if (null? ls1)
+        (values s0 s1 s2)
+        (receive (s0 s1 s2) (proc (car ls1) (car ls2) s0 s1 s2)
+          (lp (cdr ls1) (cdr ls2) s0 s1 s2)))))
 
 (define (vector-fold2 proc vect s0 s1)
   (let ((len (vector-length vect)))
@@ -120,7 +143,9 @@
 ;; constant table for a whole compilation unit.
 ;;
 (define (build-constant-store x)
-  (define (add-to-store store x)
+  (define (add-to-store store ancestors x)
+    (define (add-ancestor ancestors x)
+      (vhash-cons x #t ancestors))
     (define (add-to-end store x)
       (vhash-cons x (1+ (vlist-length store)) store))
     (cond
@@ -130,6 +155,9 @@
      ((immediate? x)
       ;; Immediates don't need to go in the constant table.
       store)
+     ((vhash-assoc x ancestors)
+      ;; Break the cycle.
+      store)
      ((or (number? x)
           (string? x)
           (symbol? x)
@@ -138,33 +166,37 @@
       (add-to-end store x))
      ((variable-cache-cell? x)
       ;; Variable cache cells (see below).
-      (add-to-end (add-to-store store (variable-cache-cell-key x))
+      (add-to-end (add-to-store store ancestors (variable-cache-cell-key x))
                   x))
      ((list? x)
       ;; Add the elements to the store, then the list itself.  We could
       ;; try hashing the cdrs as well, but that seems a bit overkill, and
       ;; this way we do compress the bytecode a bit by allowing the use of
       ;; the `list' opcode.
-      (let ((store (fold (lambda (x store)
-                           (add-to-store store x))
-                         store
-                         x)))
-        (add-to-end store x)))
+      (let ((ancestors (add-ancestor ancestors x)))
+        (let ((store (fold (lambda (x store)
+                             (add-to-store store ancestors x))
+                           store
+                           x)))
+          (add-to-end store x))))
      ((pair? x)
       ;; Non-lists get caching on both fields.
-      (let ((store (add-to-store (add-to-store store (car x))
-                                 (cdr x))))
-        (add-to-end store x)))
+      (let ((ancestors (add-ancestor ancestors x)))
+        (let ((store (add-to-store (add-to-store store ancestors (car x))
+                                   ancestors
+                                   (cdr x))))
+          (add-to-end store x))))
      ((and (vector? x)
            (equal? (array-shape x) (list (list 0 (1- (vector-length x))))))
       ;; Likewise, add the elements to the store, then the vector itself.
       ;; Important for the vectors produced by the psyntax expansion
       ;; process.
-      (let ((store (fold (lambda (x store)
-                           (add-to-store store x))
-                         store
-                         (vector->list x))))
-        (add-to-end store x)))
+      (let ((ancestors (add-ancestor ancestors x)))
+        (let ((store (fold (lambda (x store)
+                             (add-to-store store ancestors x))
+                           store
+                           (vector->list x))))
+          (add-to-end store x))))
      ((array? x)
       ;; Naive assumption that if folks are using arrays, that perhaps
       ;; there's not much more duplication.
@@ -177,20 +209,20 @@
       ((<glil-program> meta body)
        (fold walk store body))
       ((<glil-const> obj)
-       (add-to-store store obj))
+       (add-to-store store vlist-null obj))
       ((<glil-kw-prelude> kw)
-       (add-to-store store kw))
+       (add-to-store store vlist-null kw))
       ((<glil-toplevel> op name)
        ;; We don't add toplevel variable cache cells to the global
        ;; constant table, because they are sensitive to changes in
        ;; modules as the toplevel expressions are evaluated.  So we just
        ;; add the name.
-       (add-to-store store name))
+       (add-to-store store vlist-null name))
       ((<glil-module> op mod name public?)
        ;; However, it is fine add module variable cache cells to the
        ;; global table, as their bindings are not dependent on the
        ;; current module.
-       (add-to-store store
+       (add-to-store store vlist-null
                      (make-variable-cache-cell (list mod name public?))))
       (else store))))
 
@@ -802,105 +834,191 @@
     (error "dump-object: unrecognized object" x))))
 
 (define (dump-constants constants)
-  (define (ref-or-dump x i addr)
+  (define (ref-or-dump x i addr post f)
     (let ((pair (vhash-assoc x constants)))
-      (if (and pair (< (cdr pair) i))
-          (let ((idx (cdr pair)))
-            (if (< idx 256)
-                (values `((object-ref ,idx))
-                        (+ addr 2))
-                (values `((long-object-ref ,(quotient idx 256)
-                                           ,(modulo idx 256)))
-                        (+ addr 3))))
-          (dump1 x i addr))))
-  (define (dump1 x i addr)
+      (cond
+       ((and pair (< (cdr pair) i))
+        (let ((idx (cdr pair)))
+          (if (< idx 256)
+              (values `((object-ref ,idx))
+                      (+ addr 2)
+                      post)
+              (values `((long-object-ref ,(quotient idx 256)
+                                         ,(modulo idx 256)))
+                      (+ addr 3)
+                      post))))
+       ((and pair f)
+        (let ((idx (cdr pair)))
+          (values '((void))
+                  (+ addr 1)
+                  (cons (f (lambda (addr)
+                             (if (< idx 256)
+                                 (values `((object-ref ,idx))
+                                         (+ addr 2))
+                                 (values `((long-object-ref ,(quotient idx 256)
+                                                            ,(modulo idx 256)))
+                                         (+ addr 3)))))
+                        post))))
+       (else
+        (dump1 x i addr post)))))
+  (define (dump1 x i addr post)
     (cond
      ((object->assembly x)
       => (lambda (code)
            (values (list code)
-                   (+ (byte-length code) addr))))
+                   (+ (byte-length code) addr)
+                   post)))
      ((or (number? x)
           (string? x)
           (symbol? x)
           (keyword? x))
       ;; Atoms.
       (let ((code (dump-object x addr)))
-        (values code (addr+ addr code))))
+        (values code (addr+ addr code) post)))
      ((variable-cache-cell? x)
-      (dump1 (variable-cache-cell-key x) i addr))
+      (dump1 (variable-cache-cell-key x) i addr post))
      ((scheme-list? x)
-      (receive (codes addr)
-          (fold2 (lambda (x codes addr)
-                   (receive (subcode addr) (ref-or-dump x i addr)
-                     (values (cons subcode codes) addr)))
-                 x '() addr)
-        (values (fold append
-                      (let ((len (length x)))
-                        `((list ,(quotient len 256) ,(modulo len 256))))
-                      codes)
-                (+ addr 3))))
+      (let ((len (length x)))
+        (define (make-post-proc idx)
+          (lambda (get-val)
+            (lambda (addr)
+              (receive (get-list-code addr _) (ref-or-dump x (+ i 1) addr '() #f)
+                (receive (get-val-code addr) (get-val (+ addr idx))
+                  (values `(,@get-list-code
+                            ,@(make-list idx '(cdr)) ; XXX sometimes make a loop, or combine?
+                            ,@get-val-code
+                            (set-car!))
+                          (+ addr 1)))))))
+        (receive (codes addr post)
+            (fold2-3 (lambda (x idx codes addr post)
+                       (receive (subcode addr post)
+                           (ref-or-dump x i addr post
+                                        (make-post-proc idx))
+                         (values (cons subcode codes) addr post)))
+                     x (iota len) '() addr post)
+          (values (fold append
+                        `((list ,(quotient len 256) ,(modulo len 256)))
+                        codes)
+                  (+ addr 3)
+                  post))))
      ((pair? x)
-      (receive (car-code addr) (ref-or-dump (car x) i addr)
-        (receive (cdr-code addr) (ref-or-dump (cdr x) i addr)
-          (values `(,@car-code ,@cdr-code (cons))
-                  (1+ addr)))))
+      (let ()
+        (define (make-post-proc set-cxr!)
+          (lambda (get-val)
+            (lambda (addr)
+              (receive (get-pair-code addr _) (ref-or-dump x (+ i 1) addr '() #f)
+                (receive (get-val-code addr) (get-val addr)
+                  (values `(,@get-pair-code
+                            ,@get-val-code
+                            (,set-cxr!))
+                          (+ addr 1)))))))
+        (receive (car-code addr post)
+            (ref-or-dump (car x) i addr post
+                         (make-post-proc 'set-car!))
+          (receive (cdr-code addr post)
+              (ref-or-dump (cdr x) i addr post
+                           (make-post-proc 'set-cdr!))
+            (values `(,@car-code ,@cdr-code (cons))
+                    (1+ addr)
+                    post)))))
      ((and (vector? x)
            (<= (vector-length x) #xffff)
            (equal? (array-shape x) (list (list 0 (1- (vector-length x))))))
-      (receive (codes addr)
-          (vector-fold2 (lambda (x codes addr)
-                          (receive (subcode addr) (ref-or-dump x i addr)
-                            (values (cons subcode codes) addr)))
-                        x '() addr)
-        (values (fold append
-                      (let ((len (vector-length x)))
-                        `((vector ,(quotient len 256) ,(modulo len 256))))
-                      codes)
-                (+ addr 3))))
+      (let ((len (vector-length x)))
+        (define (make-post-proc idx)
+          (lambda (get-val)
+            (lambda (addr)
+              (receive (get-vect-code addr _) (ref-or-dump x (+ i 1) addr '() #f)
+                (let ((get-idx-code (object->assembly idx)))
+                  (receive (get-val-code addr) (get-val (+ addr (byte-length get-idx-code)))
+                    (values `(,@get-vect-code
+                              ,get-idx-code
+                              ,@get-val-code
+                              (vector-set))
+                            (+ addr 1))))))))
+        (receive (codes addr post)
+            (fold3 (lambda (idx codes addr post)
+                     (receive (subcode addr post)
+                         (ref-or-dump (vector-ref x idx) i addr post
+                                      (make-post-proc idx))
+                       (values (cons subcode codes) addr post)))
+                   (iota len) '() addr post)
+          (values (fold append
+                        `((vector ,(quotient len 256) ,(modulo len 256)))
+                        codes)
+                  (+ addr 3)
+                  post))))
      ((and (array? x) (symbol? (array-type x)))
-      (receive (type addr) (ref-or-dump (array-type x) i addr)
-        (receive (shape addr) (ref-or-dump (array-shape x) i addr)
+      (receive (type addr post) (ref-or-dump (array-type x) i addr post #f)
+        (receive (shape addr post) (ref-or-dump (array-shape x) i addr post #f)
           (let ((bv (align-code `(load-array ,(uniform-array->bytevector x))
                                 addr 8 4)))
             (values `(,@type ,@shape ,@bv)
-                    (addr+ addr bv))))))
+                    (addr+ addr bv)
+                    post)))))
      ((array? x)
-      (let ((contents (array-contents x)))
-        (receive (codes addr)
-            (vector-fold2 (lambda (x codes addr)
-                            (receive (subcode addr) (ref-or-dump x i addr)
-                              (values (cons subcode codes) addr)))
-                          contents '() addr)
-          (receive (shape addr) (ref-or-dump (array-shape x) i addr)
+      (let* ((contents (array-contents x))
+             (len (vector-length contents)))
+        (define (make-post-proc idx)
+          (lambda (get-val)
+            (lambda (addr)
+              (receive (get-array-code addr _)
+                  (ref-or-dump x (+ i 1) addr '() #f)
+                (let ((get-idx-code (object->assembly idx)))
+                  (receive (get-val-code addr)
+                      (get-val (+ addr 1 (byte-length get-idx-code)))
+                    (values `(,@get-array-code
+                              (array-contents)
+                              ,get-idx-code
+                              ,@get-val-code
+                              (vector-set))
+                            (+ addr 1))))))))
+        (receive (codes addr post)
+            (fold3 (lambda (idx codes addr post)
+                     (receive (subcode addr post)
+                         (ref-or-dump (vector-ref contents idx) i addr post
+                                      (make-post-proc idx))
+                       (values (cons subcode codes) addr post)))
+                   (iota len) '() addr post)
+          (receive (shape addr post) (ref-or-dump (array-shape x) i addr post #f)
             (values (fold append
-                          (let ((len (vector-length contents)))
-                            `(,@shape
-                              (make-array ,(quotient (ash len -16) 256)
-                                          ,(logand #xff (ash len -8))
-                                          ,(logand #xff len))))
+                          `(,@shape
+                            (make-array ,(quotient (ash len -16) 256)
+                                        ,(logand #xff (ash len -8))
+                                        ,(logand #xff len)))
                           codes)
-                    (+ addr 4))))))
+                    (+ addr 4)
+                    post)))))
      (else
       (error "write-table: unrecognized object" x))))
 
   (receive (codes addr)
-      (vhash-fold-right2 (lambda (obj idx code addr)
-                           ;; The vector is on the stack.  Dup it, push
-                           ;; the index, push the val, then vector-set.
-                           (let ((pre `((dup)
-                                        ,(object->assembly idx))))
-                             (receive (valcode addr) (dump1 obj idx
-                                                            (addr+ addr pre))
-                               (values (cons* '((vector-set))
-                                              valcode
-                                              pre
-                                              code)
-                                       (1+ addr)))))
-                         constants
-                         '(((assert-nargs-ee/locals 1)
-                            ;; Push the vector.
-                            (local-ref 0)))
-                         4)
+      (receive (codes addr post)
+          (vhash-fold-right3 (lambda (obj idx code addr post)
+                               ;; The vector is on the stack.  Dup it, push
+                               ;; the index, push the val, then vector-set.
+                               (let ((pre `((dup)
+                                            ,(object->assembly idx))))
+                                 (receive (valcode addr post)
+                                     (dump1 obj idx (addr+ addr pre) post)
+                                   (values (cons* '((vector-set))
+                                                  valcode
+                                                  pre
+                                                  code)
+                                           (1+ addr)
+                                           post))))
+                             constants
+                             '(((assert-nargs-ee/locals 1)
+                                ;; Push the vector.
+                                (local-ref 0)))
+                             4
+                             '())
+        ;; Apply post-procs
+        (fold2 (lambda (post-proc codes addr)
+                 (receive (subcode addr) (post-proc addr)
+                   (values (cons subcode codes)
+                           addr)))
+               post codes addr))
     (let* ((len (1+ (vlist-length constants)))
            (pre-prog-addr (+ 2          ; reserve-locals
                              len 3      ; empty vector
