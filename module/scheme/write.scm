@@ -25,14 +25,7 @@
   (import (scheme base)
           (rename (only (guile)
                         display
-                        write)
-                  (write guile-write)))
+                        write
+                        write-shared)))
   (begin
-    (define write-simple guile-write)
-
-    ;; XXX FIXME outputs cyclic data in non-standard format.
-    (define write guile-write)
-
-    ;; XXX FIXME doesn't show non-cyclic sharing, and outputs cyclic
-    ;; data in non-standard format.
-    (define write-shared guile-write)))
+    (define write-simple write)))

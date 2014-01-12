@@ -1,5 +1,4 @@
-/* Copyright (C) 1995-1999, 2000, 2001, 2002, 2003, 2004, 2006, 2008,
- *   2009, 2010, 2011, 2012, 2013, 2014 Free Software Foundation, Inc.
+/* Copyright (C) 1995-2004, 2006, 2008-2014 Free Software Foundation, Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -49,6 +48,7 @@
 #include "libguile/ports-internal.h"
 #include "libguile/root.h"
 #include "libguile/strings.h"
+#include "libguile/srfi-13.h"
 #include "libguile/strports.h"
 #include "libguile/vectors.h"
 #include "libguile/numbers.h"
@@ -117,6 +117,8 @@ scm_t_option scm_print_opts[] = {
     "Render newlines as \\n when printing using `write'." },
   { SCM_OPTION_BOOLEAN, "r7rs-symbols", 0,
     "Escape symbols using R7RS |...| symbol notation." },
+  { SCM_OPTION_BOOLEAN, "datum-labels", 0,
+    "Print cyclic data using SRFI-38 datum label notation." },
   { 0 },
 };
 
@@ -141,10 +143,133 @@ SCM_DEFINE (scm_print_options, "print-options-interface", 0, 1, 0,
 
 /* Detection of circular references.
  *
- * Due to other constraints in the implementation, this code has bad
- * time complexity (O (depth * N)), The printer code can be
- * rewritten to be O(N).
+ * Before Guile 2.0.10, references to ancestor objects were kept in a
+ * stack, leading to O(depth * N) time complexity.
+ *
+ * Guile now supports datum label notation as specified in SRFI-38 and
+ * R7RS.  We still maintain the ref stack for backward compatibility,
+ * but we no longer search it.  Instead, we use a hash table and other
+ * data structures in scm_internal_print_state.
+ *
+ * Printing SRFI-38 datum label notation requires at least two passes,
+ * because we cannot know which datum label definitions need to be
+ * printed until we've traversed the entire structure.
+ *
+ * The reference implementation of SRFI-38 does an initial traversal to
+ * determine which datum label definitions are needed, and then begins
+ * printing.  We don't do that in Guile because of the need to support
+ * custom data structures (e.g. SRFI-9 records) with their custom
+ * printers.  We'd need such data structures to provide custom
+ * pre-traversers as well.
+ *
+ * Instead, Guile prints compound structures to a private string port,
+ * while recording the port byte positions where datum label definitions
+ * might be needed.  After we've printed the entire structure to the
+ * private string port, we copy it to the actual output port with any
+ * needed datum label definitions inserted.
+ *
+ * Three types of insertions might be needed.  In the simple case, we
+ * need only insert "#1=" before a shared datum, but things get more
+ * complicated when the shared datum is a pair that is also the CDR
+ * of another pair.  Consider the circular list (1 2 3 4 3 4 ...)
+ * which will ultimately be written as (1 2 . #1=(3 4 . #1#)).  Before
+ * post-processing, the string is (1 2 3 4 . #1#), so we need to insert
+ * ". #1=(" in one place, and ")" in another.
+ *
+ * There's one additional complication.  Print states are part of
+ * Guile's public API, and can be accessed by custom printers that are
+ * used in the middle of a larger 'write' or 'display'.  It is therefore
+ * possible to use an existing print state with a port other than the
+ * private string port.  For example, a custom printer might choose to
+ * use the existing print state while printing to its own string port,
+ * and then later process that string.  In these cases, it is not
+ * possible for us to record the byte positions where datum label
+ * definitions might later be needed.
+ *
+ * To handle this case, we support another mechanism: wherever a datum
+ * label definition might be needed, we print out a special marker
+ * including seldom-used control characters and the 'id'.  The
+ * presumption is that this string will later be printed to the private
+ * string port.  If needed, we scan for these special markers later and
+ * either remove them or change them to the proper SRFI-38 notation.
+ *
+ * Since this alternate mechanism is not completely reliable, we keep
+ * track of which 'id's (if any) were written using these special
+ * markers.  If no special markers were printed, then we avoid the scan
+ * entirely.
  */
+
+/* The values of these are important, because they are used to
+   sort post-insertions at the same byte position.  We need
+   CDR_OPEN insertions to come before OTHER insertions.  */
+#define POST_INSERT_MODE_CDR_OPEN   1
+#define POST_INSERT_MODE_CDR_CLOSE  2
+#define POST_INSERT_MODE_OTHER      3
+
+#define SCM_INTERNAL_PRINT_STATE_LAYOUT "srpwpwpwpwpwuwuwuwuwuw"
+typedef struct scm_internal_print_state
+{
+  SCM handle;			/* Struct handle */
+  SCM port;                     /* String port which will later have
+                                   datum label definitions inserted.  */
+  SCM object_ids;               /* Hash table mapping objects to ids
+                                   (integers), for all objects that
+                                   should be referenced by datum label
+                                   if seen.  */
+  SCM id_positions;             /* Simple vector indexed by id, which
+                                   contains one of three things:
+                                    * an integer (byte offset into 'port')
+                                      where the datum label definition
+                                      should be inserted.
+                                    * a pair of two integers (byte
+                                      offsets into 'port'), used when
+                                      the associated object is a pair
+                                      that was first seen as the CDR of
+                                      another pair.  In such cases,
+                                      inserting a datum label definition
+                                      involves changing e.g. (a b c) to
+                                      (a . #1=(b c)), so ". #1=(" must
+                                      be inserted in one position, and
+                                      ")" must be inserted in another
+                                      position.  The byte offsets of
+                                      these two positions are stored
+                                      as a pair.
+                                    * #t means that the datum was not
+                                      written to 'port', and therefore
+                                      markers were inserted in the output
+                                      directly.  */
+  SCM id_label_nums;            /* Simple vector indexed by id, which
+                                   initially contains #f but is later
+                                   assigned a datum label (integer)
+                                   when the first datum label reference
+                                   is needed.  */
+  SCM needed_ids;               /* List of ids that require datum label
+                                   definitions to be inserted.  */
+  unsigned long write_shared_p;    /* 0 means a normal 'write' or 'display'
+                                   where datum labels are only used to
+                                   prevent infinite output, i.e. they
+                                   are used to reference ancestors only.
+                                   1 means 'write-shared' (R7RS) or
+                                   'write/ss' (SRFI-38).  */
+  unsigned long next_num;          /* The datum label that will be assigned
+                                   to the next datum label reference
+                                   that has not already been assigned a
+                                   number.  */
+  unsigned long next_id;        /* The id that will be assigned to the
+                                   next object that could potentially be
+                                   assigned a datum label.  */
+  unsigned long markers_p;      /* 1 if any markers were inserted.  */
+  unsigned long num_allocated_ids; /* The current size of the 'id_positions'
+                                    and 'id_label_nums' vectors.  */
+} scm_internal_print_state;
+
+static SCM scm_internal_print_state_vtable;
+
+static SCM internal_print_state_table;
+static scm_i_pthread_mutex_t internal_print_state_table_mutex =
+  SCM_I_PTHREAD_MUTEX_INITIALIZER;
+
+
 #define PUSH_REF(pstate, obj)			\
 do						\
 {						\
@@ -154,28 +279,50 @@ do						\
     grow_ref_stack (pstate);			\
 } while(0)
 
-#define ENTER_NESTED_DATA(pstate, obj, label)			\
+#define ENTER_NESTED_DATA(the_port, pstate, ipstate, obj, label) \
 do								\
 {								\
-  register unsigned long i;					\
-  for (i = 0; i < pstate->top; ++i)				\
-    if (scm_is_eq (PSTATE_STACK_REF (pstate, i), (obj)))	\
-      goto label;						\
-  if (pstate->fancyp)						\
-    {								\
-      if (pstate->top - pstate->list_offset >= pstate->level)	\
-	{							\
-	  scm_putc ('#', port);					\
-	  return;						\
-	}							\
-    }								\
+  unsigned long id = ipstate->next_id;                          \
+  SCM s_id = SCM_I_MAKINUM (id);                                \
+  SCM obj_id = scm_hashq_create_handle_x (ipstate->object_ids,  \
+                                          (obj), s_id);         \
+  if (!scm_is_eq (SCM_CDR (obj_id), s_id))                      \
+    goto label;                                                 \
+  if (pstate->fancyp                                            \
+      && pstate->top - pstate->list_offset >= pstate->level)	\
+    {                                                           \
+      scm_hashq_remove_x (ipstate->object_ids, (obj));          \
+      scm_putc ('#', port);					\
+      return;                                                   \
+    }                                                           \
+  ipstate->next_id++;                                           \
+  if (id == ipstate->num_allocated_ids)                         \
+    grow_id_vects (ipstate);                                    \
+  SCM_SIMPLE_VECTOR_SET (ipstate->id_label_nums, id,            \
+                         SCM_BOOL_F);                           \
+  if (scm_is_eq (the_port, ipstate->port))                      \
+    SCM_SIMPLE_VECTOR_SET (ipstate->id_positions, id,           \
+                           scm_ftell (the_port));               \
+  else if (scm_is_true (ipstate->port))                         \
+    {                                                           \
+      SCM_SIMPLE_VECTOR_SET (ipstate->id_positions, id,         \
+                             SCM_BOOL_T);                       \
+      ipstate->markers_p = 1;                                   \
+      scm_putc (0xE, the_port);                                 \
+      scm_putc (POST_INSERT_MODE_OTHER, the_port);              \
+      scm_uintprint (id, 10, the_port);                         \
+      scm_putc (0xF, the_port);                                 \
+    }                                                           \
   PUSH_REF(pstate, obj);					\
 } while(0)
 
-#define EXIT_NESTED_DATA(pstate)				\
+#define EXIT_NESTED_DATA(pstate, ipstate)			\
 do								\
 {								\
   --pstate->top;						\
+  if (!ipstate->write_shared_p)                                 \
+    scm_hashq_remove_x (ipstate->object_ids,                    \
+                        PSTATE_STACK_REF (pstate, pstate->top));\
   PSTATE_STACK_SET (pstate, pstate->top, SCM_UNDEFINED);	\
 }								\
 while (0)
@@ -207,12 +354,34 @@ SCM_DEFINE (scm_current_pstate, "current-pstate", 0, 0, 0,
 static SCM
 make_print_state (void)
 {
+  SCM internal_print_state
+    = scm_make_struct (scm_internal_print_state_vtable, SCM_INUM0, SCM_EOL);
+  scm_internal_print_state *ipstate
+    = (scm_internal_print_state *) SCM_STRUCT_DATA (internal_print_state);
   SCM print_state
     = scm_make_struct (scm_print_state_vtable, SCM_INUM0, SCM_EOL);
   scm_print_state *pstate = SCM_PRINT_STATE (print_state);
   pstate->ref_vect = scm_c_make_vector (PSTATE_SIZE, SCM_UNDEFINED);
   pstate->ceiling = SCM_SIMPLE_VECTOR_LENGTH (pstate->ref_vect);
-  pstate->highlight_objects = SCM_EOL;
+  pstate->highlight_objects = scm_list_1 (internal_print_state);
+  ipstate->port = SCM_BOOL_F;
+  ipstate->num_allocated_ids = 64;
+  ipstate->write_shared_p = 0;
+  ipstate->next_id = 0;
+  ipstate->next_num = 1;
+  ipstate->markers_p = 0;
+  ipstate->object_ids = scm_c_make_hash_table (ipstate->num_allocated_ids);
+  ipstate->id_positions = scm_c_make_vector (ipstate->num_allocated_ids,
+                                             SCM_BOOL_F);
+  ipstate->id_label_nums = scm_c_make_vector (ipstate->num_allocated_ids,
+                                              SCM_BOOL_F);
+  ipstate->needed_ids = SCM_EOL;
+
+  scm_i_pthread_mutex_lock (&internal_print_state_table_mutex);
+  scm_hashq_set_x (internal_print_state_table, print_state,
+                   internal_print_state);
+  scm_i_pthread_mutex_unlock (&internal_print_state_table_mutex);
+
   return print_state;
 }
 
@@ -246,6 +415,7 @@ scm_free_print_state (SCM print_state)
   pstate->fancyp = 0;
   pstate->revealed = 0;
   pstate->highlight_objects = SCM_EOL;
+  /* XXX FIXME clear internal print state.  */
   scm_i_pthread_mutex_lock (&print_state_mutex);
   handle = scm_cons (print_state, print_state_pool);
   print_state_pool = handle;
@@ -269,27 +439,61 @@ scm_i_port_with_print_state (SCM port, SCM print_state)
 		      SCM_UNPACK (scm_cons (port, print_state)));
 }
 
-static void
-grow_ref_stack (scm_print_state *pstate)
+static scm_internal_print_state *
+get_internal_print_state (scm_print_state *pstate)
 {
-  SCM old_vect = pstate->ref_vect;
-  size_t old_size = SCM_SIMPLE_VECTOR_LENGTH (old_vect);
-  size_t new_size = 2 * pstate->ceiling;
+  SCM obj;
+
+  if (scm_is_pair (pstate->highlight_objects)
+      && ((obj = SCM_CAR (pstate->highlight_objects)), SCM_STRUCTP (obj))
+      && scm_is_eq (SCM_STRUCT_VTABLE (obj),
+                    scm_internal_print_state_vtable))
+    ;
+  else
+    {
+      scm_i_pthread_mutex_lock (&internal_print_state_table_mutex);
+      obj = scm_hashq_ref (internal_print_state_table, pstate->handle,
+                           SCM_BOOL_F);
+      scm_i_pthread_mutex_unlock (&internal_print_state_table_mutex);
+      pstate->highlight_objects
+        = scm_cons (obj, scm_delq (obj, pstate->highlight_objects));
+    }
+  return (scm_internal_print_state *) SCM_STRUCT_DATA (obj);
+}
+
+static void
+grow_simple_vector (SCM *vec_p, unsigned long new_size)
+{
+  SCM old_vect = *vec_p;
   SCM new_vect = scm_c_make_vector (new_size, SCM_UNDEFINED);
-  unsigned long int i;
+  unsigned long old_size = SCM_SIMPLE_VECTOR_LENGTH (old_vect);
+  unsigned long i;
 
   for (i = 0; i != old_size; ++i)
     SCM_SIMPLE_VECTOR_SET (new_vect, i, SCM_SIMPLE_VECTOR_REF (old_vect, i));
 
-  pstate->ref_vect = new_vect;
-  pstate->ceiling = new_size;
+  *vec_p = new_vect;
+}
+
+static void
+grow_ref_stack (scm_print_state *pstate)
+{
+  grow_simple_vector (&pstate->ref_vect, (pstate->ceiling *= 2));
+}
+
+static void
+grow_id_vects (scm_internal_print_state *ipstate)
+{
+  unsigned long new_size = (ipstate->num_allocated_ids *= 2);
+  grow_simple_vector (&ipstate->id_positions,  new_size);
+  grow_simple_vector (&ipstate->id_label_nums, new_size);
 }
 
 #define PSTATE_STACK_REF(p,i)   SCM_SIMPLE_VECTOR_REF((p)->ref_vect, (i))
 #define PSTATE_STACK_SET(p,i,v) SCM_SIMPLE_VECTOR_SET((p)->ref_vect, (i), (v))
 
 static void
-print_circref (SCM port, scm_print_state *pstate, SCM ref)
+legacy_print_circref (SCM port, SCM ref, scm_print_state *pstate)
 {
   register long i;
   long self = pstate->top - 1;
@@ -312,6 +516,34 @@ print_circref (SCM port, scm_print_state *pstate, SCM ref)
   scm_putc ('#', port);
   scm_intprint (i - self, 10, port);
   scm_putc ('#', port);
+}
+
+static void
+print_circref (SCM port, SCM ref, scm_print_state *pstate,
+               scm_internal_print_state *ipstate)
+{
+  SCM id, num;
+  unsigned long cnum;
+
+  if (scm_is_false (ipstate->port))
+    legacy_print_circref (port, ref, pstate);
+  else
+    {
+      id = scm_hashq_ref (ipstate->object_ids, ref, SCM_BOOL_F);
+      num = scm_vector_ref (ipstate->id_label_nums, id);
+      if (scm_is_false (num))
+        {
+          cnum = ipstate->next_num++;
+          num = scm_from_ulong (cnum);
+          scm_vector_set_x (ipstate->id_label_nums, id, num);
+          ipstate->needed_ids = scm_cons (id, ipstate->needed_ids);
+        }
+      else
+        cnum = scm_to_ulong (num);
+      scm_putc ('#', port);
+      scm_uintprint (cnum, 10, port);
+      scm_putc ('#', port);
+    }
 }
 
 /* Print the name of a symbol. */
@@ -511,8 +743,12 @@ scm_print_symbol_name (const char *str, size_t len, SCM port)
 SCM_GPROC(s_write, "write", 1, 1, 0, scm_write, g_write);
 SCM_GPROC(s_display, "display", 1, 1, 0, scm_display, g_display);
 
-static void iprin1 (SCM exp, SCM port, scm_print_state *pstate);
+static void iprin1 (SCM exp, SCM port, scm_print_state *pstate,
+                    scm_internal_print_state *ipstate);
 
+static void
+scm_i_iprlist (char *hdr, SCM exp, int tlr, SCM port, scm_print_state *pstate,
+               scm_internal_print_state *ipstate);
 
 /* Print a character as an octal or hex escape.  */
 #define PRINT_CHAR_ESCAPE(i, port)              \
@@ -528,23 +764,243 @@ static void iprin1 (SCM exp, SCM port, scm_print_state *pstate);
     }                                           \
   while (0)
 
-  
-void 
-scm_iprin1 (SCM exp, SCM port, scm_print_state *pstate)
+static SCM
+compare_post_inserts (SCM a, SCM b)
 {
-  if (pstate->fancyp
-      && scm_is_true (scm_memq (exp, pstate->highlight_objects)))
-    {
-      scm_display (SCM_PRINT_HIGHLIGHT_PREFIX, port);
-      iprin1 (exp, port, pstate);
-      scm_display (SCM_PRINT_HIGHLIGHT_SUFFIX, port);
-    }
+  if (scm_is_true (scm_num_eq_p (SCM_CAR (a), SCM_CAR (b))))
+    /* If the positions are the same, we sort by the post-insert mode,
+       so that CDR_OPEN post-inserts are placed before OTHER post
+       inserts at the same position.  */
+    return scm_less_p (SCM_CADR (a), SCM_CADR (b));
   else
-    iprin1 (exp, port, pstate);
+    return scm_less_p (SCM_CAR (a), SCM_CAR (b));
+}
+
+static SCM compare_post_inserts_proc;
+
+/* Search for a marker in STR starting at position START, with an id
+   that was printed as a marker (as recorded in ipstate->id_positions).
+   If one is found, put the position in *POS_P, the position after the
+   marker in *END_P, the mode in *MODE_P, the id in *ID_P, and return 1.
+   If no marker is found, return 0.  */
+static int
+find_next_marker (SCM str, SCM start, scm_internal_print_state *ipstate,
+                  SCM *pos_p, SCM *end_p, int *mode_p, SCM *id_p)
+{
+  SCM pos, last;
+
+  for (; scm_is_true (pos = scm_string_index (str, SCM_MAKE_CHAR (0xE),
+                                              start, SCM_UNDEFINED))
+         && scm_is_true (last = scm_string_index (str, SCM_MAKE_CHAR (0xF),
+                                                  pos, SCM_UNDEFINED));
+       start = scm_sum (pos, SCM_INUM1))
+    {
+      size_t i = scm_to_size_t (pos);
+      size_t clast = scm_to_size_t (last);
+      scm_t_wchar mode_char;
+      size_t id = 0;
+
+      if (clast < i + 3)
+        continue;
+      i++;
+      mode_char = SCM_CHAR (scm_c_string_ref (str, i++));
+      switch (mode_char)
+        {
+        case POST_INSERT_MODE_CDR_OPEN:
+        case POST_INSERT_MODE_CDR_CLOSE:
+        case POST_INSERT_MODE_OTHER:
+          for (; i < clast; i++)
+            {
+              scm_t_wchar digit = SCM_CHAR (scm_c_string_ref (str, i));
+              if (digit < '0' || digit > '9'
+                  || ((((size_t) -1) - (digit - '0')) / 10) <= id)
+                break;
+              id = 10 * id + (digit - '0');
+            }
+          if (i < clast
+              || id >= ipstate->next_id
+              || !scm_is_eq (SCM_BOOL_T,
+                             scm_c_vector_ref (ipstate->id_positions, id)))
+            continue;
+          *pos_p = pos;
+          *end_p = scm_sum (last, SCM_INUM1);
+          *mode_p = mode_char;
+          *id_p = scm_from_size_t (id);
+          return 1;
+        default:
+          continue;
+        }
+    }
+  return 0;
 }
 
 static void
-iprin1 (SCM exp, SCM port, scm_print_state *pstate)
+print_post_insert (SCM port, int mode, unsigned long num)
+{
+  switch (mode)
+    {
+    case POST_INSERT_MODE_CDR_OPEN:
+      scm_puts (". #", port);
+      scm_uintprint (num, 10, port);
+      scm_puts ("=(", port);
+      break;
+    case POST_INSERT_MODE_CDR_CLOSE:
+      scm_putc (')', port);
+      break;
+    case POST_INSERT_MODE_OTHER:
+      scm_putc ('#', port);
+      scm_uintprint (num, 10, port);
+      scm_putc ('=', port);
+      break;
+    default:
+      abort ();
+    }
+}
+
+static void
+scm_i_iprin1 (SCM exp, SCM port, scm_print_state *pstate,
+              scm_internal_print_state *ipstate);
+
+static void
+scm_i_wrapped_iprin1 (SCM exp, SCM port, scm_print_state *pstate,
+                      scm_internal_print_state *ipstate)
+{
+  SCM tport;
+
+  tport = scm_open_output_string ();
+  scm_i_set_port_encoding_x (tport, "UTF-8");
+
+  ipstate->port = tport;
+  scm_i_iprin1 (exp, tport, pstate, ipstate);
+  ipstate->port = SCM_BOOL_F;
+
+  if (scm_is_null (ipstate->needed_ids)
+      && !ipstate->markers_p)
+    scm_display (scm_get_output_string (tport), port);
+  else
+    {
+      SCM ids, post_inserts, last_pos;
+
+      post_inserts = SCM_EOL;
+      for (ids = ipstate->needed_ids;
+           scm_is_pair (ids);
+           ids = SCM_CDR (ids))
+        {
+          SCM id = SCM_CAR (ids);
+          SCM num = scm_vector_ref (ipstate->id_label_nums, id);
+          SCM pos = scm_vector_ref (ipstate->id_positions, id);
+
+          if (scm_is_eq (pos, SCM_BOOL_T))
+            ;
+          else if (scm_is_pair (pos))
+            post_inserts = scm_cons2
+              (scm_cons2 (SCM_CAR (pos),
+                          SCM_I_MAKINUM (POST_INSERT_MODE_CDR_OPEN),
+                          num),
+               scm_cons2 (SCM_CDR (pos),
+                          SCM_I_MAKINUM (POST_INSERT_MODE_CDR_CLOSE),
+                          num),
+               post_inserts);
+          else
+            post_inserts = scm_cons
+              (scm_cons2 (pos,
+                          SCM_I_MAKINUM (POST_INSERT_MODE_OTHER),
+                          num),
+               post_inserts);
+        }
+
+      /* Sort by position */
+      post_inserts = scm_sort_x (post_inserts, compare_post_inserts_proc);
+
+      last_pos = SCM_INUM0;
+      for (;;)
+        {
+          SCM elt, pos, info, str;
+          unsigned long num;
+          int mode;
+
+          if (scm_is_pair (post_inserts))
+            {
+              elt  = SCM_CAR (post_inserts);
+              pos  = SCM_CAR (elt);
+              info = SCM_CDR (elt);
+              mode = scm_to_int (SCM_CAR (info));
+              num  = scm_to_ulong (SCM_CDR (info));
+            }
+          else
+            pos = SCM_UNDEFINED;
+
+          str = scm_i_strport_to_string (tport, last_pos, pos);
+          if (ipstate->markers_p)
+            {
+              SCM start = SCM_INUM0;
+              SCM pos, end, id, num;
+              int mode;
+
+              for (start = SCM_INUM0;
+                   find_next_marker (str, start, ipstate,
+                                     &pos, &end, &mode, &id);
+                   start = end)
+                {
+                  scm_display (scm_substring (str, start, pos),
+                               port);
+                  num = scm_vector_ref (ipstate->id_label_nums, id);
+                  if (scm_is_true (num))
+                    print_post_insert (port, mode, scm_to_ulong (num));
+                }
+              scm_display (scm_substring (str, start, SCM_UNDEFINED),
+                           port);
+            }
+          else
+            scm_display (str, port);
+
+          if (scm_is_eq (pos, SCM_UNDEFINED))
+            break;
+
+          print_post_insert (port, mode, num);
+
+          last_pos = pos;
+          post_inserts = SCM_CDR (post_inserts);
+        }
+    }
+
+  ipstate->next_id = 0;
+  ipstate->next_num = 1;
+  ipstate->markers_p = 0;
+  scm_hash_clear_x (ipstate->object_ids);
+  ipstate->needed_ids = SCM_EOL;
+
+  scm_close_port (tport);
+}
+  
+static void
+scm_i_iprin1 (SCM exp, SCM port, scm_print_state *pstate,
+              scm_internal_print_state *ipstate)
+{
+  if (scm_is_false (ipstate->port)
+      && SCM_NIMP (exp) && scm_is_false (scm_string_p (exp))
+      && (ipstate->write_shared_p || SCM_PRINT_DATUM_LABELS_P))
+    scm_i_wrapped_iprin1 (exp, port, pstate, ipstate);
+  else if (pstate->fancyp
+      && scm_is_true (scm_memq (exp, pstate->highlight_objects)))
+    {
+      scm_display (SCM_PRINT_HIGHLIGHT_PREFIX, port);
+      iprin1 (exp, port, pstate, ipstate);
+      scm_display (SCM_PRINT_HIGHLIGHT_SUFFIX, port);
+    }
+  else
+    iprin1 (exp, port, pstate, ipstate);
+}
+
+void
+scm_iprin1 (SCM exp, SCM port, scm_print_state *pstate)
+{
+  scm_i_iprin1 (exp, port, pstate, get_internal_print_state (pstate));
+}
+
+static void
+iprin1 (SCM exp, SCM port, scm_print_state *pstate,
+        scm_internal_print_state *ipstate)
 {
   switch (SCM_ITAG3 (exp))
     {
@@ -590,7 +1046,7 @@ iprin1 (SCM exp, SCM port, scm_print_state *pstate)
 	{
 	case scm_tcs_struct:
 	  {
-	    ENTER_NESTED_DATA (pstate, exp, circref);
+	    ENTER_NESTED_DATA (port, pstate, ipstate, exp, circref);
 	    if (SCM_OBJ_CLASS_FLAGS (exp) & SCM_CLASSF_GOOPS)
 	      {
 		SCM pwps, print = pstate->writingp ? g_write : g_display;
@@ -605,17 +1061,17 @@ iprin1 (SCM exp, SCM port, scm_print_state *pstate)
 	      print_struct:
 		scm_print_struct (exp, port, pstate);
 	      }
-	    EXIT_NESTED_DATA (pstate);
+	    EXIT_NESTED_DATA (pstate, ipstate);
 	  }
 	  break;
 	case scm_tcs_cons_imcar:
 	case scm_tcs_cons_nimcar:
-	  ENTER_NESTED_DATA (pstate, exp, circref);
-	  scm_iprlist ("(", exp, ')', port, pstate);
-	  EXIT_NESTED_DATA (pstate);
+	  ENTER_NESTED_DATA (port, pstate, ipstate, exp, circref);
+	  scm_i_iprlist ("(", exp, ')', port, pstate, ipstate);
+	  EXIT_NESTED_DATA (pstate, ipstate);
 	  break;
 	circref:
-	  print_circref (port, pstate, exp);
+	  print_circref (port, exp, pstate, ipstate);
 	  break;
 	case scm_tc7_number:
           switch SCM_TYP16 (exp) {
@@ -715,9 +1171,9 @@ iprin1 (SCM exp, SCM port, scm_print_state *pstate)
 	  scm_i_with_fluids_print (exp, port, pstate);
 	  break;
 	case scm_tc7_array:
-	  ENTER_NESTED_DATA (pstate, exp, circref);
+	  ENTER_NESTED_DATA (port, pstate, ipstate, exp, circref);
           scm_i_print_array (exp, port, pstate);
-          EXIT_NESTED_DATA (pstate);
+          EXIT_NESTED_DATA (pstate, ipstate);
           break;
 	case scm_tc7_bytevector:
 	  scm_i_print_bytevector (exp, port, pstate);
@@ -726,14 +1182,14 @@ iprin1 (SCM exp, SCM port, scm_print_state *pstate)
 	  scm_i_print_bitvector (exp, port, pstate);
 	  break;
 	case scm_tc7_wvect:
-	  ENTER_NESTED_DATA (pstate, exp, circref);
+	  ENTER_NESTED_DATA (port, pstate, ipstate, exp, circref);
 	  if (SCM_IS_WHVEC (exp))
 	    scm_puts ("#wh(", port);
 	  else
 	    scm_puts ("#w(", port);
 	  goto common_vector_printer;
 	case scm_tc7_vector:
-	  ENTER_NESTED_DATA (pstate, exp, circref);
+	  ENTER_NESTED_DATA (port, pstate, ipstate, exp, circref);
 	  scm_puts ("#(", port);
 	common_vector_printer:
 	  {
@@ -752,8 +1208,8 @@ iprin1 (SCM exp, SCM port, scm_print_state *pstate)
 		   `SIMPLE_VECTOR_REF ()' macro.  */
 		for (i = 0; i < last; ++i)
 		  {
-		    scm_iprin1 (scm_c_weak_vector_ref (exp, i),
-				port, pstate);
+		    scm_i_iprin1 (scm_c_weak_vector_ref (exp, i),
+				  port, pstate, ipstate);
 		    scm_putc (' ', port);
 		  }
 	      }
@@ -761,7 +1217,8 @@ iprin1 (SCM exp, SCM port, scm_print_state *pstate)
 	      {
 		for (i = 0; i < last; ++i)
 		  {
-		    scm_iprin1 (SCM_SIMPLE_VECTOR_REF (exp, i), port, pstate);
+                    scm_i_iprin1 (SCM_SIMPLE_VECTOR_REF (exp, i),
+                                  port, pstate, ipstate);
 		    scm_putc (' ', port);
 		  }
 	      }
@@ -769,16 +1226,16 @@ iprin1 (SCM exp, SCM port, scm_print_state *pstate)
 	    if (i == last)
 	      {
 		/* CHECK_INTS; */
-                scm_iprin1 (SCM_I_WVECTP (exp)
-                            ? scm_c_weak_vector_ref (exp, i)
-                            : SCM_SIMPLE_VECTOR_REF (exp, i),
-                            port, pstate);
+                scm_i_iprin1 (SCM_I_WVECTP (exp)
+			      ? scm_c_weak_vector_ref (exp, i)
+			      : SCM_SIMPLE_VECTOR_REF (exp, i),
+			      port, pstate, ipstate);
 	      }
 	    if (cutp)
 	      scm_puts (" ...", port);
 	    scm_putc (')', port);
 	  }
-	  EXIT_NESTED_DATA (pstate);
+	  EXIT_NESTED_DATA (pstate, ipstate);
 	  break;
 	case scm_tc7_port:
 	  {
@@ -790,9 +1247,9 @@ iprin1 (SCM exp, SCM port, scm_print_state *pstate)
 	    goto punk;
 	  }
 	case scm_tc7_smob:
-	  ENTER_NESTED_DATA (pstate, exp, circref);
+	  ENTER_NESTED_DATA (port, pstate, ipstate, exp, circref);
 	  SCM_SMOB_DESCRIPTOR (exp).print (exp, port, pstate);
-	  EXIT_NESTED_DATA (pstate);
+	  EXIT_NESTED_DATA (pstate, ipstate);
 	  break;
 	default:
           /* case scm_tcs_closures: */
@@ -811,13 +1268,14 @@ iprin1 (SCM exp, SCM port, scm_print_state *pstate)
  * then be used instead of allocating a new print state.  This is
  * useful for continuing a chain of print calls from Scheme.  */
 
-void 
-scm_prin1 (SCM exp, SCM port, int writingp)
+static void
+scm_i_prin1 (SCM exp, SCM port, int writingp, int sharedp)
 {
   SCM handle = SCM_BOOL_F; /* Will GC protect the handle whilst unlinked */
   SCM pstate_scm;
   scm_print_state *pstate;
-  int old_writingp;
+  scm_internal_print_state *ipstate;
+  int old_writingp, old_sharedp;
 
   /* If PORT is a print-state/port pair, use that.  Else create a new
      print-state. */
@@ -843,10 +1301,28 @@ scm_prin1 (SCM exp, SCM port, int writingp)
     }
 
   pstate = SCM_PRINT_STATE (pstate_scm);
+  ipstate = get_internal_print_state (pstate);
+  if (scm_is_true (handle))
+    {
+      ipstate->next_id = 0;
+      ipstate->next_num = 1;
+      ipstate->write_shared_p = 0;
+      ipstate->markers_p = 0;
+      scm_hash_clear_x (ipstate->object_ids);
+      ipstate->needed_ids = SCM_EOL;
+    }
   old_writingp = pstate->writingp;
+  old_sharedp = ipstate->write_shared_p;
   pstate->writingp = writingp;
-  scm_iprin1 (exp, port, pstate);
+  if (sharedp)
+    ipstate->write_shared_p = 1;
+  scm_i_iprin1 (exp, port, pstate, ipstate);
   pstate->writingp = old_writingp;
+  ipstate->write_shared_p = old_sharedp;
+
+  /* XXX FIXME: if this was 'write-shared', but we were previously
+     in non-shared mode, then we should restore ipstate->object_ids
+     to its previous value. */
 
   /* Return print state to pool if it has been created above and
      hasn't escaped to Scheme. */
@@ -858,6 +1334,12 @@ scm_prin1 (SCM exp, SCM port, int writingp)
       print_state_pool = handle;
       scm_i_pthread_mutex_unlock (&print_state_mutex);
     }
+}
+
+void
+scm_prin1 (SCM exp, SCM port, int writingp)
+{
+  scm_i_prin1 (exp, port, writingp, 0);
 }
 
 /* Convert codepoint CH to UTF-8 and store the result in UTF8.  Return
@@ -1310,102 +1792,116 @@ scm_ipruk (char *hdr, SCM ptr, SCM port)
 
 /* Print a list.
  */
-void 
-scm_iprlist (char *hdr, SCM exp, int tlr, SCM port, scm_print_state *pstate)
+static void
+scm_i_iprlist (char *hdr, SCM exp, int tlr, SCM port, scm_print_state *pstate,
+               scm_internal_print_state *ipstate)
 {
-  register SCM hare, tortoise;
+  SCM cdr_ids = SCM_EOL;
+  SCM cdrs = SCM_EOL;
   long floor = pstate->top - 2;
+  long n = pstate->length;
+
   scm_puts (hdr, port);
-  /* CHECK_INTS; */
-  if (pstate->fancyp)
-    goto fancy_printing;
   
-  /* Run a hare and tortoise so that total time complexity will be
-     O(depth * N) instead of O(N^2). */
-  hare = SCM_CDR (exp);
-  tortoise = exp;
-  while (scm_is_pair (hare))
+  scm_i_iprin1 (SCM_CAR (exp), port, pstate, ipstate);
+  exp = SCM_CDR (exp); --n;
+  for (; scm_is_pair (exp); exp = SCM_CDR (exp))
     {
-      if (scm_is_eq (hare, tortoise))
-	goto fancy_printing;
-      hare = SCM_CDR (hare);
-      if (!scm_is_pair (hare))
-	break;
-      hare = SCM_CDR (hare);
-      tortoise = SCM_CDR (tortoise);
-    }
-  
-  /* No cdr cycles intrinsic to this list */
-  scm_iprin1 (SCM_CAR (exp), port, pstate);
-  for (exp = SCM_CDR (exp); scm_is_pair (exp); exp = SCM_CDR (exp))
-    {
-      register long i;
+      unsigned long id = ipstate->next_id;
+      SCM s_id = SCM_I_MAKINUM (id);
+      SCM obj_id = scm_hashq_create_handle_x (ipstate->object_ids, exp, s_id);
+      if (!scm_is_eq (SCM_CDR (obj_id), s_id))
+        goto circref;
 
-      for (i = floor; i >= 0; --i)
-	if (scm_is_eq (PSTATE_STACK_REF(pstate, i), exp))
-	  goto circref;
-      PUSH_REF (pstate, exp);
+      if (!ipstate->write_shared_p)
+        cdrs = scm_cons (exp, cdrs);
+
+      if (pstate->fancyp)
+        {
+          if (n == 0)
+            {
+              scm_puts (" ...", port);
+              goto skip_tail;
+            }
+          else
+            --n;
+        }
+      PUSH_REF(pstate, exp);
+      ++pstate->list_offset;
       scm_putc (' ', port);
+
       /* CHECK_INTS; */
-      scm_iprin1 (SCM_CAR (exp), port, pstate);
+      ipstate->next_id++;
+      if (id == ipstate->num_allocated_ids)
+        grow_id_vects (ipstate);
+      SCM_SIMPLE_VECTOR_SET (ipstate->id_label_nums, id,
+                             SCM_BOOL_F);
+      cdr_ids = scm_cons (s_id, cdr_ids);
+      if (scm_is_eq (port, ipstate->port))
+        SCM_SIMPLE_VECTOR_SET (ipstate->id_positions, id,
+                               scm_list_1 (scm_ftell (port)));
+      else if (scm_is_true (ipstate->port))
+        {
+          SCM_SIMPLE_VECTOR_SET (ipstate->id_positions, id,
+                                 SCM_BOOL_T);
+          ipstate->markers_p = 1;
+          scm_putc (0xE, port);
+          scm_putc (POST_INSERT_MODE_CDR_OPEN, port);
+          scm_uintprint (id, 10, port);
+          scm_putc (0xF, port);
+        }
+
+      scm_i_iprin1 (SCM_CAR (exp), port, pstate, ipstate);
     }
+
   if (!SCM_NULL_OR_NIL_P (exp))
     {
       scm_puts (" . ", port);
-      scm_iprin1 (exp, port, pstate);
-    }
-
-end:
-  scm_putc (tlr, port);
-  pstate->top = floor + 2;
-  return;
-  
-fancy_printing:
-  {
-    long n = pstate->length;
-    
-    scm_iprin1 (SCM_CAR (exp), port, pstate);
-    exp = SCM_CDR (exp); --n;
-    for (; scm_is_pair (exp); exp = SCM_CDR (exp))
-      {
-	register unsigned long i;
-
-	for (i = 0; i < pstate->top; ++i)
-	  if (scm_is_eq (PSTATE_STACK_REF(pstate, i), exp))
-	    goto fancy_circref;
-	if (pstate->fancyp)
-	  {
-	    if (n == 0)
-	      {
-		scm_puts (" ...", port);
-		goto skip_tail;
-	      }
-	    else
-	      --n;
-	  }
-	PUSH_REF(pstate, exp);
-	++pstate->list_offset;
-	scm_putc (' ', port);
-	/* CHECK_INTS; */
-	scm_iprin1 (SCM_CAR (exp), port, pstate);
-      }
-  }
-  if (!SCM_NULL_OR_NIL_P (exp))
-    {
-      scm_puts (" . ", port);
-      scm_iprin1 (exp, port, pstate);
+      scm_i_iprin1 (exp, port, pstate, ipstate);
     }
 skip_tail:
   pstate->list_offset -= pstate->top - floor - 2;
   goto end;
 
-fancy_circref:
-  pstate->list_offset -= pstate->top - floor - 2;
-  
 circref:
+  pstate->list_offset -= pstate->top - floor - 2;
   scm_puts (" . ", port);
-  print_circref (port, pstate, exp);
-  goto end;
+  print_circref (port, exp, pstate, ipstate);
+
+end:
+  if (!ipstate->write_shared_p)
+    for (; scm_is_pair (cdrs); cdrs = SCM_CDR (cdrs))
+      scm_hashq_remove_x (ipstate->object_ids, SCM_CAR (cdrs));
+
+  if (scm_is_eq (port, ipstate->port))
+    {
+      SCM pos = scm_ftell (port);
+      for (; scm_is_pair (cdr_ids); cdr_ids = SCM_CDR (cdr_ids))
+        SCM_SETCDR (scm_vector_ref (ipstate->id_positions, SCM_CAR (cdr_ids)),
+                    pos);
+    }
+  else if (scm_is_true (ipstate->port))
+    {
+      for (; scm_is_pair (cdr_ids); cdr_ids = SCM_CDR (cdr_ids))
+        {
+          scm_putc (0xE, port);
+          scm_putc (POST_INSERT_MODE_CDR_CLOSE, port);
+          scm_uintprint (scm_to_ulong (SCM_CAR (cdr_ids)), 10, port);
+          scm_putc (0xF, port);
+        }
+    }
+
+  scm_putc (tlr, port);
+  /* XXX FIXME black-hole the popped refs */
+  pstate->top = floor + 2;
+  return;
+}
+
+void
+scm_iprlist (char *hdr, SCM exp, int tlr, SCM port, scm_print_state *pstate)
+{
+  scm_i_iprlist (hdr, exp, tlr, port, pstate,
+                 get_internal_print_state (pstate));
 }
 
 
@@ -1418,6 +1914,21 @@ scm_valid_oport_value_p	(SCM val)
               && SCM_OPOUTPORTP (SCM_PORT_WITH_PS_PORT (val))));
 }
 
+SCM_DEFINE (scm_write_shared, "write-shared", 1, 1, 0,
+            (SCM obj, SCM port),
+	    "Write OBJ to PORT with shared structure represented using datum labels.")
+#define FUNC_NAME s_scm_write_shared
+{
+  if (SCM_UNBNDP (port))
+    port = scm_current_output_port ();
+  else
+    SCM_VALIDATE_OPORT_VALUE (2, port);
+
+  scm_i_prin1 (obj, port, 1, 1);
+  return SCM_UNSPECIFIED;
+}
+#undef FUNC_NAME
+
 /* SCM_GPROC(s_write, "write", 1, 1, 0, scm_write, g_write); */
 
 SCM 
@@ -1428,7 +1939,7 @@ scm_write (SCM obj, SCM port)
 
   SCM_ASSERT (scm_valid_oport_value_p (port), port, SCM_ARG2, s_write);
 
-  scm_prin1 (obj, port, 1);
+  scm_i_prin1 (obj, port, 1, 0);
   return SCM_UNSPECIFIED;
 }
 
@@ -1443,7 +1954,7 @@ scm_display (SCM obj, SCM port)
 
   SCM_ASSERT (scm_valid_oport_value_p (port), port, SCM_ARG2, s_display);
 
-  scm_prin1 (obj, port, 0);
+  scm_i_prin1 (obj, port, 0, 0);
   return SCM_UNSPECIFIED;
 }
 
@@ -1647,18 +2158,31 @@ SCM_DEFINE (scm_get_print_state, "get-print-state", 1, 0, 0,
 void
 scm_init_print ()
 {
-  SCM type;
+  SCM ps_type, ips_type;
 
   scm_gc_register_root (&print_state_pool);
+
   scm_gc_register_root (&scm_print_state_vtable);
-  type = scm_make_vtable (scm_from_locale_string (SCM_PRINT_STATE_LAYOUT),
+  ps_type = scm_make_vtable (scm_from_latin1_string (SCM_PRINT_STATE_LAYOUT),
                           SCM_BOOL_F);
-  scm_set_struct_vtable_name_x (type, scm_from_latin1_symbol ("print-state"));
-  scm_print_state_vtable = type;
+  scm_set_struct_vtable_name_x (ps_type, scm_from_latin1_symbol ("print-state"));
+  scm_print_state_vtable = ps_type;
+
+  scm_gc_register_root (&scm_internal_print_state_vtable);
+  ips_type = scm_make_vtable
+    (scm_from_latin1_string (SCM_INTERNAL_PRINT_STATE_LAYOUT), SCM_BOOL_F);
+  scm_set_struct_vtable_name_x
+    (ips_type, scm_from_latin1_symbol ("internal-print-state"));
+  scm_internal_print_state_vtable = ips_type;
+
+  internal_print_state_table = scm_make_weak_key_hash_table (SCM_UNDEFINED);
 
   /* Don't want to bind a wrapper class in GOOPS, so pass 0 as arg1. */
   scm_tc16_port_with_ps = scm_make_smob_type (0, 0);
   scm_set_smob_print (scm_tc16_port_with_ps, port_with_ps_print);
+
+  compare_post_inserts_proc = scm_c_make_gsubr
+    ("compare-post-inserts", 2, 0, 0, compare_post_inserts);
 
 #include "libguile/print.x"
 
