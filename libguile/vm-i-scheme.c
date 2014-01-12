@@ -1040,6 +1040,12 @@ BV_FLOAT_SET (f64, ieee_double, double, 8)
 #undef BV_INT_SET
 #undef BV_FLOAT_SET
 
+VM_DEFINE_FUNCTION (210, array_contents, "array-contents", 1)
+{
+  ARGS1 (x);
+  RETURN (scm_array_contents (x, SCM_BOOL_F));
+}
+
 /*
 (defun renumber-ops ()
   "start from top of buffer and renumber 'VM_DEFINE_FOO (\n' sequences"
