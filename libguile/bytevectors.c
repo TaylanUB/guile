@@ -518,8 +518,19 @@ SCM_DEFINE (scm_bytevector_eq_p, "bytevector=?", 2, 0, 0,
   c_len1 = SCM_BYTEVECTOR_LENGTH (bv1);
   c_len2 = SCM_BYTEVECTOR_LENGTH (bv2);
 
-  if (c_len1 == c_len2 && (SCM_BYTEVECTOR_ELEMENT_TYPE (bv1)
-                           == SCM_BYTEVECTOR_ELEMENT_TYPE (bv2)))
+  if (c_len1 == c_len2
+      && ((SCM_BYTEVECTOR_ELEMENT_TYPE (bv1)
+           == SCM_BYTEVECTOR_ELEMENT_TYPE (bv2))
+          /* XXX FIXME Here we treat #u8(...) as the same type as
+             #vu8(...).  Why do they have different element types? */
+          || ((SCM_BYTEVECTOR_ELEMENT_TYPE (bv1)
+               == SCM_ARRAY_ELEMENT_TYPE_VU8)
+              && (SCM_BYTEVECTOR_ELEMENT_TYPE (bv2)
+                  == SCM_ARRAY_ELEMENT_TYPE_U8))
+          || ((SCM_BYTEVECTOR_ELEMENT_TYPE (bv1)
+               == SCM_ARRAY_ELEMENT_TYPE_U8)
+              && (SCM_BYTEVECTOR_ELEMENT_TYPE (bv2)
+                  == SCM_ARRAY_ELEMENT_TYPE_VU8))))
     {
       signed char *c_bv1, *c_bv2;
 
