@@ -116,6 +116,8 @@ struct t_read_context
   unsigned int curly_infix_p        : 1;
   unsigned int neoteric_p           : 1;
   unsigned int r7rs_symbols_p       : 1;
+
+  SCM datum_label_table, datum_label_tag;
 };
 
 typedef struct t_read_context scm_t_read_context;
@@ -1168,6 +1170,128 @@ scm_read_vector (int chr, SCM port, scm_t_read_context *ctx,
                                 port, ctx, line, column);
 }
 
+static SCM
+scm_datum_label_definition (SCM port, scm_t_read_context *ctx, ssize_t n)
+{
+  SCM label = scm_from_ssize_t (n);
+  SCM handle;
+
+  /* Lazily initialize the table and tag */
+  if (scm_is_false (ctx->datum_label_table))
+    {
+      /* tag must be freshly allocated */
+      ctx->datum_label_tag = scm_from_latin1_string ("datum-label");
+      ctx->datum_label_table = scm_c_make_hash_table (31);
+    }
+
+  handle = scm_hashv_create_handle_x (ctx->datum_label_table,
+                                      label, SCM_BOOL_F);
+
+  if (scm_is_false (SCM_CDR (handle)))
+    {
+      SCM pair = scm_cons (label, SCM_UNSPECIFIED);
+      SCM placeholder = scm_cons (ctx->datum_label_tag, pair);
+      SCM obj;
+
+      SCM_SETCDR (handle, placeholder);
+      obj = scm_read_expression (port, ctx);
+      if (scm_is_eq (obj, placeholder))
+        scm_i_input_error ("scm_datum_label_definition", port,
+                           "datum label `~a' defined to be equal to itself",
+                           scm_list_1 (label));
+      SCM_SETCDR (pair, obj);
+      return obj;
+    }
+  else
+    scm_i_input_error ("scm_datum_label_definition", port,
+                       "datum label `~a' is multiply defined",
+                       scm_list_1 (label));
+}
+
+static SCM
+scm_datum_label_reference (SCM port, scm_t_read_context *ctx, ssize_t n)
+{
+  SCM label = scm_from_ssize_t (n);
+  SCM handle;
+
+  if (scm_is_true (ctx->datum_label_table)
+      && scm_is_pair (handle = scm_hashv_get_handle (ctx->datum_label_table,
+                                                     label)))
+    return SCM_CDR (handle);
+  else
+    scm_i_input_error ("scm_datum_label_reference", port,
+                       "reference to undefined datum label `~a'",
+                       scm_list_1 (label));
+}
+
+static int
+datum_is_placeholder (SCM obj, scm_t_read_context *ctx)
+{
+  return (scm_is_pair (obj)
+          && scm_is_eq (SCM_CAR (obj),
+                        ctx->datum_label_tag));
+}
+
+static SCM
+resolve_placeholder (SCM placeholder)
+{
+  return (SCM_CDDR (placeholder));
+}
+
+static void
+resolve_datum_labels (SCM obj, scm_t_read_context *ctx)
+{
+ again:
+  if (SCM_IMP (obj))
+    return;
+  else if (scm_is_pair (obj))
+    {
+      SCM a = SCM_CAR (obj);
+      SCM d = SCM_CDR (obj);
+
+      if (datum_is_placeholder (a, ctx))
+        SCM_SETCAR (obj, resolve_placeholder (a));
+      else
+        resolve_datum_labels (a, ctx);
+
+      if (datum_is_placeholder (d, ctx))
+        SCM_SETCDR (obj, resolve_placeholder (d));
+      else
+        {
+          /* Ideally we could write this as a tail call:
+               resolve_datum_labels (d, ctx);
+             but C does not guarantee this, so we use goto. */
+          obj = d;
+          goto again;
+        }
+    }
+  else if (scm_is_vector (obj)
+           || (scm_is_typed_array (obj, SCM_BOOL_T)
+               && (scm_is_true
+                   (obj = scm_array_contents (obj, SCM_UNDEFINED)))))
+    {
+      size_t len = scm_c_vector_length (obj);
+      size_t i;
+      SCM x;
+
+      for (i = 0; i < len; i++)
+        {
+          x = scm_c_vector_ref (obj, i);
+          if (datum_is_placeholder (x, ctx))
+            scm_c_vector_set_x (obj, i, resolve_placeholder (x));
+          else
+            resolve_datum_labels (x, ctx);
+        }
+    }
+}
+
+static void
+scm_resolve_datum_labels (SCM obj, scm_t_read_context *ctx)
+{
+  if (scm_is_true (ctx->datum_label_table))
+    resolve_datum_labels (obj, ctx);
+}
+
 /* Helper used by scm_read_array */
 static int
 read_decimal_integer (SCM port, int c, ssize_t *resp)
@@ -1198,14 +1322,15 @@ read_decimal_integer (SCM port, int c, ssize_t *resp)
 }
 
 /* Read an array.  This function can also read vectors and uniform
-   vectors.  Also, the conflict between '#f' and '#f32' and '#f64' is
-   handled here.
+   vectors.  Datum labels are also handled here, as well as the conflict
+   between '#f' and '#f32' and '#f64'.
 
    C is the first character read after the '#'. */
 static SCM
 scm_read_array (int c, SCM port, scm_t_read_context *ctx,
                 long line, int column)
 {
+  ssize_t n;
   ssize_t rank;
   scm_t_wchar tag_buf[8];
   int tag_len;
@@ -1236,12 +1361,18 @@ scm_read_array (int c, SCM port, scm_t_read_context *ctx,
       goto continue_reading_tag;
     }
 
-  /* Read rank. */
-  rank = 1;
-  c = read_decimal_integer (port, c, &rank);
-  if (rank < 0)
-    scm_i_input_error (NULL, port, "array rank must be non-negative",
-		       SCM_EOL);
+  /* Read rank or datum label. */
+  n = 1;
+  c = read_decimal_integer (port, c, &n);
+
+  if (c == '#')       /* Datum label reference */
+    return scm_datum_label_reference (port, ctx, n);
+  else if (c == '=')  /* Datum label definition */
+    return scm_datum_label_definition (port, ctx, n);
+  else if (n < 0)
+    scm_i_input_error (NULL, port, "array rank must be non-negative", SCM_EOL);
+  else
+    rank = n;         /* n is the array rank */
 
   /* Read tag. */
   tag_len = 0;
@@ -1944,6 +2075,7 @@ SCM_DEFINE (scm_read, "read", 0, 1, 0,
 #define FUNC_NAME s_scm_read
 {
   scm_t_read_context ctx;
+  SCM obj;
   int c;
 
   if (SCM_UNBNDP (port))
@@ -1957,7 +2089,9 @@ SCM_DEFINE (scm_read, "read", 0, 1, 0,
     return SCM_EOF_VAL;
   scm_ungetc (c, port);
 
-  return (scm_read_expression (port, &ctx));
+  obj = scm_read_expression (port, &ctx);
+  scm_resolve_datum_labels (obj, &ctx);
+  return obj;
 }
 #undef FUNC_NAME
 
@@ -2354,6 +2488,9 @@ init_read_context (SCM port, scm_t_read_context *ctx)
 #undef RESOLVE_BOOLEAN_OPTION
 
   ctx->neoteric_p = 0;
+
+  ctx->datum_label_table = SCM_BOOL_F;
+  ctx->datum_label_tag = SCM_BOOL_F;
 }
 
 void
