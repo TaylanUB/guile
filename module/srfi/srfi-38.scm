@@ -1,4 +1,4 @@
-;; Copyright (C) 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2010, 2014 Free Software Foundation, Inc.
 ;; Copyright (C) Ray Dillinger 2003. All Rights Reserved.
 ;;
 ;; Contains code based upon Alex Shinn's public-domain implementation of
@@ -33,6 +33,9 @@
   #:use-module (system vm trap-state))
 
 (cond-expand-provide (current-module) '(srfi-38))
+
+;; Guile's built-in reader supports SRFI-38.
+(define read-with-shared-structure read)
 
 ;; A printer that shows all sharing of substructures.  Uses the Common
 ;; Lisp print-circle notation: #n# refers to a previous substructure
@@ -144,64 +147,3 @@
     (hash-table-set! state 'counter 0)
     (write-obj obj state)))
 
-;; A reader that understands the output of the above writer.  This has
-;; been written by Andreas Rottmann to re-use Guile's built-in reader,
-;; with inspiration from Alex Shinn's public-domain implementation of
-;; `read-with-shared-structure' found in Chicken's SRFI 38 egg.
-
-(define* (read-with-shared-structure #:optional (port (current-input-port)))
-  (let ((parts-table (make-hash-table eqv?)))
-    
-    ;; reads chars that match PRED and returns them as a string.
-    (define (read-some-chars pred initial)
-      (let iter ((chars initial))
-        (let ((c (peek-char port)))
-          (if (or (eof-object? c) (not (pred c)))
-              (list->string (reverse chars))
-              (iter (cons (read-char port) chars))))))
-
-    (define (read-hash c port)
-      (let* ((n (string->number (read-some-chars char-numeric? (list c))))
-             (c (read-char port))
-             (thunk (hash-table-ref/default parts-table n #f)))
-        (case c
-          ((#\=)
-           (if thunk
-               (error "Double declaration of part " n))
-           (let* ((cell (list #f))
-                  (thunk (lambda () (car cell))))
-             (hash-table-set! parts-table n thunk)
-             (let ((obj (read port)))
-               (set-car! cell obj)
-               obj)))
-          ((#\#)
-           (or thunk
-               (error "Use of undeclared part " n)))
-          (else
-           (error "Malformed shared part specifier")))))
-
-    (with-fluid* %read-hash-procedures (fluid-ref %read-hash-procedures)
-      (lambda ()
-        (for-each (lambda (digit)
-                    (read-hash-extend digit read-hash))
-                  '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9))
-        (let ((result (read port)))
-          (if (< 0 (hash-table-size parts-table))
-              (patch! result))
-          result)))))
-
-(define (hole? x) (procedure? x))
-(define (fill-hole x) (if (hole? x) (fill-hole (x)) x))
-
-(define (patch! x)
-  (cond
-   ((pair? x)
-    (if (hole? (car x)) (set-car! x (fill-hole (car x))) (patch! (car x)))
-    (if (hole? (cdr x)) (set-cdr! x (fill-hole (cdr x))) (patch! (cdr x))))
-   ((vector? x)
-    (do ((i (- (vector-length x) 1) (- i 1)))
-        ((< i 0))
-      (let ((elt (vector-ref x i)))
-        (if (hole? elt)
-            (vector-set! x i (fill-hole elt))
-            (patch! elt)))))))
