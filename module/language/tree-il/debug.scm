@@ -176,7 +176,7 @@
          (error "name should be a symbol" name))))
       (($ <module-ref> src mod name public?)
        (cond
-        ((not (and (list? mod) (and-map symbol? mod)))
+        ((not (module-name-list? mod))
          (error "module name should be list of symbols" exp))
         ((not (symbol? name))
          (error "name should be symbol" exp))))

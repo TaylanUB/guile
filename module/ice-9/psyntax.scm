@@ -2294,7 +2294,7 @@
                    (lambda (e r w)
                      (syntax-case e ()
                        ((_ (mod ...) id)
-                        (and (and-map id? #'(mod ...)) (id? #'id))
+                        (and (module-name? #'(mod ...)) (id? #'id))
                         ;; Strip the wrap from the identifier and return top-wrap
                         ;; so that the identifier will not be captured by lexicals.
                         (values (syntax->datum #'id) r top-wrap #f
@@ -2322,14 +2322,14 @@
                                (else x))))
                      (syntax-case e (@@)
                        ((_ (mod ...) id)
-                        (and (and-map id? #'(mod ...)) (id? #'id))
+                        (and (module-name? #'(mod ...)) (id? #'id))
                         ;; Strip the wrap from the identifier and return top-wrap
                         ;; so that the identifier will not be captured by lexicals.
                         (values (syntax->datum #'id) r top-wrap #f
                                 (syntax->datum
                                  #'(private mod ...))))
                        ((_ @@ (mod ...) exp)
-                        (and-map id? #'(mod ...))
+                        (module-name? #'(mod ...))
                         ;; This is a special syntax used to support R6RS library forms.
                         ;; Unlike the syntax above, the last item is not restricted to
                         ;; be a single identifier, and the syntax objects are kept
