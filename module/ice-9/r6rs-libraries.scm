@@ -27,12 +27,14 @@
       (set-module-name! iface (module-name mod))
       iface))
   (define (sym? x) (symbol? (syntax->datum x)))
+  (define (num? x) (and (exact-integer? (syntax->datum x))
+                        (not (negative? (syntax->datum x)))))
 
   (syntax-case import-spec (library only except prefix rename srfi)
     ;; (srfi :n ...) -> (srfi srfi-n ...)
     ((library (srfi colon-n rest ... (version ...)))
-     (and (and-map sym? #'(srfi rest ...))
-          (symbol? (syntax->datum #'colon-n))
+     (and (module-name? #'(srfi rest ...))
+          (sym? #'colon-n)
           (eqv? (string-ref (symbol->string (syntax->datum #'colon-n)) 0) #\:))
      (let ((srfi-n (string->symbol
                     (string-append
@@ -47,14 +49,30 @@
            ;; SRFI 97 says that the first identifier after the colon-n
            ;; is used for the libraries name, so it must be ignored.
            #`(library (srfi #,srfi-n rest ... (version ...))))))))
+
+    ;; (srfi n ...) -> (srfi srfi-n ...) for R7RS
+    ((library (srfi n rest ... (version ...)))
+     (and (module-name? #'(srfi n rest ...))
+          (num? #'n))
+     (let ((srfi-n (string->symbol
+                    (string-append "srfi-" (number->string
+                                            (syntax->datum #'n))))))
+       (resolve-r6rs-interface
+        (syntax-case #'(rest ...) ()
+          (()
+           #`(library (srfi #,srfi-n (version ...))))
+          ((name rest ...)
+           ;; SRFI 97 says that the first identifier after the colon-n
+           ;; is used for the libraries name, so it must be ignored.
+           #`(library (srfi #,srfi-n rest ... (version ...))))))))
     
     ((library (name name* ... (version ...)))
-     (and-map sym? #'(name name* ...))
+     (module-name? #'(name name* ...))
      (resolve-interface (syntax->datum #'(name name* ...))
                         #:version (syntax->datum #'(version ...))))
 
     ((library (name name* ...))
-     (and-map sym? #'(name name* ...))
+     (module-name? #'(name name* ...))
      (resolve-r6rs-interface #'(library (name name* ... ()))))
     
     ((only import-set identifier ...)
@@ -115,11 +133,11 @@
              (lp (cdr in) (acons (cdar in) var out))))))))
     
     ((name name* ... (version ...))
-     (and-map sym? #'(name name* ...))
+     (module-name? #'(name name* ...))
      (resolve-r6rs-interface #'(library (name name* ... (version ...)))))
 
     ((name name* ...) 
-     (and-map sym? #'(name name* ...))
+     (module-name? #'(name name* ...))
      (resolve-r6rs-interface #'(library (name name* ... ()))))))
 
 (define-syntax library
@@ -178,7 +196,7 @@
           (export espec ...)
           (import ispec ...)
           body ...)
-       (and-map identifier? #'(name name* ...))
+       (module-name? #'(name name* ...))
        ;; Add () as the version.
        #'(library (name name* ... ())
            (export espec ...)
@@ -189,7 +207,7 @@
           (export espec ...)
           (import ispec ...)
 	  body ...)
-       (and-map identifier? #'(name name* ...))
+       (module-name? #'(name name* ...))
        (call-with-values
            (lambda ()
              (compute-exports 

@@ -26,7 +26,8 @@
       ((_ (module-name ...) (decl-type . decl-args) ...)
        (and-map (lambda (x)
                   (or (identifier? x)
-                      (exact-integer? (syntax->datum x))))  ; XXX FIXME handle exact integers properly
+                      (and (exact-integer? (syntax->datum x))
+                           (not (negative? (syntax->datum x))))))
                 #'(module-name ...))
        (let loop ((decls #'((decl-type . decl-args) ...))
                   (imports '())

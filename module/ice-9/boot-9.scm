@@ -393,6 +393,21 @@ If there is no handler at all, Guile prints an error and then exits."
 (define module-gensym gensym)
 (define (resolve-module . args)
   #f)
+(define (module-name? list)
+  (and (pair? list)
+       (and-map (lambda (elt)
+                  (let ((elt (syntax->datum elt)))
+                    (or (symbol? elt)
+                        (and (exact-integer? elt)
+                             (not (negative? elt))))))
+                list)))
+(define (module-name-list? list)
+  (and (pair? list)
+       (and-map (lambda (elt)
+                  (or (symbol? elt)
+                      (and (exact-integer? elt)
+                           (not (negative? elt)))))
+                list)))
 
 ;; API provided by psyntax
 (define syntax-violation #f)
@@ -2386,14 +2401,22 @@ VALUE."
    (or (hashq-ref (module-submodules module) name)
        (and (module-submodule-binder module)
             ((module-submodule-binder module) module name))
-       (let ((var (module-local-variable module name)))
+       ;; Number is supported for module names with integers.
+       (let* ((name (if (number? name)
+                        (string->symbol (number->string name))
+                        name))
+              (var (module-local-variable module name)))
          (and var (variable-bound? var) (module? (variable-ref var))
               (begin
                 (warn "module" module "not in submodules table")
                 (variable-ref var))))))
 
  (define (module-define-submodule! module name submodule)
-   (let ((var (module-local-variable module name)))
+   ;; Number is supported for module names with integers.
+   (let* ((name (if (number? name)
+                    (string->symbol (number->string name))
+                    name))
+          (var (module-local-variable module name)))
      (if (and var
               (or (not (variable-bound? var))
                   (not (module? (variable-ref var)))))
@@ -3084,7 +3107,9 @@ module '(ice-9 q) '(make-q q-length))}."
 #f.  Otherwise return #t.  May raise an exception if a file is found,
 but it fails to load."
   (let* ((reverse-name (reverse module-name))
-         (name (symbol->string (car reverse-name)))
+         (name (let ((first (car reverse-name)))
+                 (cond ((symbol? first)        (symbol->string first))
+                       ((exact-integer? first) (number->string first)))))
          (dir-hint-module-name (reverse (cdr reverse-name)))
          (dir-hint (apply string-append
                           (map (lambda (elt)
@@ -3565,14 +3590,14 @@ CONV is not applied to the initial value."
         ((#:filename f . args)
          #`(#:filename 'f . #,(parse #'args imp exp rex rep aut)))
         ((#:use-module (name name* ...) . args)
-         (and (and-map symbol? (syntax->datum #'(name name* ...))))
+         (module-name? #'(name name* ...))
          (parse #'args #`(#,@imp ((name name* ...))) exp rex rep aut))
         ((#:use-syntax (name name* ...) . args)
-         (and (and-map symbol? (syntax->datum #'(name name* ...))))
+         (module-name? #'(name name* ...))
          #`(#:transformer '(name name* ...)
             . #,(parse #'args #`(#,@imp ((name name* ...))) exp rex rep aut)))
         ((#:use-module ((name name* ...) arg ...) . args)
-         (and (and-map symbol? (syntax->datum #'(name name* ...))))
+         (module-name? #'(name name* ...))
          (parse #'args
                 #`(#,@imp ((name name* ...) #,@(parse-iface #'(arg ...))))
                 exp rex rep aut))
@@ -3596,7 +3621,7 @@ CONV is not applied to the initial value."
     
     (syntax-case x ()
       ((_ (name name* ...) arg ...)
-       (and-map symbol? (syntax->datum #'(name name* ...)))
+       (module-name? #'(name name* ...))
        (with-syntax (((quoted-arg ...)
                       (parse #'(arg ...) '() '() '() '() '()))
                      ;; Ideally the filename is either a string or #f;
@@ -3655,10 +3680,10 @@ CONV is not applied to the initial value."
         (syntax-case in ()
           (() (reverse out))
           (((name name* ...) . in)
-           (and-map symbol? (syntax->datum #'(name name* ...)))
+           (module-name? #'(name name* ...))
            (lp #'in (cons #''((name name* ...)) out)))
           ((((name name* ...) arg ...) . in)
-           (and-map symbol? (syntax->datum #'(name name* ...)))
+           (module-name? #'(name name* ...))
            (with-syntax (((quoted-arg ...) (quotify-iface #'(arg ...))))
              (lp #'in (cons #`(list '(name name* ...) quoted-arg ...)
                             out)))))))

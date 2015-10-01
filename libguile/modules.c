@@ -136,6 +136,20 @@ scm_dynwind_current_module (SCM module)
 }
 
 /*
+  converts a string to an exact integer if possible, symbol otherwise
+ */
+static SCM
+convert_module_name_part (const char *part, size_t len)
+{
+  SCM num = scm_c_locale_stringn_to_number (part, len, 10);
+  if (scm_is_true (scm_exact_integer_p (num))
+      && scm_is_false (scm_negative_p (num)))
+    return num;
+  else
+    return scm_from_locale_symboln (part, len);
+}
+
+/*
   convert "A B C" to scheme list (A B C)
  */
 static SCM
@@ -154,8 +168,8 @@ convert_module_name (const char *name)
 	ptr++;
       if (ptr > name)
 	{
-	  SCM sym = scm_from_locale_symboln (name, ptr-name);
-	  *tail = scm_cons (sym, SCM_EOL);
+          SCM part = convert_module_name_part (name, ptr-name);
+          *tail = scm_cons (part, SCM_EOL);
 	  tail = SCM_CDRLOC (*tail);
 	}
       name = ptr;
