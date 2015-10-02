@@ -175,12 +175,15 @@
                (lp #'rest e r (cons #'id x)))
               (else
                (lp #'rest (cons #'id e) r x))))))))
+    (define (sym? x) (symbol? (syntax->datum x)))
+    (define (num? x) (and (exact-integer? (syntax->datum x))
+                          (not (negative? (syntax->datum x)))))
 
     (syntax-case stx (export import srfi)
       ;; (srfi :n ...) -> (srfi srfi-n)
       ((_ (srfi colon-n name ...) rest ...)
-       (and (and-map identifier? #'(srfi name ...))
-            (symbol? (syntax->datum #'colon-n))
+       (and (module-name? #'(srfi name ...))
+            (sym? #'colon-n)
             (eqv? (string-ref (symbol->string (syntax->datum #'colon-n)) 0)
                   #\:))
        (let ((srfi-n (datum->syntax
@@ -190,6 +193,17 @@
                         "srfi-"
                         (substring (symbol->string (syntax->datum #'colon-n))
                                    1))))))
+         #`(library (srfi #,srfi-n name ...)
+             rest ...)))
+      ;; (srfi n ...) -> (srfi srfi-n ...)
+      ((_ (srfi n name ...) rest ...)
+       (and (module-name? #'(srfi name ...))
+            (num? #'n))
+       (let ((srfi-n (datum->syntax
+                      #'n
+                      (string->symbol
+                       (string-append "srfi-" (number->string
+                                               (syntax->datum #'n)))))))
          #`(library (srfi #,srfi-n name ...)
              rest ...)))
       ((_ (name name* ...)
