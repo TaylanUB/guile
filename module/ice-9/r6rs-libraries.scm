@@ -1,6 +1,6 @@
 ;;; r6rs-libraries.scm --- Support for the R6RS `library' and `import' forms
 
-;;      Copyright (C) 2010 Free Software Foundation, Inc.
+;;      Copyright (C) 2010, 2015 Free Software Foundation, Inc.
 ;;
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -158,7 +158,22 @@
               (else
                (lp #'rest (cons #'id e) r x))))))))
 
-    (syntax-case stx (export import)
+    (syntax-case stx (export import srfi)
+      ;; (srfi :n ...) -> (srfi srfi-n)
+      ((_ (srfi colon-n name ...) rest ...)
+       (and (and-map identifier? #'(srfi name ...))
+            (symbol? (syntax->datum #'colon-n))
+            (eqv? (string-ref (symbol->string (syntax->datum #'colon-n)) 0)
+                  #\:))
+       (let ((srfi-n (datum->syntax
+                      #'colon-n
+                      (string->symbol
+                       (string-append
+                        "srfi-"
+                        (substring (symbol->string (syntax->datum #'colon-n))
+                                   1))))))
+         #`(library (srfi #,srfi-n name ...)
+             rest ...)))
       ((_ (name name* ...)
           (export espec ...)
           (import ispec ...)
