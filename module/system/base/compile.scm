@@ -138,7 +138,7 @@
                        (to 'objcode)
                        (env (default-environment from))
                        (opts '())
-                       (canonicalization 'relative))
+                       (canonicalization 'absolute))
   (with-fluids ((%file-port-name-canonicalization canonicalization))
     (let* ((comp (or output-file (compiled-file-name file)
                      (error "failed to create path for auto-compiled file"
@@ -159,7 +159,7 @@
 
 (define* (compile-and-load file #:key (from (current-language)) (to 'value)
                            (env (current-module)) (opts '())
-                           (canonicalization 'relative))
+                           (canonicalization 'absolute))
   (with-fluids ((%file-port-name-canonicalization canonicalization))
     (read-and-compile (open-input-file file)
                       #:from from #:to to #:opts opts
