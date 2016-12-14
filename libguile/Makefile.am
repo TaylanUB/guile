@@ -1,7 +1,7 @@
 ## Process this file with Automake to create Makefile.in
 ##
 ##   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2006, 2007,
-##     2008, 2009, 2010, 2011, 2012, 2013, 2014 Free Software Foundation, Inc.
+##     2008, 2009, 2010, 2011, 2012, 2013, 2014, 2016 Free Software Foundation, Inc.
 ##
 ##   This file is part of GUILE.
 ##
@@ -721,7 +721,8 @@ libpath.h: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 		>> libpath.tmp
 	@echo '	{ "LIBS",	   "@GUILE_LIBS@" }, \' >> libpath.tmp
 	@echo '	{ "CFLAGS",	   "@GUILE_CFLAGS@" }, \' >> libpath.tmp
-	@echo '	{ "buildstamp",    "'`date -u +'%Y-%m-%d %T'`'" }, \' >> libpath.tmp
+	@BUILD_DATE="$${SOURCE_DATE_EPOCH:-`date '+%s'`}" ; \
+	 echo '	{ "buildstamp",    "'`date -u +'%Y-%m-%d %T' -d @$$BUILD_DATE`'" }, \' >> libpath.tmp
 	@echo '}' >> libpath.tmp
 	$(AM_V_GEN)mv libpath.tmp libpath.h
 
