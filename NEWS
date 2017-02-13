@@ -1,8 +1,28 @@
 Guile NEWS --- history of user-visible changes.
-Copyright (C) 1996-2016 Free Software Foundation, Inc.
+Copyright (C) 1996-2017 Free Software Foundation, Inc.
 See the end for copying conditions.
 
 Please send Guile bug reports to bug-guile@gnu.org.
+
+
+Changes in 2.0.14 (since 2.0.13):
+
+* Bug fixes
+
+** Builds of .go files and of Guile itself are now bit-reproducible
+   (<http://bugs.gnu.org/20272>)
+
+** 'number->locale-string' and 'monetary-amount->locale-string' fixes
+   (<http://bugs.gnu.org/24990>)
+
+** (system base target) now recognizes "sh3" as a cross-compilation target
+
+** Fix race condition in '00-repl-server.test'
+   (<http://bugs.gnu.org/24769>)
+
+** 'scandir' from (ice-9 ftw) no longer calls 'stat' for each entry
+
+** Several documentation improvements
 
 
 Changes in 2.0.13 (since 2.0.12):
