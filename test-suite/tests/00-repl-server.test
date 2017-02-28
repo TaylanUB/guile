@@ -99,7 +99,6 @@ reached."
 ;;; Since we call 'primitive-fork', these tests must run before any
 ;;; tests that create threads.
 
-#;
 (with-test-prefix "repl-server"
 
   (pass-if-equal "simple expression"
