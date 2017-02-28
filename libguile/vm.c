@@ -384,7 +384,7 @@ static void vm_error_unbound_fluid (SCM proc, SCM fluid) SCM_NORETURN;
 static void vm_error_not_a_variable (const char *func_name, SCM x) SCM_NORETURN;
 static void vm_error_not_a_thunk (const char *func_name, SCM x) SCM_NORETURN;
 static void vm_error_apply_to_non_list (SCM x) SCM_NORETURN;
-static void vm_error_kwargs_length_not_even (SCM proc) SCM_NORETURN;
+static void vm_error_kwargs_missing_value (SCM proc, SCM kw) SCM_NORETURN;
 static void vm_error_kwargs_invalid_keyword (SCM proc, SCM obj) SCM_NORETURN;
 static void vm_error_kwargs_unrecognized_keyword (SCM proc, SCM kw) SCM_NORETURN;
 static void vm_error_too_many_args (int nargs) SCM_NORETURN;
@@ -462,11 +462,11 @@ vm_error_apply_to_non_list (SCM x)
 }
 
 static void
-vm_error_kwargs_length_not_even (SCM proc)
+vm_error_kwargs_missing_value (SCM proc, SCM kw)
 {
   scm_error_scm (sym_keyword_argument_error, proc,
-                 scm_from_latin1_string ("Odd length of keyword argument list"),
-                 SCM_EOL, SCM_BOOL_F);
+                 scm_from_latin1_string ("Keyword argument has no value"),
+                 SCM_EOL, scm_list_1 (kw));
 }
 
 static void

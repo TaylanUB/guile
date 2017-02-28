@@ -162,6 +162,13 @@ static void error_used_before_defined (void)
              "Variable used before given a value", SCM_EOL, SCM_BOOL_F);
 }
 
+static void error_missing_value (SCM proc, SCM kw)
+{
+  scm_error_scm (scm_from_latin1_symbol ("keyword-argument-error"), proc,
+                 scm_from_locale_string ("Keyword argument has no value"), SCM_EOL,
+                 scm_list_1 (kw));
+}
+
 static void error_invalid_keyword (SCM proc, SCM obj)
 {
   scm_error_scm (scm_from_latin1_symbol ("keyword-argument-error"), proc,
@@ -867,38 +874,49 @@ prepare_boot_closure_env_for_apply (SCM proc, SCM args,
           {
             int imax = i - 1;
             int kw_start_idx = i;
-            SCM walk, k, v;
+            SCM walk, k;
             for (walk = kw; scm_is_pair (walk); walk = CDR (walk))
               if (SCM_I_INUM (CDAR (walk)) > imax)
                 imax = SCM_I_INUM (CDAR (walk));
             for (; i <= imax; i++)
               env = scm_cons (SCM_UNDEFINED, env);
 
-            if (scm_is_pair (args) && scm_is_pair (CDR (args)))
-              for (; scm_is_pair (args) && scm_is_pair (CDR (args));
-                   args = CDR (args))
-                {
-                  k = CAR (args); v = CADR (args);
-                  if (!scm_is_keyword (k))
+            while (scm_is_pair (args))
+              {
+                k = CAR (args);
+                args = CDR (args);
+                if (!scm_is_keyword (k))
+                  {
+                    if (scm_is_true (rest))
+                      continue;
+                    else
+                      break;
+                  }
+                for (walk = kw; scm_is_pair (walk); walk = CDR (walk))
+                  if (scm_is_eq (k, CAAR (walk)))
                     {
-                      if (scm_is_true (rest))
-                        continue;
+                      /* Well... ok, list-set! isn't the nicest interface, but
+                         hey. */
+                      int iset = imax - SCM_I_INUM (CDAR (walk));
+                      if (scm_is_pair (args))
+                        {
+                          SCM v = CAR (args);
+                          args = CDR (args);
+                          scm_list_set_x (env, SCM_I_MAKINUM (iset), v);
+                          break;
+                        }
                       else
-                        break;
+                        error_missing_value (proc, k);
                     }
-                  for (walk = kw; scm_is_pair (walk); walk = CDR (walk))
-                    if (scm_is_eq (k, CAAR (walk)))
-                      {
-                        /* Well... ok, list-set! isn't the nicest interface, but
-                           hey. */
-                        int iset = imax - SCM_I_INUM (CDAR (walk));
-                        scm_list_set_x (env, SCM_I_MAKINUM (iset), v);
-                        args = CDR (args);
-                        break;
-                      }
-                  if (scm_is_null (walk) && scm_is_false (aok))
-                    error_unrecognized_keyword (proc, k);
-                }
+                if (scm_is_null (walk))
+                  {
+                    if (scm_is_false (aok))
+                      error_unrecognized_keyword (proc, k);
+                    /* Advance past argument of unknown keyword.  */
+                    if (scm_is_pair (args))
+                      args = CDR (args);
+                  }
+              }
             if (scm_is_pair (args) && scm_is_false (rest))
               error_invalid_keyword (proc, CAR (args));
 

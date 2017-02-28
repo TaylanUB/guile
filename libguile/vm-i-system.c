@@ -658,15 +658,11 @@ VM_DEFINE_INSTRUCTION (48, bind_kwargs, "bind-kwargs", 5, 0, 0)
   nkw += FETCH ();
   kw_and_rest_flags = FETCH ();
 
-  VM_ASSERT ((kw_and_rest_flags & F_REST)
-             || ((sp - (fp - 1) - nkw) % 2) == 0,
-             vm_error_kwargs_length_not_even (program))
-
   CHECK_OBJECT (idx);
   kw = OBJECT_REF (idx);
 
   /* Switch NKW to be a negative index below SP.  */
-  for (nkw = -(sp - (fp - 1) - nkw) + 1; nkw < 0; nkw++)
+  for (nkw = -(sp - (fp - 1) - nkw) + 1; nkw <= 0; nkw++)
     {
       SCM walk;
 
@@ -677,6 +673,9 @@ VM_DEFINE_INSTRUCTION (48, bind_kwargs, "bind-kwargs", 5, 0, 0)
 	      if (scm_is_eq (SCM_CAAR (walk), sp[nkw]))
 		{
 		  SCM si = SCM_CDAR (walk);
+                  VM_ASSERT (nkw != 0
+                             || (kw_and_rest_flags & F_ALLOW_OTHER_KEYS),
+                             vm_error_kwargs_missing_value (program, sp[nkw]));
 		  LOCAL_SET (SCM_I_INUMP (si) ? SCM_I_INUM (si) : scm_to_long (si),
 			     sp[nkw + 1]);
 		  break;

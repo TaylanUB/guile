@@ -338,43 +338,58 @@
                                          env))))
                          ;; Now scan args for keywords.
                          (let lp ((args args))
-                           (if (and (pair? args) (pair? (cdr args))
-                                    (keyword? (car args)))
-                               (let ((kw-pair (assq (car args) kw))
-                                     (v (cadr args)))
-                                 (if kw-pair
-                                     ;; Found a known keyword; set its value.
-                                     (list-set! env
-                                                (- imax (cdr kw-pair)) v)
-                                     ;; Unknown keyword.
-                                     (if (not aok)
-                                         (scm-error
-                                          'keyword-argument-error
-                                          "eval" "Unrecognized keyword"
-                                          '() (list (car args)))))
-                                 (lp (cddr args)))
-                               (if (pair? args)
-                                   (if rest?
-                                       ;; Be lenient parsing rest args.
-                                       (lp (cdr args))
-                                       (scm-error 'keyword-argument-error
-                                                  "eval" "Invalid keyword"
-                                                  '() (list (car args))))
-                                   ;; Finished parsing keywords. Fill in
-                                   ;; uninitialized kwargs by evalling init
-                                   ;; expressions in their appropriate
-                                   ;; environment.
-                                   (let lp ((i (- imax kw-base))
-                                            (inits inits))
-                                     (if (pair? inits)
-                                         (let ((tail (list-tail env i)))
-                                           (if (eq? (car tail) unbound-arg)
-                                               (set-car! tail
-                                                         (eval (car inits)
-                                                               (cdr tail))))
-                                           (lp (1- i) (cdr inits)))
-                                         ;; Finally, eval the body.
-                                         (eval body env))))))))))))))))
+                           (cond
+                            ((pair? args)
+                             (cond
+                              ((keyword? (car args))
+                               (let ((k (car args))
+                                     (args (cdr args)))
+                                 (cond
+                                  ((assq k kw)
+                                   => (lambda (kw-pair)
+                                        ;; Found a known keyword; set its value.
+                                        (if (pair? args)
+                                            (let ((v (car args))
+                                                  (args (cdr args)))
+                                              (list-set! env
+                                                         (- imax (cdr kw-pair))
+                                                         v)
+                                              (lp args))
+                                            (scm-error 'keyword-argument-error
+                                                       "eval"
+                                                       "Keyword argument has no value"
+                                                       '() (list k)))))
+                                  ;; Otherwise unknown keyword.
+                                  (aok
+                                   (lp (if (pair? args) (cdr args) args)))
+                                  (else
+                                   (scm-error 'keyword-argument-error
+                                              "eval" "Unrecognized keyword"
+                                              '() (list k))))))
+                              (rest?
+                               ;; Be lenient parsing rest args.
+                               (lp (cdr args)))
+                              (else
+                               (scm-error 'keyword-argument-error
+                                          "eval" "Invalid keyword"
+                                          '() (list (car args))))))
+                            (else
+                             ;; Finished parsing keywords. Fill in
+                             ;; uninitialized kwargs by evalling init
+                             ;; expressions in their appropriate
+                             ;; environment.
+                             (let lp ((i (- imax kw-base))
+                                      (inits inits))
+                               (if (pair? inits)
+                                   (let ((tail (list-tail env i)))
+                                     (if (eq? (car tail) unbound-arg)
+                                         (set-car! tail
+                                                   (eval (car inits)
+                                                         (cdr tail))))
+                                     (lp (1- i) (cdr inits)))
+                                   ;; Finally, eval the body.
+                                   (eval body env)))))
+                           )))))))))))
 
     ;; The "engine". EXP is a memoized expression.
     (define (eval exp env)
