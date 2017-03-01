@@ -354,7 +354,11 @@ as a string, and a thunk to retrieve the characters associated with that port."
   (let ((port (with-fluids ((%default-port-encoding "UTF-8"))
                 (open-output-string))))
     (values port
-            (lambda () (get-output-string port)))))
+            (lambda ()
+              (let ((s (get-output-string port)))
+                (seek port 0 SEEK_SET)
+                (truncate-file port 0)
+                s)))))
 
 (define* (open-file-output-port filename
                                 #:optional
