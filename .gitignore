@@ -165,3 +165,5 @@ INSTALL
 /test-suite/standalone/test-srfi-4
 lib/stddef.h
 /meta/build-env
+/lib/limits.h
+/lib/stdint.h
