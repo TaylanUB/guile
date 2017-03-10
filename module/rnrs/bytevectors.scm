@@ -69,15 +69,45 @@
            bytevector-ieee-double-native-set!
 
            string->utf8 string->utf16 string->utf32
-           utf8->string utf16->string utf32->string))
+           utf8->string
+           (r6rs-utf16->string . utf16->string)
+           (r6rs-utf32->string . utf32->string)))
 
 
 (load-extension (string-append "libguile-" (effective-version))
                 "scm_init_bytevectors")
 
+(import (rnrs io ports))
+
 (define-macro (endianness sym)
   (if (memq sym '(big little))
       `(quote ,sym)
       (error "unsupported endianness" sym)))
+
+(define r6rs-utf16->string
+  (case-lambda
+    ((bv default-endianness)
+     (let* ((binary-port (open-bytevector-input-port bv))
+            (transcoder (make-transcoder (utf-16-codec)))
+            (utf16-port (transcoded-port binary-port transcoder)))
+       ;; XXX how to set default-endianness for a port?
+       (get-string-all utf16-port)))
+    ((bv endianness endianness-mandatory?)
+     (if endianness-mandatory?
+         (utf16->string bv endianness)
+         (r6rs-utf16->string bv endianness)))))
+
+(define r6rs-utf32->string
+  (case-lambda
+    ((bv default-endianness)
+     (let* ((binary-port (open-bytevector-input-port bv))
+            (transcoder (make-transcoder (utf-32-codec)))
+            (utf32-port (transcoded-port binary-port transcoder)))
+       ;; XXX how to set default-endianness for a port?
+       (get-string-all utf32-port)))
+    ((bv endianness endianness-mandatory?)
+     (if endianness-mandatory?
+         (utf32->string bv endianness)
+         (r6rs-utf32->string bv endianness)))))
 
 ;;; bytevector.scm ends here
