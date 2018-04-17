@@ -53,28 +53,49 @@
 	 (visited? (visited?-proc 97))
 	 (s (stat "/")))
 
-    (define (try-visited? dev ino)
+    (define (try-visited? dev ino fname)
       (stat:dev! s dev)
       (stat:ino! s ino)
-      (visited? s))
+      (visited? s fname))
 
-    (pass-if "0 0 - 1st" (eq? #f (try-visited? 0 0)))
-    (pass-if "0 0 - 2nd" (eq? #t (try-visited? 0 0)))
-    (pass-if "0 0 - 3rd" (eq? #t (try-visited? 0 0)))
+    (with-test-prefix "valid inodes"
 
-    (pass-if "0 1" (eq? #f (try-visited? 0 1)))
-    (pass-if "0 2" (eq? #f (try-visited? 0 2)))
-    (pass-if "0 3" (eq? #f (try-visited? 0 3)))
+      (pass-if "0 1 - 1st" (eq? #f (try-visited? 0 1 "0.1")))
+      (pass-if "0 1 - 2nd" (eq? #t (try-visited? 0 1 "0.1")))
+      (pass-if "0 1 - 3rd" (eq? #t (try-visited? 0 1 "0.1")))
 
-    (pass-if "5 5" (eq? #f (try-visited? 5 5)))
-    (pass-if "5 7" (eq? #f (try-visited? 5 7)))
-    (pass-if "7 5" (eq? #f (try-visited? 7 5)))
-    (pass-if "7 7" (eq? #f (try-visited? 7 7)))
+      (pass-if "0 2" (eq? #f (try-visited? 0 2 "0.2")))
+      (pass-if "0 3" (eq? #f (try-visited? 0 3 "0.3")))
+      (pass-if "0 4" (eq? #f (try-visited? 0 4 "0.4")))
 
-    (pass-if "5 5 - 2nd" (eq? #t (try-visited? 5 5)))
-    (pass-if "5 7 - 2nd" (eq? #t (try-visited? 5 7)))
-    (pass-if "7 5 - 2nd" (eq? #t (try-visited? 7 5)))
-    (pass-if "7 7 - 2nd" (eq? #t (try-visited? 7 7)))))
+      (pass-if "5 5" (eq? #f (try-visited? 5 5 "5.5")))
+      (pass-if "5 7" (eq? #f (try-visited? 5 7 "5.7")))
+      (pass-if "7 5" (eq? #f (try-visited? 7 5 "7.5")))
+      (pass-if "7 7" (eq? #f (try-visited? 7 7 "7.7")))
+
+      (pass-if "5 5 - 2nd" (eq? #t (try-visited? 5 5 "5.5")))
+      (pass-if "5 7 - 2nd" (eq? #t (try-visited? 5 7 "5.7")))
+      (pass-if "7 5 - 2nd" (eq? #t (try-visited? 7 5 "7.5")))
+      (pass-if "7 7 - 2nd" (eq? #t (try-visited? 7 7 "7.7"))))
+
+    (with-test-prefix "broken inodes"
+      (pass-if "0 1 - 1st" (eq? #f (try-visited? 0 0 "0.1")))
+      (pass-if "0 1 - 2nd" (eq? #t (try-visited? 0 0 "0.1")))
+      (pass-if "0 1 - 3rd" (eq? #t (try-visited? 0 0 "0.1")))
+
+      (pass-if "0 2" (eq? #f (try-visited? 0 0 "0.2")))
+      (pass-if "0 3" (eq? #f (try-visited? 0 0 "0.3")))
+      (pass-if "0 4" (eq? #f (try-visited? 0 0 "0.4")))
+
+      (pass-if "5 5" (eq? #f (try-visited? 5 0 "5.5")))
+      (pass-if "5 7" (eq? #f (try-visited? 5 0 "5.7")))
+      (pass-if "7 5" (eq? #f (try-visited? 7 0 "7.5")))
+      (pass-if "7 7" (eq? #f (try-visited? 7 0 "7.7")))
+
+      (pass-if "5 5 - 2nd" (eq? #t (try-visited? 5 0 "5.5")))
+      (pass-if "5 7 - 2nd" (eq? #t (try-visited? 5 0 "5.7")))
+      (pass-if "7 5 - 2nd" (eq? #t (try-visited? 7 0 "7.5")))
+      (pass-if "7 7 - 2nd" (eq? #t (try-visited? 7 0 "7.7"))))))
 
 
 ;;;
@@ -85,7 +106,7 @@
   (canonicalize-path (getcwd)))
 
 (define %top-srcdir
-  (assq-ref %guile-build-info 'top_srcdir))
+  (canonicalize-path (assq-ref %guile-build-info 'top_srcdir)))
 
 (define %test-dir
   (string-append %top-srcdir "/test-suite"))

@@ -243,16 +243,22 @@
 ;; usually there's just a handful mounted, so the strategy here is a small
 ;; hash table indexed by dev, containing hash tables indexed by ino.
 ;;
+;; On some file systems, stat:ino is always zero.  In that case,
+;; a string hash of the full file name is used.
+;;
 ;; It'd be possible to make a pair (dev . ino) and use that as the key to a
 ;; single hash table.  It'd use an extra pair for every file visited, but
 ;; might be a little faster if it meant less scheme code.
 ;;
 (define (visited?-proc size)
   (let ((dev-hash (make-hash-table 7)))
-    (lambda (s)
+    (lambda (s name)
       (and s
-	   (let ((ino-hash (hashv-ref dev-hash (stat:dev s)))
-		 (ino      (stat:ino s)))
+	   (let* ((ino-hash (hashv-ref dev-hash (stat:dev s)))
+                  (%ino     (stat:ino s))
+                  (ino      (if (= 0 %ino)
+                                (string-hash name)
+                                %ino)))
 	     (or ino-hash
 		 (begin
 		   (set! ino-hash (make-hash-table size))
@@ -318,7 +324,7 @@
     (letrec ((go (lambda (fullname)
                    (call-with-values (lambda () (stat&flag fullname))
                      (lambda (s flag)
-                       (or (visited? s)
+                       (or (visited? s fullname)
                            (let ((ret (proc fullname s flag))) ; callback
                              (or (eq? #t ret)
                                  (throw 'ftw-early-exit ret))
@@ -383,7 +389,7 @@
                                                          fullname))
                                                     (1+ level)))
                                               (directory-files fullname))))))
-                         (or (visited? s)
+                         (or (visited? s fullname)
                              (not (same-dev? s))
                              (if depth-first?
                                  (begin (kids) (self))
@@ -423,11 +429,21 @@ Return the result of these successive applications.
 When FILE-NAME names a flat file, (LEAF PATH STAT INIT) is returned.
 The optional STAT parameter defaults to `lstat'."
 
-  (define (mark v s)
-    (vhash-cons (cons (stat:dev s) (stat:ino s)) #t v))
+  ;; Use drive and inode number as a hash key.  If the filesystem
+  ;; doesn't use inodes, fall back to a string hash.
+  (define (mark v s fname)
+    (vhash-cons (cons (stat:dev s)
+                      (if (= 0 (stat:ino s))
+                          (string-hash fname)
+                          (stat:ino s)))
+                #t v))
 
-  (define (visited? v s)
-    (vhash-assoc (cons (stat:dev s) (stat:ino s)) v))
+  (define (visited? v s fname)
+    (vhash-assoc (cons (stat:dev s)
+                       (if (= 0 (stat:ino s))
+                           (string-hash fname)
+                           (stat:ino s)))
+                 v))
 
   (let loop ((name     file-name)
              (path     "")
@@ -444,12 +460,12 @@ The optional STAT parameter defaults to `lstat'."
      ((integer? dir-stat)
       ;; FILE-NAME is not readable.
       (error full-name #f dir-stat result))
-     ((visited? visited dir-stat)
+     ((visited? visited dir-stat full-name)
       (values result visited))
      ((eq? 'directory (stat:type dir-stat)) ; true except perhaps the 1st time
       (if (enter? full-name dir-stat result)
           (let ((dir     (errno-if-exception (opendir full-name)))
-                (visited (mark visited dir-stat)))
+                (visited (mark visited dir-stat full-name)))
             (cond
              ((directory-stream? dir)
               (let liip ((entry   (readdir dir))
@@ -496,7 +512,7 @@ The optional STAT parameter defaults to `lstat'."
               (values (error full-name dir-stat dir result)
                       visited))))
           (values (skip full-name dir-stat result)
-                  (mark visited dir-stat))))
+                  (mark visited dir-stat full-name))))
      (else
       ;; Caller passed a FILE-NAME that names a flat file, not a directory.
       (leaf full-name dir-stat result)))))
