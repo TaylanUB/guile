@@ -1,6 +1,6 @@
 ;;;; ftw.scm --- file system tree walk
 
-;;;; 	Copyright (C) 2002, 2003, 2006, 2011, 2012, 2014, 2016 Free Software Foundation, Inc.
+;;;; 	Copyright (C) 2002, 2003, 2006, 2011, 2012, 2014, 2016, 2018 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -199,6 +199,16 @@
             file-system-tree
             scandir))
 
+(define-macro (getuid-or-false)
+  (if (defined? 'getuid)
+      (getuid)
+      #f))
+
+(define-macro (getgid-or-false)
+  (if (defined? 'getgid)
+      (getgid)
+      #f))
+
 (define (directory-files dir)
   (let ((dir-stream (opendir dir)))
     (let loop ((new (readdir dir-stream))
@@ -253,18 +263,16 @@
 		   #f)))))))
 
 (define (stat-dir-readable?-proc uid gid)
-  (let ((uid (getuid))
-        (gid (getgid)))
-    (lambda (s)
-      (let* ((perms (stat:perms s))
-             (perms-bit-set? (lambda (mask)
-                               (not (= 0 (logand mask perms))))))
-        (or (zero? uid)
-            (and (= uid (stat:uid s))
-                 (perms-bit-set? #o400))
-            (and (= gid (stat:gid s))
-                 (perms-bit-set? #o040))
-            (perms-bit-set? #o004))))))
+  (lambda (s)
+    (let* ((perms (stat:perms s))
+           (perms-bit-set? (lambda (mask)
+                             (logtest mask perms))))
+      (or (equal? uid 0)
+          (and (equal? uid (stat:uid s))
+               (perms-bit-set? #o400))
+          (and (equal? gid (stat:gid s))
+               (perms-bit-set? #o040))
+          (perms-bit-set? #o004)))))
 
 (define (stat&flag-proc dir-readable? . control-flags)
   (let* ((directory-flag (if (memq 'depth control-flags)
@@ -305,7 +313,8 @@
   (let* ((visited? (visited?-proc (cond ((memq 'hash-size options) => cadr)
                                         (else 211))))
          (stat&flag (stat&flag-proc
-                     (stat-dir-readable?-proc (getuid) (getgid)))))
+                     (stat-dir-readable?-proc (getuid-or-false)
+                                              (getgid-or-false)))))
     (letrec ((go (lambda (fullname)
                    (call-with-values (lambda () (stat&flag fullname))
                      (lambda (s flag)
@@ -351,7 +360,8 @@
                         (lambda (flag) (eq? flag 'directory-processed))
                         (lambda (flag) (eq? flag 'directory))))
          (stat&flag (apply stat&flag-proc
-                           (stat-dir-readable?-proc (getuid) (getgid))
+                           (stat-dir-readable?-proc (getuid-or-false)
+                                                    (getgid-or-false))
                            (cons 'nftw-style control-flags))))
     (letrec ((go (lambda (fullname base level)
                    (call-with-values (lambda () (stat&flag fullname))

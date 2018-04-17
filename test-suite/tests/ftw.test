@@ -1,6 +1,6 @@
 ;;;; ftw.test --- exercise ice-9/ftw.scm      -*- scheme -*-
 ;;;;
-;;;; Copyright 2006, 2011, 2012 Free Software Foundation, Inc.
+;;;; Copyright 2006, 2011, 2012, 2018 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -217,7 +217,7 @@
   (let ((name (string-append %top-builddir "/test-EACCES")))
     (pass-if-equal "EACCES"
         `((error ,name ,EACCES))
-      (if (zero? (getuid))
+      (if (and (defined? 'getuid) (zero? (getuid)))
           ;; When run as root, this test would fail because root can
           ;; list the contents of #o000 directories.
           (throw 'unresolved)
