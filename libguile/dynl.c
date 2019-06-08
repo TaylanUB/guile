@@ -64,10 +64,9 @@ sysdep_dynl_link (const char *fname, const char *subr)
 {
   lt_dlhandle handle;
 
-  if (fname == NULL)
-    /* Return a handle for the program as a whole.  */
-    handle = lt_dlopen (NULL);
-  else
+  /* Try the literal filename first or, if NULL, the program itself */
+  handle = lt_dlopen (fname);
+  if (handle == NULL)
     {
       handle = lt_dlopenext (fname);
 

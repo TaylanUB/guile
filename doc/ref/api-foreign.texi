@@ -75,11 +75,14 @@ Scheme object suitable for representing the linked object file.
 Otherwise an error is thrown.  How object files are searched is system
 dependent.
 
-Normally, @var{library} is just the name of some shared library file
-that will be searched for in the places where shared libraries usually
-reside, such as in @file{/usr/lib} and @file{/usr/local/lib}.
+Guile first tries to load @var{library} as the absolute file name of a shared
+library.  If that fails, it then falls back to interpret
+@var{library} as just the name of some shared library that will be
+searched for in the places where shared libraries usually reside, such
+as @file{/usr/lib} and @file{/usr/local/lib}.
 
-@var{library} should not contain an extension such as @code{.so}.  The
+@var{library} should not contain an extension such as @code{.so}, unless
+@var{library} represents the absolute file name to the shared library.  The
 correct file name extension for the host operating system is provided
 automatically, according to libltdl's rules (@pxref{Libltdl interface,
 lt_dlopenext, @code{lt_dlopenext}, libtool, Shared Library Support for
