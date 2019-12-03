@@ -91,7 +91,7 @@
                     (syntax (call-with-values (lambda () exp)
                               (lambda (new-tmp ...) inner))))))
                ((vars exp)
-                (with-syntax ((((new-tmp . new-var) ...)
+                (with-syntax ((((new-var . new-tmp) ...)
                                (let lp ((vars (syntax vars)))
                                  (syntax-case vars ()
                                    ((id . rest)

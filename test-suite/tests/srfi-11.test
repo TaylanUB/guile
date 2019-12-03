@@ -74,7 +74,14 @@
 	'(unbound-variable . ".*")
       (let-values (((x) (values 1))
 		   ((y) (values (1+ x))))
-	#f))))
+	#f))
+
+    (pass-if "first binding with rest invisible to second expr"
+      (let* ((a 1)
+             (b (let-values (((a . b) (values 2 3))
+                             (c (begin (set! a 9) 4)))
+                  (list a b c))))
+        (equal? (cons a b) '(9 2 (3) (4)))))))
 
 ;;
 ;; let*-values
