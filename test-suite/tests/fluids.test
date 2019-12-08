@@ -49,8 +49,18 @@
 	  (interaction-environment))))
 
 (with-test-prefix "initial fluid values"
-  (pass-if "fluid-ref uninitialized fluid is #f"
-    (not (fluid-ref a)))
+
+  (pass-if "fluid-ref returns #f for uninitialized fluid"
+    (eq? #f (fluid-ref (make-fluid))))
+
+  (pass-if "fluid-ref returns #f for uninitialized thread local fluid"
+    (eq? #f (fluid-ref (make-thread-local-fluid))))
+
+  (pass-if "fluid-ref returns default"
+    (eq? #t (fluid-ref (make-fluid #t))))
+
+  (pass-if "fluid-ref returns thread local default"
+    (eq? #t (fluid-ref (make-thread-local-fluid #t))))
 
   (pass-if "initial value is inherited from parent thread"
     (if (provided? 'threads)

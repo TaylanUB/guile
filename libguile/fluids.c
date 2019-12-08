@@ -350,22 +350,17 @@ fluid_ref (scm_t_dynamic_state *dynamic_state, SCM fluid)
 
   entry = scm_cache_lookup (&dynamic_state->cache, fluid);
   if (scm_is_eq (SCM_PACK (entry->key), fluid))
-    val = SCM_PACK (entry->value);
+    return SCM_PACK (entry->value);
+
+  if (SCM_I_FLUID_THREAD_LOCAL_P (fluid))
+    val = scm_hashq_ref (dynamic_state->thread_local_values, fluid,
+                         SCM_I_FLUID_DEFAULT (fluid));
   else
-    {
-      if (SCM_I_FLUID_THREAD_LOCAL_P (fluid))
-        val = scm_hashq_ref (dynamic_state->thread_local_values, fluid,
-                             SCM_UNDEFINED);
-      else
-        val = scm_weak_table_refq (dynamic_state->values, fluid,
-                                   SCM_UNDEFINED);
+    val = scm_weak_table_refq (dynamic_state->values, fluid,
+                         SCM_I_FLUID_DEFAULT (fluid));
 
-      if (SCM_UNBNDP (val))
-        val = SCM_I_FLUID_DEFAULT (fluid);
-
-      /* Cache this lookup.  */
-      fluid_set_x (dynamic_state, fluid, val);
-    }
+  /* Cache this lookup.  */
+  fluid_set_x (dynamic_state, fluid, val);
 
   return val;
 }
