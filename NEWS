@@ -5,6 +5,25 @@ See the end for copying conditions.
 Please send Guile bug reports to bug-guile@gnu.org.
 
 
+Changes since alpha 2.9.8:
+
+** Fix performance of SRFI-43 vector-fill!
+
+SRFI-43 vector-fill! now has the same performance whether an optional
+range is provided or not, and is also provided in core.  As a side
+effect, vector-fill! and vector_fill_x no longer work on non-vector
+rank-1 arrays. Such cases were handled incorrectly before; for example,
+prior to this change,
+
+  (define a (make-vector 10 'x))
+  (define b (make-shared-array a (lambda (i) (list (* 2 i))) 5))
+  (vector-fill! b 'y)
+
+  => #1(y y y x x)
+
+This is now an error. Instead, use array-fill! (or array_fill_x).
+
+
 Changes in alpha 2.9.8 (since alpha 2.9.7):
 
 * Bug fixes
