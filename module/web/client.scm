@@ -264,7 +264,15 @@ host name without trailing dot."
           (close-port port))
         (unless (port-closed? record)
           (close-port record)))
+
       (setvbuf record 'block)
+
+      ;; Return a port that wraps RECORD to ensure that closing it also
+      ;; closes PORT, the actual socket port, and its file descriptor.
+      ;; XXX: This wrapper would be unnecessary if GnuTLS could
+      ;; automatically close SESSION's file descriptor when RECORD is
+      ;; closed, but that doesn't seem to be possible currently (as of
+      ;; 3.6.9).
       (make-custom-binary-input/output-port "gnutls wrapped port" read! write!
                                             get-position set-position!
                                             close))))
