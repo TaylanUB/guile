@@ -20,7 +20,8 @@
 
 (define-module (test-strings)
   #:use-module ((system base compile) #:select (compile))
-  #:use-module (test-suite lib))
+  #:use-module (test-suite lib)
+  #:use-module (ice-9 string-fun))
 
 (define exception:read-only-string
   (cons 'misc-error "^string is read-only"))
@@ -693,3 +694,9 @@
       (string-upcase! (substring/shared str2 1 4))
       (and (string=? str1 "foofoofoo")
 	   (string=? str2 "oFOOf")))))
+
+(with-test-prefix "miscellaneous string functions"
+
+  (pass-if "string-replace-substring"
+    (string=? (string-replace-substring "a ring of strings" "ring" "rut")
+              "a rut of struts")))

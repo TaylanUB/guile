@@ -4227,6 +4227,22 @@ a predicate, if it is a character, it is tested for equality and if it
 is a character set, it is tested for membership.
 @end deffn
 
+The following additional functions are available in the module @code{(ice-9 string-fun)}. They can be used with:
+
+@example
+(use-modules (ice-9 string-fun))
+@end example
+
+@deffn {Scheme Procedure} string-replace-substring str substring replacement
+Return a new string where every instance of @var{substring} in string
+@var{str} has been replaced by @var{replacement}. For example:
+
+@lisp
+(string-replace-substring "a ring of strings" "ring" "rut")
+@result{} "a rut of struts"
+@end lisp
+@end deffn
+
 @node Representing Strings as Bytes
 @subsubsection Representing Strings as Bytes
 

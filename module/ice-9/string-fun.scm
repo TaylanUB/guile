@@ -25,13 +25,17 @@
 	   separate-fields-discarding-char separate-fields-after-char
 	   separate-fields-before-char string-prefix-predicate string-prefix=?
 	   sans-surrounding-whitespace sans-trailing-whitespace
-	   sans-leading-whitespace sans-final-newline has-trailing-newline?))
+	   sans-leading-whitespace sans-final-newline has-trailing-newline?
+           string-replace-substring))
 
 ;;;;
 ;;;
 ;;; Various string funcitons, particularly those that take
 ;;; advantage of the "shared substring" capability.
+;;; FIXME Document these functions in Miscellaneous String Operations::
+;;; in doc/ref/api-data.texi.
 ;;;
+
 
 ;;; {String Fun: Dividing Strings Into Fields}
 ;;; 
@@ -277,4 +281,35 @@
 ;;;     (if (number? parts)
 ;;;         (fail parts)
 ;;;         (apply return parts))))
+
+
+
+;;; {String Fun: string-replace-substring}
+;;;
+
+;; string-replace-substring By A. Wingo in
+;; https://lists.gnu.org/archive/html/guile-devel/2014-03/msg00058.html
+;; also in string-replace-substring guix:guix/utils.scm.
+
+(define (string-replace-substring str substring replacement)
+  "Return a new string where every instance of @var{substring} in string
+   @var{str} has been replaced by @var{replacement}. For example:
+
+   @lisp
+   (string-replace-substring \"a ring of strings\" \"ring\" \"rut\")
+   @result{} \"a rut of struts\"
+   @end lisp
+   "
+  (let ((sublen (string-length substring)))
+    (with-output-to-string
+      (lambda ()
+        (let lp ((start 0))
+          (cond
+           ((string-contains str substring start)
+            => (lambda (end)
+                 (display (substring/shared str start end))
+                 (display replacement)
+                 (lp (+ end sublen))))
+           (else
+            (display (substring/shared str start)))))))))
 
