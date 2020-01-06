@@ -219,10 +219,14 @@ Guile programs as well as reducing startup time and memory usage.
 Guile's POSIX multithreading was improved, stacks became dynamically
 expandable, the ports facility gained support for non-blocking I/O.
 
-@item 3.0 -- early 2019 (unreleased at time of writing)
+@item 3.0 -- January 2020
 Guile gained support for native code generation via a simple
 just-in-time (JIT) compiler, further improving the speed of its virtual
-machine.
+machine.  The compiler itself gained a number of new optimizations:
+inlining of top-level bindings, better closure optimization, and better
+unboxing of integer and floating-point values.  R7RS support was added,
+and R6RS support improved.  The exception facility (throw and catch) was
+rewritten in terms of SRFI-34 exception handlers.
 @end table
 
 @node Status
@@ -277,17 +281,9 @@ language with a syntax that is closer to C, or to Python. Another
 interesting idea to consider is compiling e.g.@: Python to Guile. It's
 not that far-fetched of an idea: see for example IronPython or JRuby.
 
-And then there's Emacs itself.  Guile's Emacs Lisp support has reached
+Finally, there's Emacs itself.  Guile's Emacs Lisp support has reached
 an excellent level of correctness, robustness, and speed.  However there
 is still work to do to finish its integration into Emacs itself.  This
 will give lots of exciting things to Emacs: native threads, a real
 object system, more sophisticated types, cleaner syntax, and access to
 all of the Guile extensions.
-
-Finally, there is another axis of crystallization, the axis between
-different Scheme implementations. Guile does not yet support the latest
-Scheme standard, R7RS, and should do so. Like all standards, R7RS is
-imperfect, but supporting it will allow more code to run on Guile
-without modification, and will allow Guile hackers to produce code
-compatible with other schemes. Help in this regard would be much
-appreciated.
