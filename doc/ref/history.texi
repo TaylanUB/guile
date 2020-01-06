@@ -281,9 +281,17 @@ language with a syntax that is closer to C, or to Python. Another
 interesting idea to consider is compiling e.g.@: Python to Guile. It's
 not that far-fetched of an idea: see for example IronPython or JRuby.
 
-Finally, there's Emacs itself.  Guile's Emacs Lisp support has reached
-an excellent level of correctness, robustness, and speed.  However there
-is still work to do to finish its integration into Emacs itself.  This
-will give lots of exciting things to Emacs: native threads, a real
-object system, more sophisticated types, cleaner syntax, and access to
-all of the Guile extensions.
+Also, there's Emacs itself.  Guile's Emacs Lisp support has reached an
+excellent level of correctness, robustness, and speed.  However there is
+still work to do to finish its integration into Emacs itself.  This will
+give lots of exciting things to Emacs: native threads, a real object
+system, more sophisticated types, cleaner syntax, and access to all of
+the Guile extensions.
+
+Finally, so much of the world's computation is performed in web browsers
+that it makes sense to ask ourselves what the Guile-on-the-web-client
+story is.  With the advent of WebAssembly, there may finally be a
+reasonable compilation target that's present on almost all user-exposed
+devices.  Especially with the upcoming proposals to allow for tail
+calls, delimited continuations, and GC-managed objects, Scheme might
+once again have a place in the web browser.  Get to it!
