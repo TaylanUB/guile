@@ -21,7 +21,7 @@ Language for Extensions.  It relates particularly to Guile version
 
 Like Guile itself, the Guile reference manual is a living entity, cared
 for by many people over a long period of time.  As such, it is hard to
-identify individuals of whom to say ``yes, this person, she wrote the
+identify individuals of whom to say ``yes, this single person wrote the
 manual.''
 
 Still, among the many contributions, some caretakers stand out.  First
