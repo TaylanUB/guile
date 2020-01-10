@@ -1,6 +1,6 @@
 ;;; Web client
 
-;; Copyright (C) 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018 Free Software Foundation, Inc.
+;; Copyright (C) 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2020 Free Software Foundation, Inc.
 
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -62,32 +62,21 @@
 
 ;; Autoload GnuTLS so that this module can be used even when GnuTLS is
 ;; not available.  At compile time, this yields "possibly unbound
-;; variable" warnings, but these are OK: we know that the variables will
-;; be bound if we need them, because (guix download) adds GnuTLS as an
-;; input in that case.
+;; variable" warnings, but these are OK: they'll be resolved at run time
+;; thanks to 'load-gnutls'.
 
-;; XXX: Use this hack instead of #:autoload to avoid compilation errors.
-;; See <http://bugs.gnu.org/12202>.
-(module-autoload! (current-module)
-                  '(gnutls) '(make-session connection-end/client))
-
-(define gnutls-module
-  (delay
-    (catch 'misc-error
-      (lambda ()
-        (let ((module (resolve-interface '(gnutls))))
-          ;; In some 2.1/2.2 installations installed alongside Guile 2.0, gnutls
-          ;; can be imported but the bindings are broken as "unknown type".
-          ;; Here we check that gnutls-version is the right type (a procedure)
-          ;; to make sure the bindings are ok.
-          (if (procedure? (module-ref module 'gnutls-version))
-              module
-              #f)))
-      (const #f))))
-
-(define (ensure-gnutls)
-  (if (not (force gnutls-module))
+(define (load-gnutls)
+  "Attempt to load the (gnutls) module.  Throw to 'gnutls-not-available
+if it is unavailable."
+  (catch 'misc-error
+    (lambda ()
+      ;; XXX: Use this hack instead of #:autoload to avoid compilation
+      ;; errors.  See <http://bugs.gnu.org/12202>.
+      (module-use! (resolve-module '(web client))
+                   (resolve-interface '(gnutls))))
+    (lambda _
       (throw 'gnutls-not-available "(gnutls) module not available")))
+  (set! load-gnutls (const #t)))
 
 (define current-http-proxy
   (make-parameter (let ((proxy (getenv "http_proxy")))
@@ -101,14 +90,14 @@ host name without trailing dot."
     (format (current-error-port)
             "gnutls: [~a|~a] ~a" (getpid) level str))
 
-  (ensure-gnutls)
+  (load-gnutls)
 
   (let ((session (make-session connection-end/client)))
     ;; Some servers such as 'cloud.github.com' require the client to support
     ;; the 'SERVER NAME' extension.  However, 'set-session-server-name!' is
     ;; not available in older GnuTLS releases.  See
     ;; <http://bugs.gnu.org/18526> for details.
-    (if (module-defined? (force gnutls-module)
+    (if (module-defined? (resolve-interface '(gnutls))
                          'set-session-server-name!)
         (set-session-server-name! session server-name-type/dns server)
         (format (current-error-port)
