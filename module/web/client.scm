@@ -45,7 +45,9 @@
   #:use-module (srfi srfi-9 gnu)
   #:use-module ((rnrs io ports)
                 #:prefix rnrs-ports:)
+  #:use-module (ice-9 match)
   #:export (current-http-proxy
+            current-https-proxy
             open-socket-for-uri
             http-request
             http-get
@@ -80,6 +82,11 @@ if it is unavailable."
 
 (define current-http-proxy
   (make-parameter (let ((proxy (getenv "http_proxy")))
+                    (and (not (equal? proxy ""))
+                         proxy))))
+
+(define current-https-proxy
+  (make-parameter (let ((proxy (getenv "https_proxy")))
                     (and (not (equal? proxy ""))
                          proxy))))
 
@@ -159,25 +166,44 @@ host name without trailing dot."
    ((uri-reference? uri-or-string) uri-or-string)
    (else (error "Invalid URI-reference" uri-or-string))))
 
+(define (setup-http-tunnel port uri)
+  "Establish over PORT an HTTP tunnel to the destination server of URI."
+  (define target
+    (string-append (uri-host uri) ":"
+                   (number->string
+                    (or (uri-port uri)
+                        (match (uri-scheme uri)
+                          ('http 80)
+                          ('https 443))))))
+  (format port "CONNECT ~a HTTP/1.1\r\n" target)
+  (format port "Host: ~a\r\n\r\n" target)
+  (force-output port)
+  (read-response port))
+
 (define (open-socket-for-uri uri-or-string)
   "Return an open input/output port for a connection to URI."
-  (define http-proxy (current-http-proxy))
-  (define uri (ensure-uri-reference (or http-proxy uri-or-string)))
-  (define addresses
-    (let ((port (uri-port uri)))
-      (delete-duplicates
-       (getaddrinfo (uri-host uri)
-                    (cond (port => number->string)
-                          ((uri-scheme uri) => symbol->string)
-                          (else (error "Not an absolute URI" uri)))
-                    (if port
-                        AI_NUMERICSERV
-                        0))
-       (lambda (ai1 ai2)
-         (equal? (addrinfo:addr ai1) (addrinfo:addr ai2))))))
+  (define uri
+    (ensure-uri-reference uri-or-string))
   (define https?
     (eq? 'https (uri-scheme uri)))
+
   (define (open-socket)
+    (define http-proxy
+      (if https? (current-https-proxy) (current-http-proxy)))
+    (define uri (ensure-uri-reference (or http-proxy uri-or-string)))
+    (define addresses
+      (let ((port (uri-port uri)))
+        (delete-duplicates
+         (getaddrinfo (uri-host uri)
+                      (cond (port => number->string)
+                            ((uri-scheme uri) => symbol->string)
+                            (else (error "Not an absolute URI" uri)))
+                      (if port
+                          AI_NUMERICSERV
+                          0))
+         (lambda (ai1 ai2)
+           (equal? (addrinfo:addr ai1) (addrinfo:addr ai2))))))
+
     (let loop ((addresses addresses))
       (let* ((ai (car addresses))
              (s  (with-fluids ((%default-port-encoding #f))
@@ -199,29 +225,16 @@ host name without trailing dot."
                 (apply throw args)
                 (loop (cdr addresses))))))))
 
-  (let-syntax ((with-https-proxy
-                (syntax-rules ()
-                  ((_ exp)
-                   ;; For HTTPS URIs, honor 'https_proxy', not 'http_proxy'.
-                   ;; FIXME: Proxying is not supported for https.
-                   (let ((thunk (lambda () exp)))
-                     (if (and https?
-                              current-http-proxy)
-                         (parameterize ((current-http-proxy #f))
-                           (when (and=> (getenv "https_proxy")
-                                        (negate string-null?))
-                             (format (current-error-port)
-                                     "warning: 'https_proxy' is ignored~%"))
-                           (thunk))
-                         (thunk)))))))
-    (with-https-proxy
-     (let ((s (open-socket)))
-       ;; Buffer input and output on this port.
-       (setvbuf s 'block %http-receive-buffer-size)
+  (let ((s (open-socket)))
+    ;; Buffer input and output on this port.
+    (setvbuf s 'block %http-receive-buffer-size)
 
-       (if https?
-           (tls-wrap s (uri-host uri))
-           s)))))
+    (when (and https? (current-https-proxy))
+      (setup-http-tunnel s uri))
+
+    (if https?
+        (tls-wrap s (uri-host uri))
+        s)))
 
 (define (extend-request r k v . additional)
   (let ((r (set-field r (request-headers)

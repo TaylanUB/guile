@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Guile Reference Manual.
-@c Copyright (C) 2010, 2011, 2012, 2013, 2015, 2018, 2019 Free Software Foundation, Inc.
+@c Copyright (C) 2010, 2011, 2012, 2013, 2015, 2018, 2019, 2020 Free Software Foundation, Inc.
 @c See the file guile.texi for copying conditions.
 
 @node Web
@@ -1540,10 +1540,11 @@ Another option, good but not as performant, would be to use threads,
 possibly via par-map or futures.
 
 @deffn {Scheme Parameter} current-http-proxy
+@deffnx {Scheme Parameter} current-https-proxy
 Either @code{#f} or a non-empty string containing the URL of the HTTP
-proxy server to be used by the procedures in the @code{(web client)}
+or HTTPS proxy server to be used by the procedures in the @code{(web client)}
 module, including @code{open-socket-for-uri}.  Its initial value is
-based on the @env{http_proxy} environment variable.
+based on the @env{http_proxy} and @env{https_proxy} environment variables.
 
 @example
 (current-http-proxy) @result{} "http://localhost:8123/"
