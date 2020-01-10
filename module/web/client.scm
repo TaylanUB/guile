@@ -125,7 +125,22 @@ host name without trailing dot."
     ;;(set-log-level! 10)
     ;;(set-log-procedure! log)
 
-    (handshake session)
+    (catch 'gnutls-error
+      (lambda ()
+        (handshake session))
+      (lambda (key err proc . rest)
+        (cond ((eq? err error/warning-alert-received)
+               ;; Like Wget, do no stop upon non-fatal alerts such as
+               ;; 'alert-description/unrecognized-name'.
+               (format (current-error-port)
+                       "warning: TLS warning alert received: ~a~%"
+                       (alert-description->string (alert-get session)))
+               (handshake session))
+              (else
+               ;; XXX: We'd use 'gnutls_error_is_fatal' but (gnutls) doesn't
+               ;; provide a binding for this.
+               (apply throw key err proc rest)))))
+
     ;; FIXME: It appears that session-record-port is entirely
     ;; sufficient; it's already a port.  The only value of this code is
     ;; to keep a reference on "port", to keep it alive!  To fix this we
