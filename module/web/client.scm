@@ -43,11 +43,14 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-9 gnu)
+  #:use-module (srfi srfi-26)
   #:use-module ((rnrs io ports)
                 #:prefix rnrs-ports:)
   #:use-module (ice-9 match)
+  #:autoload   (ice-9 ftw) (scandir)
   #:export (current-http-proxy
             current-https-proxy
+            x509-certificate-directory
             open-socket-for-uri
             http-request
             http-get
@@ -90,7 +93,84 @@ if it is unavailable."
                     (and (not (equal? proxy ""))
                          proxy))))
 
-(define (tls-wrap port server)
+(define x509-certificate-directory
+  ;; The directory where X.509 authority PEM certificates are stored.
+  (make-parameter (or (getenv "GUILE_TLS_CERTIFICATE_DIRECTORY")
+                      (getenv "SSL_CERT_DIR")     ;like OpenSSL
+                      "/etc/ssl/certs")))
+
+(define (set-certificate-credentials-x509-trust-file!* cred file format)
+  "Like 'set-certificate-credentials-x509-trust-file!', but without the file
+name decoding bug described at
+<https://debbugs.gnu.org/cgi/bugreport.cgi?bug=26948#17>."
+  (let ((data (call-with-input-file file get-bytevector-all)))
+    (set-certificate-credentials-x509-trust-data! cred data format)))
+
+(define (make-credendials-with-ca-trust-files directory)
+  "Return certificate credentials with X.509 authority certificates read from
+DIRECTORY.  Those authority certificates are checked when
+'peer-certificate-status' is later called."
+  (let ((cred  (make-certificate-credentials))
+        (files (match (scandir directory (cut string-suffix? ".pem" <>))
+                 ((or #f ())
+                  ;; Some distros provide nothing but bundles (*.crt) under
+                  ;; /etc/ssl/certs, so look for them.
+                  (or (scandir directory (cut string-suffix? ".crt" <>))
+                      '()))
+                 (pem pem))))
+    (for-each (lambda (file)
+                (let ((file (string-append directory "/" file)))
+                  ;; Protect against dangling symlinks.
+                  (when (file-exists? file)
+                    (set-certificate-credentials-x509-trust-file!*
+                     cred file
+                     x509-certificate-format/pem))))
+              files)
+    cred))
+
+(define (peer-certificate session)
+  "Return the certificate of the remote peer in SESSION."
+  (match (session-peer-certificate-chain session)
+    ((first _ ...)
+     (import-x509-certificate first x509-certificate-format/der))))
+
+(define (assert-valid-server-certificate session server)
+  "Return #t if the certificate of the remote peer for SESSION is a valid
+certificate for SERVER, where SERVER is the expected host name of peer."
+  (define cert
+    (peer-certificate session))
+
+  ;; First check whether the server's certificate matches SERVER.
+  (unless (x509-certificate-matches-hostname? cert server)
+    (throw 'tls-certificate-error 'host-mismatch cert server))
+
+  ;; Second check its validity and reachability from the set of authority
+  ;; certificates loaded via 'set-certificate-credentials-x509-trust-file!'.
+  (match (peer-certificate-status session)
+    (()                                           ;certificate is valid
+     #t)
+    ((statuses ...)
+     (throw 'tls-certificate-error 'invalid-certificate cert server
+            statuses))))
+
+(define (print-tls-certificate-error port key args default-printer)
+  "Print the TLS certificate error represented by ARGS in an intelligible
+way."
+  (match args
+    (('host-mismatch cert server)
+     (format port
+             "X.509 server certificate for '~a' does not match: ~a~%"
+             server (x509-certificate-dn cert)))
+    (('invalid-certificate cert server statuses)
+     (format port
+             "X.509 certificate of '~a' could not be verified:~%  ~a~%"
+             server
+             (string-join (map certificate-status->string statuses))))))
+
+(set-exception-printer! 'tls-certificate-error
+                        print-tls-certificate-error)
+
+(define* (tls-wrap port server #:key (verify-certificate? #t))
   "Return PORT wrapped in a TLS connection to SERVER.  SERVER must be a DNS
 host name without trailing dot."
   (define (log level str)
@@ -99,7 +179,8 @@ host name without trailing dot."
 
   (load-gnutls)
 
-  (let ((session (make-session connection-end/client)))
+  (let ((session  (make-session connection-end/client))
+        (ca-certs (x509-certificate-directory)))
     ;; Some servers such as 'cloud.github.com' require the client to support
     ;; the 'SERVER NAME' extension.  However, 'set-session-server-name!' is
     ;; not available in older GnuTLS releases.  See
@@ -119,7 +200,11 @@ host name without trailing dot."
     ;; <https://tools.ietf.org/html/rfc7568>.
     (set-session-priorities! session "NORMAL:%COMPAT:-VERS-SSL3.0")
 
-    (set-session-credentials! session (make-certificate-credentials))
+    (set-session-credentials! session
+                              (if verify-certificate?
+                                  (make-credendials-with-ca-trust-files
+                                   ca-certs)
+                                  (make-certificate-credentials)))
 
     ;; Uncomment the following lines in case of debugging emergency.
     ;;(set-log-level! 10)
@@ -140,6 +225,15 @@ host name without trailing dot."
                ;; XXX: We'd use 'gnutls_error_is_fatal' but (gnutls) doesn't
                ;; provide a binding for this.
                (apply throw key err proc rest)))))
+
+    ;; Verify the server's certificate if needed.
+    (when verify-certificate?
+      (catch 'tls-certificate-error
+        (lambda ()
+          (assert-valid-server-certificate session server))
+        (lambda args
+          (close-port port)
+          (apply throw args))))
 
     ;; FIXME: It appears that session-record-port is entirely
     ;; sufficient; it's already a port.  The only value of this code is
@@ -195,8 +289,10 @@ host name without trailing dot."
   (force-output port)
   (read-response port))
 
-(define (open-socket-for-uri uri-or-string)
-  "Return an open input/output port for a connection to URI."
+(define* (open-socket-for-uri uri-or-string
+                              #:key (verify-certificate? #t))
+  "Return an open input/output port for a connection to URI-OR-STRING.
+When VERIFY-CERTIFICATE? is true, verify HTTPS server certificates."
   (define uri
     (ensure-uri-reference uri-or-string))
   (define https?
@@ -248,7 +344,8 @@ host name without trailing dot."
       (setup-http-tunnel s uri))
 
     (if https?
-        (tls-wrap s (uri-host uri))
+        (tls-wrap s (uri-host uri)
+                  #:verify-certificate? verify-certificate?)
         s)))
 
 (define (extend-request r k v . additional)
@@ -351,7 +448,10 @@ as is the case by default with a request returned by `build-request'."
 
 (define* (http-request uri #:key
                        (body #f)
-                       (port (open-socket-for-uri uri))
+                       (verify-certificate? #t)
+                       (port (open-socket-for-uri uri
+                                                  #:verify-certificate?
+                                                  verify-certificate?))
                        (method 'GET)
                        (version '(1 . 1))
                        (keep-alive? #f)
@@ -390,6 +490,10 @@ response body will be returned as a port on which the data may be read.
 Unless KEEP-ALIVE? is true, the port will be closed after the full
 response body has been read.
 
+If PORT is false, URI denotes an HTTPS URL, and VERIFY-CERTIFICATE? is
+true, verify X.509 certificates against those available in
+X509-CERTIFICATE-DIRECTORY.
+
 Returns two values: the response read from the server, and the response
 body as a string, bytevector, #f value, or as a port (if STREAMING? is
 true)."
@@ -427,12 +531,14 @@ true)."
                       (keep-alive? #f)
                       (headers '())
                       (decode-body? #t)
+                      (verify-certificate? #t)
                       (streaming? #f))
     doc
     (http-request uri
                   #:body body #:method method
                   #:port port #:version version #:keep-alive? keep-alive?
                   #:headers headers #:decode-body? decode-body?
+                  #:verify-certificate? verify-certificate?
                   #:streaming? streaming?)))
 
 (define-http-verb http-get

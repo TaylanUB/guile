@@ -1455,12 +1455,40 @@ the lower-level HTTP, request, and response modules.
 (use-modules (web client))
 @end example
 
-@deffn {Scheme Procedure} open-socket-for-uri uri
+@deffn {Scheme Procedure} open-socket-for-uri uri [#:verify-certificate? #t]
 Return an open input/output port for a connection to URI.  Guile
 dynamically loads GnuTLS for HTTPS support.
 @xref{Guile Preparations,
 how to install the GnuTLS bindings for Guile,, gnutls-guile,
 GnuTLS-Guile}, for more information.
+
+@cindex certificate verification, for HTTPS
+When @var{verify-certificate?} is true, verify the server's X.509
+certificates against those read from @code{x509-certificate-directory}.
+When an error occurs---e.g., the server's certificate has expired, or
+its host name does not match---raise a @code{tls-certificate-error}
+exception.  The arguments to the @code{tls-certificate-error} exception
+are:
+
+@enumerate
+@item
+a symbol indicating the failure cause, @code{host-mismatch} if the
+certificate's host name does not match the server's host name, and
+@code{invalid-certificate} for other causes;
+
+@item
+the server's X.509 certificate (@pxref{Guile Reference, GnuTLS Guile
+reference,, gnutls-guile, GnuTLS-Guile});
+
+@item
+the server's host name (a string);
+
+@item
+in the case of @code{invalid-certificate} errors, a list of GnuTLS
+certificate status values---one of the @code{certificate-status/}
+constants, such as @code{certificate-status/signer-not-found} or
+@code{certificate-status/revoked}.
+@end enumerate
 @end deffn
 
 @anchor{http-request}@deffn {Scheme Procedure} http-request @var{uri} @var{arg}@dots{}
@@ -1476,7 +1504,8 @@ their default values.
 @table @code
 @item #:method 'GET
 @item #:body #f
-@item #:port (open-socket-for-uri @var{uri})]
+@item #:verify-certificate? #t
+@item #:port (open-socket-for-uri @var{uri} #:verify-certificate? @var{verify-certificate?})
 @item #:version '(1 . 1)
 @item #:keep-alive? #f
 @item #:headers '()
@@ -1507,6 +1536,10 @@ read.
 Unless @var{keep-alive?} is true, the port will be closed after the full
 response body has been read.
 
+If @var{port} is false, @var{uri} denotes an HTTPS URL, and @var{verify-certificate?} is
+true, verify X.509 certificates against those available in
+@code{x509-certificate-directory}.
+
 Returns two values: the response read from the server, and the response
 body as a string, bytevector, #f value, or as a port (if
 @var{streaming?} is true).
@@ -1530,6 +1563,36 @@ followed by an optional sequence of keyword arguments.
 arguments.
 
 @end deffn
+
+@defvr {Scheme Parameter} x509-certificate-directory
+@cindex X.509 certificate directory
+@cindex HTTPS, X.509 certificates
+@cindex certificates, for HTTPS
+This parameter gives the name of the directory where X.509 certificates
+for HTTPS connections should be looked for.
+
+Its default value is one of:
+
+@itemize
+@item
+@vindex GUILE_TLS_CERTIFICATE_DIRECTORY
+the value of the @env{GUILE_TLS_CERTIFICATE_DIRECTORY} environment
+variable;
+
+@item
+@vindex SSL_CERT_DIR
+or the value of the @env{SSL_CERT_DIR} environment variable (also
+honored by the OpenSSL library);
+
+@item
+or, as a last resort, @code{"/etc/ssl/certs"}.
+@end itemize
+
+X.509 certificates are used when authenticating the identity of a remote
+site, when the @code{#:verify-certificate?} argument to
+@code{open-socket-for-uri}, to @code{http-request}, or to related
+procedures is true.
+@end defvr
 
 @code{http-get} is useful for making one-off requests to web sites.  If
 you are writing a web spider or some other client that needs to handle a
