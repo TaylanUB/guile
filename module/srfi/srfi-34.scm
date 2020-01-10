@@ -1,6 +1,7 @@
 ;;; srfi-34.scm --- Exception handling for programs
 
-;; Copyright (C) 2003, 2006, 2008, 2010, 2019 Free Software Foundation, Inc.
+;; Copyright (C) 2003,2006,2008-2010,2019-2020
+;;   Free Software Foundation, Inc.
 ;;
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -27,47 +28,10 @@
 ;;; Code:
 
 (define-module (srfi srfi-34)
+  #:use-module ((ice-9 exceptions) #:select (guard))
   #:re-export (with-exception-handler
-               (raise-exception . raise))
-  #:re-export-and-replace ((raise-exception . raise))
-  #:export-syntax (guard))
+               (raise-exception . raise)
+               guard)
+  #:re-export-and-replace ((raise-exception . raise)))
 
 (cond-expand-provide (current-module) '(srfi-34))
-
-(define-syntax guard
-  (syntax-rules (else)
-    "Syntax: (guard (<var> <clause1> <clause2> ...) <body>)
-Each <clause> should have the same form as a `cond' clause.
-
-Semantics: Evaluating a guard form evaluates <body> with an exception
-handler that binds the raised object to <var> and within the scope of
-that binding evaluates the clauses as if they were the clauses of a
-cond expression.  That implicit cond expression is evaluated with the
-continuation and dynamic environment of the guard expression.  If
-every <clause>'s <test> evaluates to false and there is no else
-clause, then raise is re-invoked on the raised object within the
-dynamic environment of the original call to raise except that the
-current exception handler is that of the guard expression."
-    ((guard (var clause ... (else e e* ...)) body body* ...)
-     (with-exception-handler
-      (lambda (var)
-        (cond clause ...
-              (else e e* ...)))
-      (lambda () body body* ...)
-      #:unwind? #t))
-    ((guard (var clause clause* ...) body body* ...)
-     (let ((tag (make-prompt-tag)))
-       (call-with-prompt
-        tag
-        (lambda ()
-          (with-exception-handler
-           (lambda (exn)
-             (abort-to-prompt tag exn)
-             (raise-exception exn))
-           (lambda () body body* ...)))
-        (lambda (rewind var)
-          (cond clause clause* ...
-                (else (rewind)))))))))
-
-
-;;; (srfi srfi-34) ends here.

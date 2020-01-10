@@ -1,5 +1,5 @@
 ;;; Exceptions
-;;; Copyright (C) 2019 Free Software Foundation, Inc.
+;;; Copyright (C) 2019-2020 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software: you can redistribute it and/or modify
 ;;; it under the terms of the GNU Lesser General Public License as
@@ -97,7 +97,9 @@
             make-undefined-variable-error
             undefined-variable-error?
 
-            raise-continuable))
+            raise-continuable
+
+            guard))
 
 (define-syntax define-exception-type-procedures
   (syntax-rules ()
@@ -339,3 +341,65 @@
 
 ;; Override core definition.
 (set! make-exception-from-throw convert-guile-exception)
+
+(define-syntax guard
+  (lambda (stx)
+    "Establish an exception handler during the evaluation of an expression.
+
+@example
+(guard (@var{exn} @var{clause1} @var{clause2} ...)
+  @var{body} @var{body*} ...)
+@end example
+
+Each @var{clause} should have the same form as a @code{cond} clause.
+
+The @code{(begin body body* ...)} is evaluated with an exception
+handler that binds the raised object to @var{exn} and within the scope of
+that binding evaluates the clauses as if they were the clauses of a cond
+expression.
+
+When a clause of that implicit cond expression matches, its consequent
+is evaluated with the continuation and dynamic environment of the
+@code{guard} expression.
+
+If every clause's test evaluates to false and there is no @code{else}
+clause, then @code{raise-continuable} is re-invoked on the raised
+object, within the dynamic environment of the original call to raise
+except that the current exception handler is that of the guard
+expression.
+
+Note that in a slight deviation from SRFI-34, R6RS, and R7RS, Guile
+evaluates the clause tests within the continuation of the exception
+handler, not the continuation of the @code{guard}.  This allows
+unhandled exceptions to continue to dispatch within the original
+continuation, without unwinding then rewinding any intermediate
+@code{dynamic-wind} invocations."
+    (define (dispatch tag exn clauses)
+      (define (build-clause test handler clauses)
+        #`(let ((t #,test))
+            (if t
+                (abort-to-prompt #,tag #,handler t)
+                #,(dispatch tag exn clauses))))
+      (syntax-case clauses (=> else)
+        (() #`(raise-continuable #,exn))
+        (((test => f) . clauses)
+         (build-clause #'test #'(lambda (res) (f res)) #'clauses))
+        (((else e e* ...) . clauses)
+         (build-clause #'#t #'(lambda (res) e e* ...) #'clauses))
+        (((test) . clauses)
+         (build-clause #'test #'(lambda (res) res) #'clauses))
+        (((test e* ...) . clauses)
+         (build-clause #'test #'(lambda (res) e* ...) #'clauses))))
+    (syntax-case stx ()
+      ((guard (exn clause clause* ...) body body* ...)
+       (identifier? #'exn)
+       #`(let ((tag (make-prompt-tag)))
+           (call-with-prompt
+            tag
+            (lambda ()
+              (with-exception-handler
+               (lambda (exn)
+                 #,(dispatch #'tag #'exn #'(clause clause* ...)))
+               (lambda () body body* ...)))
+            (lambda (_ h v)
+              (h v))))))))

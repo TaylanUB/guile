@@ -1,6 +1,6 @@
 ;;; exceptions.scm --- The R6RS exceptions library
 
-;;      Copyright (C) 2010, 2011, 2013 Free Software Foundation, Inc.
+;;      Copyright (C) 2010, 2011, 2013, 2020 Free Software Foundation, Inc.
 ;;
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -23,20 +23,4 @@
           (rnrs control (6))
           (rnrs conditions (6))
 	  (rename (ice-9 exceptions)
-                  (raise-exception raise)))
-
-  (define-syntax guard0
-    (syntax-rules ()
-      ((_ (variable cond-clause ...) . body)
-       (call/cc (lambda (continuation)
-		  (with-exception-handler
-		   (lambda (variable)
-		     (continuation (cond cond-clause ...)))
-		   (lambda () . body)))))))
-
-  (define-syntax guard
-    (syntax-rules (else)
-      ((_ (variable cond-clause ... . ((else else-clause ...))) . body)
-       (guard0 (variable cond-clause ... (else else-clause ...)) . body))
-      ((_ (variable cond-clause ...) . body)
-       (guard0 (variable cond-clause ... (else (raise variable))) . body)))))
+                  (raise-exception raise))))
