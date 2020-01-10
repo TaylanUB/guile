@@ -7,13 +7,54 @@ Please send Guile bug reports to bug-guile@gnu.org.
 
 Changes since alpha 2.9.8:
 
-** Fix performance of SRFI-43 vector-fill!
+* Notable changes
+
+** `define-module' #:autoload no longer pulls in the whole module
+
+One of the ways that a module can use another is "autoloads".  For
+example:
+
+  (define-module (a) #:autoload (b) (make-b))
+
+In this example, module `(b)' will only be imported when the `make-b'
+identifier is referenced.  However besides the imprecision about when a
+given binding is actually referenced, this mechanism used to cause the
+whole imported module to become available, not just the specified
+bindings.  This has now been changed to only import the specified bindings.
+
+This is a backward-incompatible change.  The fix is to mention all
+bindings of interest in the autoload clause.  Feedback is welcome.
+
+** `guard' no longer unwinds the stack for clause tests
+
+SRFI-34, and then R6RS and R7RS, defines a `guard' form that is a
+shorthand for `with-exception-handler'.  The cond-like clauses for the
+exception handling are specified to run with the continuation of the
+`guard', while any re-propagation of the exception happens with the
+continuation of the original `raise'.
+
+In practice, this means that one needs full `call-with-continuation' to
+implement the specified semantics, to be able to unwind the stack to the
+cond clauses, then rewind if none match.  This is not only quite
+expensive, it is also error-prone as one usually doesn't want to rewind
+dynamic-wind guards in an exceptional situation.  Additionally, as
+continuations bind tightly to the current thread, it makes it impossible
+to migrate a subcomputation with a different thread if a `guard' is live
+on the stack, as is done in Fibers.
+
+Guile now works around these issues by running the test portion of the
+guard expressions within the original `raise' continuation, and only
+unwinding once a test matches.  This is an incompatible semantic change
+but we think the situation is globally much better, and we expect that
+very few people will be affected by the change.
+
+** Improve SRFI-43 vector-fill!
 
 SRFI-43 vector-fill! now has the same performance whether an optional
 range is provided or not, and is also provided in core.  As a side
 effect, vector-fill! and vector_fill_x no longer work on non-vector
-rank-1 arrays. Such cases were handled incorrectly before; for example,
-prior to this change,
+rank-1 arrays.  Such cases were handled incorrectly before; for example,
+prior to this change:
 
   (define a (make-vector 10 'x))
   (define b (make-shared-array a (lambda (i) (list (* 2 i))) 5))
@@ -21,21 +62,9 @@ prior to this change,
 
   => #1(y y y x x)
 
-This is now an error. Instead, use array-fill! (or array_fill_x).
+This is now an error.  Instead, use array-fill!.
 
-
-Changes in alpha 2.9.8 (since alpha 2.9.7):
-
-* Bug fixes
-
-** Fix bug in which abort_to_prompt used an invalid stack pointer
-
-This bug manifested itself as a bootstrap compile error on some systems,
-notably Ubuntu 18.04 on x86-64, and was due to failing to recalculate a
-local variable after a possible stack relocation.
-
-** SRFI-35 does a #:re-export-and-replace on `&error'
-** SRFI-35 avoids compiler warnings for multiply-defined condition types
+** 
 
 
 Changes in alpha 2.9.x (since the stable 2.2 series):
