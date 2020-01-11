@@ -49,12 +49,14 @@ typedef void (*scm_t_s64_from_scm_intrinsic) (int64_t*, SCM);
 typedef SCM (*scm_t_scm_from_u64_intrinsic) (uint64_t*);
 typedef SCM (*scm_t_scm_from_s64_intrinsic) (int64_t*);
 typedef SCM (*scm_t_scm_from_scm_u64_intrinsic) (SCM, uint64_t*);
+typedef double (*scm_t_f64_from_s64_intrinsic) (uint64_t*);
 #else
 typedef uint64_t (*scm_t_u64_from_scm_intrinsic) (SCM);
 typedef int64_t (*scm_t_s64_from_scm_intrinsic) (SCM);
 typedef SCM (*scm_t_scm_from_u64_intrinsic) (uint64_t);
 typedef SCM (*scm_t_scm_from_s64_intrinsic) (int64_t);
 typedef SCM (*scm_t_scm_from_scm_u64_intrinsic) (SCM, uint64_t);
+typedef double (*scm_t_f64_from_s64_intrinsic) (uint64_t);
 #endif
 
 typedef void (*scm_t_thread_intrinsic) (scm_thread*);
@@ -189,6 +191,7 @@ typedef uint32_t* scm_t_vcode_intrinsic;
   M(scm_from_thread_sz, allocate_pointerless_words, "allocate-pointerless-words", ALLOCATE_POINTERLESS_WORDS) \
   M(scm_from_thread_sz, allocate_pointerless_words_with_freelist, "allocate-pointerless-words/freelist", ALLOCATE_POINTERLESS_WORDS_WITH_FREELIST) \
   M(scm_from_scm, inexact, "inexact", INEXACT) \
+  M(f64_from_s64, s64_to_f64, "s64->f64", S64_TO_F64) \
   /* Add new intrinsics here; also update scm_bootstrap_intrinsics.  */
 
 enum scm_vm_intrinsic

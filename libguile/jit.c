@@ -1,4 +1,4 @@
-/* Copyright 2018-2019
+/* Copyright 2018-2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -5004,8 +5004,14 @@ compile_f64_set_slow (scm_jit_state *j, uint8_t ptr, uint8_t idx, uint8_t v)
 static void
 compile_s64_to_f64 (scm_jit_state *j, uint16_t dst, uint16_t src)
 {
+#if SIZEOF_UINTPTR_T >= 8
   emit_sp_ref_s64 (j, T0, src);
   jit_extr_d (j->jit, JIT_F0, T0);
+#else
+  emit_call_1 (j, scm_vm_intrinsics.s64_to_f64, sp_slot_operand (j, src));
+  jit_retval_d (j->jit, JIT_F0);
+  emit_reload_sp (j);
+#endif
   record_fpr_clobber (j, JIT_F0);
   emit_sp_set_f64 (j, dst, JIT_F0);
 }
