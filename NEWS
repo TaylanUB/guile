@@ -64,7 +64,14 @@ prior to this change:
 
 This is now an error.  Instead, use array-fill!.
 
-** 
+** Fix compilation on 32-bit targets
+
+A compile error introduced in 2.9.3 prevented compilation on 32-bit
+targets.  This has been fixed.
+
+** Fix a bug in closure conversion
+
+Thanks for Stefan Israelsson Tampe for the report.
 
 
 Changes in alpha 2.9.x (since the stable 2.2 series):
