@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -596,6 +596,17 @@ term."
              ($continue ktag0 src
                ($primcall 'allocate-words/immediate `(closure . ,(+ nfree 2))
                           ())))))
+        (#(#t 0)
+         (with-cps cps
+           (build-term ($continue k src ($const #f)))))
+        (#(#t 1)
+         ;; A well-known closure of one free variable is replaced
+         ;; at each use with the free variable itself, so we don't
+         ;; need a binding at all; and yet, the continuation
+         ;; expects one value, so give it something.  DCE should
+         ;; clean up later.
+         (with-cps cps
+           (build-term ($continue k src ($const #f)))))
         (#(#t 2)
          ;; Well-known closure with two free variables; the closure is a
          ;; pair.
@@ -666,17 +677,6 @@ bound to @var{var}, and continue to @var{k}."
           (#(#f 0)
            (with-cps cps
              (build-term ($continue k src ($const-fun kfun)))))
-          (#(#t 0)
-           (with-cps cps
-             (build-term ($continue k src ($const #f)))))
-          (#(#t 1)
-           ;; A well-known closure of one free variable is replaced
-           ;; at each use with the free variable itself, so we don't
-           ;; need a binding at all; and yet, the continuation
-           ;; expects one value, so give it something.  DCE should
-           ;; clean up later.
-           (with-cps cps
-             (build-term ($continue k src ($const #f)))))
           (#(well-known? nfree)
            ;; A bit of a mess, but beta conversion should remove the
            ;; final $values if possible.
