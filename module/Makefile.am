@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in.
 ##
-##   Copyright (C) 2009-2019 Free Software Foundation, Inc.
+##   Copyright (C) 2009-2020 Free Software Foundation, Inc.
 ##
 ##   This file is part of GUILE.
 ##
@@ -27,7 +27,7 @@ modpath =
 VM_TARGETS := system/vm/assembler.go system/vm/disassembler.go
 $(VM_TARGETS): $(top_builddir)/libguile/vm-operations.h
 
-ice-9/boot-9.go: ice-9/boot-9.scm ice-9/quasisyntax.scm ice-9/r6rs-libraries.scm
+ice-9/boot-9.go: ice-9/boot-9.scm ice-9/quasisyntax.scm ice-9/r6rs-libraries.scm ice-9/r7rs-libraries.scm
 ice-9/match.go: ice-9/match.scm ice-9/match.upstream.scm
 srfi/srfi-64.go: srfi/srfi-64.scm srfi/srfi-64/testing.scm
 $(nobase_ccache_DATA): ../bootstrap/ice-9/eval.go
@@ -391,6 +391,7 @@ NOCOMP_SOURCES =				\
   ice-9/match.upstream.scm			\
   ice-9/psyntax.scm				\
   ice-9/r6rs-libraries.scm			\
+  ice-9/r7rs-libraries.scm			\
   ice-9/quasisyntax.scm				\
   srfi/srfi-42/ec.scm				\
   srfi/srfi-64/testing.scm			\

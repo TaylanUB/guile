@@ -73,6 +73,12 @@ targets.  This has been fixed.
 
 Thanks for Stefan Israelsson Tampe for the report.
 
+** Fix omission in R7RS support
+
+Somewhat embarrassingly, the R7RS support added earlier in 2.9 failed to
+include an implementation of `define-library'.  This oversight has been
+corrected :)
+
 
 Changes in alpha 2.9.x (since the stable 2.2 series):
 

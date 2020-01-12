@@ -1,5 +1,5 @@
 ;;; R7RS compatibility libraries
-;;; Copyright (C) 2019 Free Software Foundation, Inc.
+;;; Copyright (C) 2019-2020 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software: you can redistribute it and/or modify
 ;;; it under the terms of the GNU Lesser General Public License as
@@ -297,12 +297,11 @@
            #'(begin body ...)
            #'(r7:cond-expand more-clauses ...))))))
 
-(define-syntax-rule (r7:include k fn* ...)
-  (begin (include k fn*) ...))
+(define-syntax-rule (r7:include fn* ...)
+  (begin (include fn*) ...))
 
-;; FIXME
-(define-syntax-rule (r7:include-ci k fn* ...)
-  (r7:include k fn* ...))
+(define-syntax-rule (r7:include-ci fn* ...)
+  (begin (include-ci fn*) ...))
 
 (define-syntax-rule (r7:let-syntax ((vars trans) ...) . expr)
   (let-syntax ((vars trans) ...)
@@ -577,14 +576,11 @@ defaults to 0 and SEND defaults to the length of SOURCE."
 
 (define (features)
   (append
-   %cond-expand-features
    (case (native-endianness)
      ((big) '(big-endian))
      ((little) '(little-endian))
      (else '()))
-   '(r6rs
-     syntax-case
-     r7rs exact-closed ieee-float full-unicode ratios)))
+   %cond-expand-features))
 
 (define (input-port-open? port)
   (and (not (port-closed? port)) (input-port? port)))

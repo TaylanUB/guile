@@ -1,6 +1,6 @@
 ;;;; -*-scheme-*-
 ;;;;
-;;;; Copyright (C) 2001, 2003, 2006, 2009, 2010-2019
+;;;; Copyright (C) 2001, 2003, 2006, 2009, 2010-2020
 ;;;;   Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
@@ -3231,41 +3231,52 @@
         ;; Scheme code corresponding to the intermediate language forms.
         ((_ e) (emit (quasi #'e 0))))))) 
 
+(define call-with-include-port
+  (let ((syntax-dirname (lambda (stx)
+                          (define src (syntax-source stx))
+                          (define filename (and src (assq-ref src filename)))
+                          (and (string? filename)
+                               (dirname filename)))))
+    (lambda* (filename proc #:key (dirname (syntax-dirname filename)))
+      "Like @code{call-with-input-file}, except relative paths are
+searched relative to the @var{dirname} instead of the current working
+directory.  Also, @var{filename} can be a syntax object; in that case,
+and if @var{dirname} is not specified, the @code{syntax-source} of
+@var{filename} is used to obtain a base directory for relative file
+names."
+      (let* ((filename (syntax->datum filename))
+             (p (open-input-file
+                 (cond ((absolute-file-name? filename)
+                        filename)
+                       (dirname
+                        (in-vicinity dirname filename))
+                       (else
+                        (error
+                         "attempt to include relative file name but could not determine base dir")))))
+             (enc (file-encoding p)))
+
+        ;; Choose the input encoding deterministically.
+        (set-port-encoding! p (or enc "UTF-8"))
+
+        (call-with-values (lambda () (proc p))
+          (lambda results
+            (close-port p)
+            (apply values results)))))))
+
 (define-syntax include
-  (lambda (x)
-    (define read-file
-      (lambda (fn dir k)
-        (let* ((p (open-input-file
-                   (cond ((absolute-file-name? fn)
-                          fn)
-                         (dir
-                          (in-vicinity dir fn))
-                         (else
-                          (syntax-violation
-                           'include
-                           "relative file name only allowed when the include form is in a file"
-                           x)))))
-               (enc (file-encoding p)))
-
-          ;; Choose the input encoding deterministically.
-          (set-port-encoding! p (or enc "UTF-8"))
-
-          (let f ((x (read p))
-                  (result '()))
-            (if (eof-object? x)
-                (begin
-                  (close-port p)
-                  (reverse result))
-                (f (read p)
-                   (cons (datum->syntax k x) result)))))))
-    (let* ((src (syntax-source x))
-           (file (and src (assq-ref src 'filename)))
-           (dir (and (string? file) (dirname file))))
-      (syntax-case x ()
-        ((k filename)
-         (let ((fn (syntax->datum #'filename)))
-           (with-syntax (((exp ...) (read-file fn dir #'filename)))
-             #'(begin exp ...))))))))
+  (lambda (stx)
+    (syntax-case stx ()
+      ((_ filename)
+       (call-with-include-port
+        #'filename
+        (lambda (p)
+          ;; In Guile, (cons #'a #'b) is the same as #'(a . b).
+          (cons #'begin
+                (let lp ()
+                  (let ((x (read p)))
+                    (if (eof-object? x)
+                        #'()
+                        (cons (datum->syntax #'filename x) (lp))))))))))))
 
 (define-syntax include-from-path
   (lambda (x)

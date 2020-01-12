@@ -1,6 +1,6 @@
 ;;; -*- mode: scheme; coding: utf-8; -*-
 
-;;;; Copyright (C) 1995-2014, 2016-2019  Free Software Foundation, Inc.
+;;;; Copyright (C) 1995-2014, 2016-2020  Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -3933,6 +3933,7 @@ but it fails to load."
              *unspecified*))))))
 
 (include-from-path "ice-9/r6rs-libraries")
+(include-from-path "ice-9/r7rs-libraries")
 
 (define-syntax-rule (define-private foo bar)
   (define foo bar))

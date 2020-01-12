@@ -3316,53 +3316,50 @@
                   "source expression failed to match any pattern"
                   tmp-1)))))))))
 
+(define call-with-include-port
+  (let ((syntax-dirname
+          (lambda (stx)
+            (letrec*
+              ((src (syntax-source stx))
+               (filename (if src (assq-ref src filename) #f)))
+              (if (string? filename) (dirname filename) #f)))))
+    (lambda* (filename proc #:key (dirname (syntax-dirname filename) #:dirname))
+      "Like @code{call-with-input-file}, except relative paths are\nsearched relative to the @var{dirname} instead of the current working\ndirectory.  Also, @var{filename} can be a syntax object; in that case,\nand if @var{dirname} is not specified, the @code{syntax-source} of\n@var{filename} is used to obtain a base directory for relative file\nnames."
+      (let ((filename (syntax->datum filename)))
+        (let ((p (open-input-file
+                   (if (absolute-file-name? filename)
+                     filename
+                     (if dirname
+                       (in-vicinity dirname filename)
+                       (error "attempt to include relative file name but could not determine base dir"))))))
+          (let ((enc (file-encoding p)))
+            (set-port-encoding! p (let ((t enc)) (if t t "UTF-8")))
+            (call-with-values
+              (lambda () (proc p))
+              (lambda results (close-port p) (apply values results)))))))))
+
 (define include
   (let ((make-syntax make-syntax))
     (make-syntax-transformer
       'include
       'macro
-      (lambda (x)
-        (letrec*
-          ((read-file
-             (lambda (fn dir k)
-               (let ((p (open-input-file
-                          (if (absolute-file-name? fn)
-                            fn
-                            (if dir
-                              (in-vicinity dir fn)
-                              (syntax-violation
-                                'include
-                                "relative file name only allowed when the include form is in a file"
-                                x))))))
-                 (let ((enc (file-encoding p)))
-                   (set-port-encoding! p (let ((t enc)) (if t t "UTF-8")))
-                   (let f ((x (read p)) (result '()))
-                     (if (eof-object? x)
-                       (begin (close-port p) (reverse result))
-                       (f (read p) (cons (datum->syntax k x) result)))))))))
-          (let ((src (syntax-source x)))
-            (let ((file (if src (assq-ref src 'filename) #f)))
-              (let ((dir (if (string? file) (dirname file) #f)))
-                (let ((tmp-1 x))
-                  (let ((tmp ($sc-dispatch tmp-1 '(any any))))
-                    (if tmp
-                      (apply (lambda (k filename)
-                               (let ((fn (syntax->datum filename)))
-                                 (let ((tmp-1 (read-file fn dir filename)))
-                                   (let ((tmp ($sc-dispatch tmp-1 'each-any)))
-                                     (if tmp
-                                       (apply (lambda (exp)
-                                                (cons (make-syntax 'begin '((top)) '(hygiene guile)) exp))
-                                              tmp)
-                                       (syntax-violation
-                                         #f
-                                         "source expression failed to match any pattern"
-                                         tmp-1))))))
-                             tmp)
-                      (syntax-violation
-                        #f
-                        "source expression failed to match any pattern"
-                        tmp-1))))))))))))
+      (lambda (stx)
+        (let ((tmp-1 stx))
+          (let ((tmp ($sc-dispatch tmp-1 '(_ any))))
+            (if tmp
+              (apply (lambda (filename)
+                       (call-with-include-port
+                         filename
+                         (lambda (p)
+                           (cons (make-syntax 'begin '((top)) '(hygiene guile))
+                                 (let lp ()
+                                   (let ((x (read p)))
+                                     (if (eof-object? x) '() (cons (datum->syntax filename x) (lp)))))))))
+                     tmp)
+              (syntax-violation
+                #f
+                "source expression failed to match any pattern"
+                tmp-1))))))))
 
 (define include-from-path
   (let ((make-syntax make-syntax))
