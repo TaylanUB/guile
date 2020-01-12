@@ -1457,7 +1457,7 @@ top-level bindings from ENV and return the resulting expression."
                                             opt-vals)))))
 
               (cond
-               ((or (< nargs nreq) (and (not rest) (> nargs (+ nreq nopt))))
+               ((or (< nargs nreq) (and (null? rest) (> nargs (+ nreq nopt))))
                 ;; An error, or effecting arguments.
                 (make-call src (for-call orig-proc) (map for-value orig-args)))
                ((or (and=> (find-counter key counter) counter-recursive?)

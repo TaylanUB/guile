@@ -1,7 +1,7 @@
 ;;;; tree-il.test --- test suite for compiling tree-il   -*- scheme -*-
 ;;;; Andy Wingo <wingo@pobox.com> --- May 2009
 ;;;;
-;;;; 	Copyright (C) 2009-2014, 2017 Free Software Foundation, Inc.
+;;;; 	Copyright (C) 2009-2014, 2017, 2020 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -1415,4 +1415,21 @@
                         (call (lexical lp _)
                               (lexical x* _))))))))
              (call (lexical lp _)
-                   (lexical x _))))))))
+                   (lexical x _)))))))
+
+  (pass-if-peval
+      (lambda ()
+        (define (add1 n) (+ 1 n))
+        (add1 1 2))
+    (lambda ()
+      (lambda-case
+       ((() #f #f #f () ())
+        (fix (add1)
+             (_)
+             ((lambda ((name . add1))
+                (lambda-case
+                 (((n) #f #f #f () (_))
+                  (primcall + (const 1) (lexical n _))))))
+             (call (lexical add1 _)
+                   (const 1)
+                   (const 2))))))))
