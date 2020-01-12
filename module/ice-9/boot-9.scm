@@ -984,7 +984,7 @@ VALUE."
   (make-hash-table))
 
 (define* (make-record-type type-name fields #:optional printer #:key
-                           parent uid extensible?
+                           parent uid extensible? allow-duplicate-field-names?
                            (opaque? (and=> parent record-type-opaque?)))
   ;; Pre-generate constructors for nfields < 20.
   (define-syntax make-constructor
@@ -1060,7 +1060,7 @@ VALUE."
             (fields (cdr fields)))
         (unless (symbol? field)
           (error "expected field to be a symbol" field))
-        (when (memq field fields)
+        (when (and (not allow-duplicate-field-names?) (memq field fields))
           (error "duplicate field" field))
         (check-fields fields))))
 
@@ -1069,7 +1069,7 @@ VALUE."
         tail
         (let ((field (car head))
               (tail (append-fields (cdr head) tail)))
-          (when (memq field tail)
+          (when (and (not allow-duplicate-field-names?) (memq field tail))
             (error "duplicate field" field))
           (cons field tail))))
 
@@ -1201,10 +1201,17 @@ VALUE."
                             (eq? (vector-ref parents pos) rtd))))))))
       (lambda (obj) (and (struct? obj) (eq? rtd (struct-vtable obj))))))
 
-(define (record-accessor rtd field-name)
+(define (record-accessor rtd field-name-or-idx)
+  (define vtable-index-size 5) ; FIXME: pull from struct.h
+  (define (record-nfields rtd)
+    (struct-ref/unboxed rtd vtable-index-size))
   (let ((type-name (record-type-name rtd))
-        (pos (or (list-index (record-type-fields rtd) field-name)
-                 (error 'no-such-field field-name)))
+        (pos (cond
+              ((and (exact-integer? field-name-or-idx)
+                    (<= 0 field-name-or-idx (record-nfields rtd)))
+               field-name-or-idx)
+              ((list-index (record-type-fields rtd) field-name-or-idx))
+              (else (error 'no-such-field field-name-or-idx))))
         (pred (record-predicate rtd)))
     (lambda (obj)
       (unless (pred obj)
@@ -1214,10 +1221,17 @@ VALUE."
                    #f))
       (struct-ref obj pos))))
 
-(define (record-modifier rtd field-name)
+(define (record-modifier rtd field-name-or-idx)
+  (define vtable-index-size 5) ; FIXME: pull from struct.h
+  (define (record-nfields rtd)
+    (struct-ref/unboxed rtd vtable-index-size))
   (let ((type-name (record-type-name rtd))
-        (pos (or (list-index (record-type-fields rtd) field-name)
-                 (error 'no-such-field field-name)))
+        (pos (cond
+              ((and (exact-integer? field-name-or-idx)
+                    (<= 0 field-name-or-idx (record-nfields rtd)))
+               field-name-or-idx)
+              ((list-index (record-type-fields rtd) field-name-or-idx))
+              (else (error 'no-such-field field-name-or-idx))))
         (pred (record-predicate rtd)))
     (unless (logbit? pos (record-type-mutable-fields rtd))
       (error "field is immutable" rtd field-name))

@@ -1,6 +1,6 @@
 ;;; procedural.scm --- Procedural interface to R6RS records
 
-;;      Copyright (C) 2010, 2017 Free Software Foundation, Inc.
+;;      Copyright (C) 2010, 2017, 2019-2020 Free Software Foundation, Inc.
 ;;
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -53,6 +53,7 @@
   (define (make-record-type-descriptor name parent uid sealed? opaque? fields)
     (make-record-type name (vector->list fields) #:parent parent #:uid uid
                       #:extensible? (not sealed?)
+                      #:allow-duplicate-field-names #t
                       #:opaque? (or opaque?
                                     (and parent (record-type-opaque? parent)))))
 

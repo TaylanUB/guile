@@ -79,6 +79,13 @@ Somewhat embarrassingly, the R7RS support added earlier in 2.9 failed to
 include an implementation of `define-library'.  This oversight has been
 corrected :)
 
+** Optionally allow duplicate field names in core records
+
+See the new #:allow-duplicate-field-names? keyword argument to
+`make-record-type' in the manual, for more.  This restores a needed
+feature to R6RS records.
+
+
 
 Changes in alpha 2.9.x (since the stable 2.2 series):
 

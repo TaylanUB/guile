@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Guile Reference Manual.
-@c Copyright (C)  1996, 1997, 2000-2004, 2006-2017, 2019
+@c Copyright (C)  1996, 1997, 2000-2004, 2006-2017, 2019-2020
 @c   Free Software Foundation, Inc.
 @c See the file guile.texi for copying conditions.
 
@@ -8649,6 +8649,7 @@ promise that records are disjoint with other Scheme types.
 @deffn {Scheme Procedure} make-record-type type-name field-names [print] @
        [#:parent=@code{#f}] [#:uid=@code{#f}] @
        [#:extensible?=@code{#f}] [#:opaque?=@code{#f}] @
+       [#:allow-duplicate-field-names?=@code{#t}]
 Create and return a new @dfn{record-type descriptor}.
 
 @var{type-name} is a string naming the type.  Currently it's only used
@@ -8656,7 +8657,8 @@ in the printed representation of records, and in diagnostics.
 @var{field-names} is a list of elements of the form @code{(immutable
 @var{name})}, @code{(mutable @var{name})}, or @var{name}, where
 @var{name} are symbols naming the fields of a record of the type.
-Duplicates are not allowed among these symbols.
+Duplicates are not allowed among these symbols, unless
+@var{allow-duplicate-field-names?} is true.
 
 @example
 (make-record-type "employee" '(name age salary))
@@ -8723,9 +8725,16 @@ Return a procedure for reading the value of a particular field of a
 member of the type represented by @var{rtd}.  The returned procedure
 accepts exactly one argument which must be a record of the appropriate
 type; it returns the current value of the field named by the symbol
-@var{field-name} in that record.  The symbol @var{field-name} must be a
-member of the list of field-names in the call to @code{make-record-type}
-that created the type represented by @var{rtd}.
+@var{field-name} in that record.
+
+If @var{field-name} is a symbol, it must be a member of the list of
+field-names in the call to @code{make-record-type} that created the type
+represented by @var{rtd}.  If multiple fields in @var{rtd} have the same
+name, @code{record-accessor} returns the first one.
+
+If @var{field-name} is an integer, it should be an index into
+@code{(record-type-fields @var{rtd})}.  This allows accessing fields
+with duplicate names.
 @end deffn
 
 @deffn {Scheme Procedure} record-modifier rtd field-name
@@ -8735,9 +8744,8 @@ accepts exactly two arguments: first, a record of the appropriate type,
 and second, an arbitrary Scheme value; it modifies the field named by
 the symbol @var{field-name} in that record to contain the given value.
 The returned value of the modifier procedure is unspecified.  The symbol
-@var{field-name} must be a member of the list of field-names in the call
-to @code{make-record-type} that created the type represented by
-@var{rtd}.
+@var{field-name} is a field name or a field index, as in
+@code{record-modifier}.
 @end deffn
 
 @deffn {Scheme Procedure} record-type-descriptor record
