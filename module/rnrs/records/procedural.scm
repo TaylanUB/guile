@@ -53,7 +53,7 @@
   (define (make-record-type-descriptor name parent uid sealed? opaque? fields)
     (make-record-type name (vector->list fields) #:parent parent #:uid uid
                       #:extensible? (not sealed?)
-                      #:allow-duplicate-field-names #t
+                      #:allow-duplicate-field-names? #t
                       #:opaque? (or opaque?
                                     (and parent (record-type-opaque? parent)))))
 

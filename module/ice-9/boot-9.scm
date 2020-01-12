@@ -1234,7 +1234,7 @@ VALUE."
               (else (error 'no-such-field field-name-or-idx))))
         (pred (record-predicate rtd)))
     (unless (logbit? pos (record-type-mutable-fields rtd))
-      (error "field is immutable" rtd field-name))
+      (error "field is immutable" rtd field-name-or-idx))
     (lambda (obj val)
       (unless (pred obj)
         (scm-error 'wrong-type-arg "record-modifier"
