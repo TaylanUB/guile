@@ -85,6 +85,12 @@ See the new #:allow-duplicate-field-names? keyword argument to
 `make-record-type' in the manual, for more.  This restores a needed
 feature to R6RS records.
 
+** Fix default value of thread-local fluids
+
+Before, `fluid-ref' on an unbound thread-local fluid was returning #f
+instead of the default value of the fluid.  Thanks to Rob Browning for
+the fix!
+
 
 
 Changes in alpha 2.9.x (since the stable 2.2 series):
