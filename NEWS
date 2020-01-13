@@ -5,95 +5,7 @@ See the end for copying conditions.
 Please send Guile bug reports to bug-guile@gnu.org.
 
 
-Changes since alpha 2.9.9 (since 2.9.8):
-
-* Notable changes
-
-** `define-module' #:autoload no longer pulls in the whole module
-
-One of the ways that a module can use another is "autoloads".  For
-example:
-
-  (define-module (a) #:autoload (b) (make-b))
-
-In this example, module `(b)' will only be imported when the `make-b'
-identifier is referenced.  However besides the imprecision about when a
-given binding is actually referenced, this mechanism used to cause the
-whole imported module to become available, not just the specified
-bindings.  This has now been changed to only import the specified bindings.
-
-This is a backward-incompatible change.  The fix is to mention all
-bindings of interest in the autoload clause.  Feedback is welcome.
-
-** `guard' no longer unwinds the stack for clause tests
-
-SRFI-34, and then R6RS and R7RS, defines a `guard' form that is a
-shorthand for `with-exception-handler'.  The cond-like clauses for the
-exception handling are specified to run with the continuation of the
-`guard', while any re-propagation of the exception happens with the
-continuation of the original `raise'.
-
-In practice, this means that one needs full `call-with-continuation' to
-implement the specified semantics, to be able to unwind the stack to the
-cond clauses, then rewind if none match.  This is not only quite
-expensive, it is also error-prone as one usually doesn't want to rewind
-dynamic-wind guards in an exceptional situation.  Additionally, as
-continuations bind tightly to the current thread, it makes it impossible
-to migrate a subcomputation with a different thread if a `guard' is live
-on the stack, as is done in Fibers.
-
-Guile now works around these issues by running the test portion of the
-guard expressions within the original `raise' continuation, and only
-unwinding once a test matches.  This is an incompatible semantic change
-but we think the situation is globally much better, and we expect that
-very few people will be affected by the change.
-
-** Improve SRFI-43 vector-fill!
-
-SRFI-43 vector-fill! now has the same performance whether an optional
-range is provided or not, and is also provided in core.  As a side
-effect, vector-fill! and vector_fill_x no longer work on non-vector
-rank-1 arrays.  Such cases were handled incorrectly before; for example,
-prior to this change:
-
-  (define a (make-vector 10 'x))
-  (define b (make-shared-array a (lambda (i) (list (* 2 i))) 5))
-  (vector-fill! b 'y)
-
-  => #1(y y y x x)
-
-This is now an error.  Instead, use array-fill!.
-
-** Fix compilation on 32-bit targets
-
-A compile error introduced in 2.9.3 prevented compilation on 32-bit
-targets.  This has been fixed.
-
-** Fix a bug in closure conversion
-
-Thanks for Stefan Israelsson Tampe for the report.
-
-** Fix omission in R7RS support
-
-Somewhat embarrassingly, the R7RS support added earlier in 2.9 failed to
-include an implementation of `define-library'.  This oversight has been
-corrected :)
-
-** Optionally allow duplicate field names in core records
-
-See the new #:allow-duplicate-field-names? keyword argument to
-`make-record-type' in the manual, for more.  This restores a needed
-feature to R6RS records.
-
-** Fix default value of thread-local fluids
-
-Before, `fluid-ref' on an unbound thread-local fluid was returning #f
-instead of the default value of the fluid.  Thanks to Rob Browning for
-the fix!
-
-
-
-Changes in alpha 2.9.x (since the stable 2.2 series):
+Changes in 3.0.0 (since the stable 2.2 series):
 
 * Notable changes
 
@@ -197,6 +109,29 @@ via `throw'.  These will probably migrate over time to
 
 See "Exceptions" in the manual, for full details on the new API.
 
+** `guard' no longer unwinds the stack for clause tests
+
+SRFI-34, and then R6RS and R7RS, defines a `guard' form that is a
+shorthand for `with-exception-handler'.  The cond-like clauses for the
+exception handling are specified to run with the continuation of the
+`guard', while any re-propagation of the exception happens with the
+continuation of the original `raise'.
+
+In practice, this means that one needs full `call-with-continuation' to
+implement the specified semantics, to be able to unwind the stack to the
+cond clauses, then rewind if none match.  This is not only quite
+expensive, it is also error-prone as one usually doesn't want to rewind
+dynamic-wind guards in an exceptional situation.  Additionally, as
+continuations bind tightly to the current thread, it makes it impossible
+to migrate a subcomputation with a different thread if a `guard' is live
+on the stack, as is done in Fibers.
+
+Guile now works around these issues by running the test portion of the
+guard expressions within the original `raise' continuation, and only
+unwinding once a test matches.  This is an incompatible semantic change
+but we think the situation is globally much better, and we expect that
+very few people will be affected by the change.
+
 ** Optimization of top-level bindings within a compilation unit
 
 At optimization level 2 and above, Guile's compiler is now allowed to
@@ -277,6 +212,38 @@ stored, to being associated with modules instead of individual variable
 objects.  This means that users who #:re-export an imported binding that
 was already marked as #:replace by another module will now see warnings,
 as they need to use #:re-export-and-replace instead.
+
+** `define-module' #:autoload no longer pulls in the whole module
+
+One of the ways that a module can use another is "autoloads".  For
+example:
+
+  (define-module (a) #:autoload (b) (make-b))
+
+In this example, module `(b)' will only be imported when the `make-b'
+identifier is referenced.  However besides the imprecision about when a
+given binding is actually referenced, this mechanism used to cause the
+whole imported module to become available, not just the specified
+bindings.  This has now been changed to only import the specified bindings.
+
+This is a backward-incompatible change.  The fix is to mention all
+bindings of interest in the autoload clause.  Feedback is welcome.
+
+** Improve SRFI-43 vector-fill!
+
+SRFI-43 vector-fill! now has the same performance whether an optional
+range is provided or not, and is also provided in core.  As a side
+effect, vector-fill! and vector_fill_x no longer work on non-vector
+rank-1 arrays.  Such cases were handled incorrectly before; for example,
+prior to this change:
+
+  (define a (make-vector 10 'x))
+  (define b (make-shared-array a (lambda (i) (list (* 2 i))) 5))
+  (vector-fill! b 'y)
+
+  => #1(y y y x x)
+
+This is now an error.  Instead, use array-fill!.
 
 ** `iota' in core and SRFI-1 `iota' are the same
 
