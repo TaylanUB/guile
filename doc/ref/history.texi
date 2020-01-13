@@ -138,7 +138,7 @@ the primary maintenance responsibility. Neil and Ludovic were joined by
 Andy Wingo in late 2009, allowing Neil to step away, and Mark Weaver
 joined shortly thereafter.  After spending more than 5 years in the
 role, Mark stepped down as well, leaving Ludovic and Andy as the current
-co-maintainers of Guile at the time of this writing (2020).
+co-maintainers of Guile as of January 2020.
 
 Of course, a large part of the actual work on Guile has come from
 other contributors too numerous to mention, but without whom the world
