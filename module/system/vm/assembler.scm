@@ -1,6 +1,6 @@
 ;;; Guile bytecode assembler
 
-;;; Copyright (C) 2001, 2009-2019 Free Software Foundation, Inc.
+;;; Copyright (C) 2001, 2009-2020 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -2119,7 +2119,7 @@ needed."
 
 ;; FIXME: Define these somewhere central, shared with C.
 (define *bytecode-major-version* #x0300)
-(define *bytecode-minor-version* 1)
+(define *bytecode-minor-version* 2)
 
 (define (link-dynamic-section asm text rw rw-init frame-maps)
   "Link the dynamic section for an ELF image with bytecode @var{text},
