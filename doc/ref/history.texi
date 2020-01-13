@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Guile Reference Manual.
-@c Copyright (C)  2008, 2010, 2011, 2013, 2018
+@c Copyright (C)  2008, 2010, 2011, 2013, 2018, 2020
 @c   Free Software Foundation, Inc.
 @c See the file guile.texi for copying conditions.
 
@@ -132,10 +132,13 @@ Jim Blandy presided over that period of stabilization, in the three
 years until the end of 1999, when he too moved on to other projects.
 Since then, Guile has had a group maintainership. The first group was
 Maciej Stachowiak, Mikael Djurfeldt, and Marius Vollmer, with Vollmer
-staying on the longest. By late 2007, Vollmer had mostly moved on to
-other things, so Neil Jerram and Ludovic Court@`es
-stepped up to take on the primary maintenance responsibility. Jerram and
-Court@`es were joined by Andy Wingo in late 2009.
+staying on the longest. By late 2007, Marius had mostly moved on to
+other things, so Neil Jerram and Ludovic Court@`es stepped up to take on
+the primary maintenance responsibility. Neil and Ludovic were joined by
+Andy Wingo in late 2009, allowing Neil to step away, and Mark Weaver
+joined shortly thereafter.  After spending more than 5 years in the
+role, Mark stepped down as well, leaving Ludovic and Andy as the current
+co-maintainers of Guile at the time of this writing (2020).
 
 Of course, a large part of the actual work on Guile has come from
 other contributors too numerous to mention, but without whom the world
