@@ -160,12 +160,41 @@
      declarative)
     private))
 
+;; A declarative procedure has a distinct identity if it appears outside
+;; the operator position in a call in more than one place.  Otherwise we
+;; will eta-expand its uses, if any.
+(define (compute-procedures-without-identity expr declarative)
+  (define counts (make-hash-table))
+  (hash-for-each (lambda (k v) (hash-set! counts k 0)) declarative)
+  (tree-il-for-each
+   (lambda (x)
+     (match x
+       (($ <toplevel-ref> src mod name)
+        (let ((k (cons mod name)))
+          (match (hash-ref counts k)
+            (#f #f)
+            (count (hash-set! counts k (1+ count))))))
+       (($ <call> _ ($ <toplevel-ref> src mod name))
+        (let ((k (cons mod name)))
+          (match (hash-ref counts k)
+            (#f #f)
+            (count (hash-set! counts k (1- count))))))
+      (_ #f)))
+   expr)
+  (define no-identity (make-hash-table))
+  (hash-for-each (lambda (k count)
+                   (when (<= count 1)
+                     (hash-set! no-identity k #t)))
+                 counts)
+  no-identity)
+
 (define* (letrectify expr #:key (seal-private-bindings? #f))
   (define declarative (compute-declarative-toplevels expr))
   (define private
     (if seal-private-bindings?
         (compute-private-toplevels declarative)
         (make-hash-table)))
+  (define no-identity (compute-procedures-without-identity expr declarative))
   (define declarative-box+value
     (let ((tab (make-hash-table)))
       (hash-for-each (lambda (key val)
@@ -220,8 +249,9 @@
         ;; permitted by R6RS as procedure equality is explicitly
         ;; unspecified, but if it's an irritation in practice, we could
         ;; disable this transformation.
-        (($ <lambda> src1 meta
-            ($ <lambda-case> src2 req #f rest #f () syms body #f))
+        ((and (? (lambda _ (hash-ref no-identity (cons mod name))))
+              ($ <lambda> src1 meta
+                 ($ <lambda-case> src2 req #f rest #f () syms body #f)))
          (let* ((syms (map gensym (map symbol->string syms)))
                 (args (map (lambda (req sym) (make-lexical-ref src2 req sym))
                            (if rest (append req (list rest)) req)
