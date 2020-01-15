@@ -1,6 +1,6 @@
 ;;; Tree-il optimizer
 
-;; Copyright (C) 2009, 2010-2015, 2018, 2019 Free Software Foundation, Inc.
+;; Copyright (C) 2009, 2010-2015, 2018-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -21,6 +21,7 @@
 (define-module (language tree-il optimize)
   #:use-module (language tree-il)
   #:use-module (language tree-il debug)
+  #:use-module (language tree-il eta-expand)
   #:use-module (language tree-il fix-letrec)
   #:use-module (language tree-il letrectify)
   #:use-module (language tree-il peval)
@@ -56,6 +57,7 @@
   (run-pass letrectify*        #:letrectify?         #t)
   (set! x (fix-letrec x))
   (run-pass peval*             #:partial-eval?       #t)
+  (run-pass eta-expand         #:eta-expand?         #t)
   x)
 
 (define (tree-il-optimizations)
@@ -71,4 +73,5 @@
     (#:expand-primitives? 1)
     (#:letrectify? 2)
     (#:seal-private-bindings? 3)
-    (#:partial-eval? 1)))
+    (#:partial-eval? 1)
+    (#:eta-expand? 2)))

@@ -190,6 +190,7 @@ SOURCES =					\
   language/tree-il/cps-primitives.scm		\
   language/tree-il/debug.scm			\
   language/tree-il/effects.scm			\
+  language/tree-il/eta-expand.scm		\
   language/tree-il/fix-letrec.scm		\
   language/tree-il/letrectify.scm		\
   language/tree-il/optimize.scm			\

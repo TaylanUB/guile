@@ -1,4 +1,4 @@
-##  	Copyright (C) 2009-2019 Free Software Foundation, Inc.
+##  	Copyright (C) 2009-2020 Free Software Foundation, Inc.
 ##
 ##   This file is part of GNU Guile.
 ##
@@ -66,6 +66,7 @@ SOURCES =					\
   language/tree-il/cps-primitives.scm		\
   language/tree-il/debug.scm			\
   language/tree-il/effects.scm			\
+  language/tree-il/eta-expand.scm		\
   language/tree-il/fix-letrec.scm		\
   language/tree-il/letrectify.scm		\
   language/tree-il/optimize.scm			\
