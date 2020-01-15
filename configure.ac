@@ -3,7 +3,7 @@ dnl   Process this file with autoconf to produce configure.
 dnl
 
 define(GUILE_CONFIGURE_COPYRIGHT,[[
-Copyright 1998-2019 Free Software Foundation, Inc.
+Copyright 1998-2020 Free Software Foundation, Inc.
 
 This file is part of Guile.
 
@@ -25,7 +25,7 @@ License along with Guile.  If not, see
 AC_PREREQ(2.61)
 
 AC_INIT([GNU Guile],
-        m4_esyscmd([build-aux/git-version-gen --match v2.9.\* .tarball-version]),
+        m4_esyscmd([build-aux/git-version-gen --match v3.0.\* .tarball-version]),
         [bug-guile@gnu.org])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
