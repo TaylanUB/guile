@@ -1,6 +1,6 @@
 ;;; transformation of top-level bindings into letrec*
 
-;; Copyright (C) 2019 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -40,16 +40,11 @@
 ;;              (_ (begin (variable-set! a-var a)))
 ;;              (b-var (module-make-local-var! (current-module) 'b))
 ;;              (b (lambda () a))
-;;              ;; Note, declarative lambda definitions are eta-expanded when
-;;              ;; referenced by value to make the callee well-known in the
-;;              ;; compilation unit.
-;;              (_ (begin (variable-set! b-var (lambda () (b)))))
+;;              (_ (begin (variable-set! b-var b)))
 ;;              (_ (begin (foo a) #t))
 ;;              (c-var (module-make-local-var! (current-module) 'c)))
 ;;              (c (lambda () (variable-set! c-var b) ((variable-ref c-var))))
-;;              ;; Here `c' is not eta-expanded, as it's not a declarative
-;;              ;; binding.
-;;              (_ (begin (variable-set! c-var (lambda () (c))))))
+;;              (_ (begin (variable-set! c-var c))))
 ;;      (void))
 ;;
 ;; Inside the compilation unit, references to "declarative" top-level
@@ -160,41 +155,12 @@
      declarative)
     private))
 
-;; A declarative procedure has a distinct identity if it appears outside
-;; the operator position in a call in more than one place.  Otherwise we
-;; will eta-expand its uses, if any.
-(define (compute-procedures-without-identity expr declarative)
-  (define counts (make-hash-table))
-  (hash-for-each (lambda (k v) (hash-set! counts k 0)) declarative)
-  (tree-il-for-each
-   (lambda (x)
-     (match x
-       (($ <toplevel-ref> src mod name)
-        (let ((k (cons mod name)))
-          (match (hash-ref counts k)
-            (#f #f)
-            (count (hash-set! counts k (1+ count))))))
-       (($ <call> _ ($ <toplevel-ref> src mod name))
-        (let ((k (cons mod name)))
-          (match (hash-ref counts k)
-            (#f #f)
-            (count (hash-set! counts k (1- count))))))
-      (_ #f)))
-   expr)
-  (define no-identity (make-hash-table))
-  (hash-for-each (lambda (k count)
-                   (when (<= count 1)
-                     (hash-set! no-identity k #t)))
-                 counts)
-  no-identity)
-
 (define* (letrectify expr #:key (seal-private-bindings? #f))
   (define declarative (compute-declarative-toplevels expr))
   (define private
     (if seal-private-bindings?
         (compute-private-toplevels declarative)
         (make-hash-table)))
-  (define no-identity (compute-procedures-without-identity expr declarative))
   (define declarative-box+value
     (let ((tab (make-hash-table)))
       (hash-for-each (lambda (key val)
@@ -234,36 +200,6 @@
         (add-binding '_ (gensym "_") (make-seq src stmt (make-void src))
                      tail)))
 
-  (define (residualize src mod name var expr)
-    (let ((lexical (make-lexical-ref src name var)))
-      (match expr
-        ;; Eta-expand references to declarative procedure definitions so
-        ;; that adding these bindings to the module doesn't cause
-        ;; otherwise "well-known" (in the sense of closure conversion)
-        ;; procedures to become not well-known.
-        ;;
-        ;; Note, this means that eq? will always return #f when
-        ;; comparing a value to a <lexical-ref> of a declarative
-        ;; procedure definition, because the residualized reference is a
-        ;; fresh value (the <lambda> literal we return here).  This is
-        ;; permitted by R6RS as procedure equality is explicitly
-        ;; unspecified, but if it's an irritation in practice, we could
-        ;; disable this transformation.
-        ((and (? (lambda _ (hash-ref no-identity (cons mod name))))
-              ($ <lambda> src1 meta
-                 ($ <lambda-case> src2 req #f rest #f () syms body #f)))
-         (let* ((syms (map gensym (map symbol->string syms)))
-                (args (map (lambda (req sym) (make-lexical-ref src2 req sym))
-                           (if rest (append req (list rest)) req)
-                           syms))
-                (body (if rest
-                          (make-primcall src 'apply (cons lexical args))
-                          (make-call src lexical args))))
-           (make-lambda src1 meta
-                        (make-lambda-case src2 req #f rest #f '() syms
-                                          body #f))))
-        (_ lexical))))
-
   (define (visit-expr expr)
     (post-order
      (lambda (expr)
@@ -272,8 +208,7 @@
           (match (declarative-box+value mod name)
             (#f expr)
             ((box . value)
-             (residualize src mod name value
-                          (hash-ref declarative (cons mod name))))))
+             (make-lexical-ref src name value))))
          (_ expr)))
      expr))
 
@@ -304,7 +239,7 @@
                                     (list (make-lexical-ref src 'mod mod-var)
                                           (make-const src name))))
                     (exp (visit-expr exp))
-                    (ref (residualize src mod name value exp))
+                    (ref (make-lexical-ref src name value))
                     (init
                      (make-primcall src '%variable-set!
                                     (list (make-lexical-ref src name box)
