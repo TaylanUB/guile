@@ -37,6 +37,7 @@
 
                &error
                &programming-error
+               &quit-exception
                &non-continuable
 
                raise-exception
@@ -58,7 +59,10 @@
             &external-error
 	    make-external-error
 	    external-error?
-	
+
+            make-quit-exception
+            quit-exception?
+
             make-programming-error
 	    programming-error?
 
@@ -173,6 +177,8 @@
   (record-constructor &exception-with-kind-and-args))
 (define make-quit-exception
   (record-constructor &quit-exception))
+(define quit-exception?
+  (exception-predicate &quit-exception))
 
 (define (default-guile-exception-converter key args)
   (make-exception (make-error)
