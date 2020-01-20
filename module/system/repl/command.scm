@@ -1,6 +1,6 @@
 ;;; Repl commands
 
-;; Copyright (C) 2001, 2009, 2010, 2011, 2012, 2013 Free Software Foundation, Inc.
+;; Copyright (C) 2001, 2009, 2010, 2011, 2012, 2013, 2020 Free Software Foundation, Inc.
 
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -30,7 +30,8 @@
   #:use-module (system vm program)
   #:use-module (system vm trap-state)
   #:use-module (system vm vm)
-  #:autoload (system base language) (lookup-language language-reader)
+  #:autoload (system base language) (lookup-language language-reader
+                                     language-title language-name)
   #:autoload (system vm trace) (call-with-trace)
   #:use-module (ice-9 format)
   #:use-module (ice-9 session)
