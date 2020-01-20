@@ -1,4 +1,4 @@
-/* Copyright 1995-2014,2016,2018-2019
+/* Copyright 1995-2014,2016,2018-2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -32,6 +32,7 @@
 #include "keywords.h"
 #include "list.h"
 #include "macros.h"
+#include "memoize.h"    /* for the SCM_API declarations of 'scm_sym_' */
 #include "modules.h"
 #include "pairs.h"
 #include "ports.h"
