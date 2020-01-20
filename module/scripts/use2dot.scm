@@ -1,6 +1,6 @@
 ;;; use2dot --- Display module dependencies as a DOT specification
 
-;; 	Copyright (C) 2001, 2006, 2011 Free Software Foundation, Inc.
+;; 	Copyright (C) 2001, 2006, 2011, 2020 Free Software Foundation, Inc.
 ;;
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public License
@@ -47,11 +47,11 @@
 ;;; Code:
 
 (define-module (scripts use2dot)
-  :autoload (ice-9 getopt-long) (getopt-long)
-  :use-module ((srfi srfi-13) :select (string-join))
-  :use-module ((scripts frisk)
-               :select (make-frisker edge-type edge-up edge-down))
-  :export (use2dot))
+  #:use-module (ice-9 getopt-long)
+  #:use-module ((srfi srfi-13) #:select (string-join))
+  #:use-module ((scripts frisk)
+                #:select (make-frisker edge-type edge-up edge-down))
+  #:export (use2dot))
 
 (define %summary "Print a module's dependencies in graphviz format.")
 
