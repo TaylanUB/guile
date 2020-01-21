@@ -1,6 +1,6 @@
 ## Process this file with Automake to create Makefile.in
 ##
-##   Copyright (C) 1998-2004, 2006-2014, 2016-2019
+##   Copyright (C) 1998-2004, 2006-2014, 2016-2020
 ##     Free Software Foundation, Inc.
 ##
 ##   This file is part of GUILE.
@@ -491,9 +491,9 @@ INSTANTIATE =									\
             -e 's,[@]pkglibdir[@],$(pkglibdir),g'				\
             -e 's,[@]GUILE_EFFECTIVE_VERSION[@],$(GUILE_EFFECTIVE_VERSION),g'
 
-install-data-hook: libguile-2.2-gdb.scm
+install-data-hook: libguile-@GUILE_EFFECTIVE_VERSION@-gdb.scm
 	@$(MKDIR_P) $(DESTDIR)$(libdir)
-## We want to install libguile-2.2-gdb.scm as SOMETHING-gdb.scm.
+## We want to install libguile-X.Y-gdb.scm as SOMETHING-gdb.scm.
 ## SOMETHING is the full name of the final library.  We want to ignore
 ## symlinks, the .la file, and any previous -gdb.py file.  This is
 ## inherently fragile, but there does not seem to be a better option,
@@ -731,7 +731,7 @@ EXTRA_DIST = ChangeLog-scm ChangeLog-threads				\
     cpp-E.syms cpp-E.c cpp-SIG.syms cpp-SIG.c				\
     c-tokenize.lex							\
     scmconfig.h.top libgettext.h unidata_to_charset.pl libguile.map	\
-    vm-operations.h libguile-2.2-gdb.scm				\
+    vm-operations.h libguile-@GUILE_EFFECTIVE_VERSION@-gdb.scm		\
     $(lightening_c_files) $(lightening_extra_files)
 #    $(DOT_DOC_FILES) $(EXTRA_DOT_DOC_FILES) \
 #    guile-procedures.txt guile.texi
