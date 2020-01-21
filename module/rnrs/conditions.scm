@@ -1,6 +1,6 @@
 ;;; conditions.scm --- The R6RS conditions library
 
-;;      Copyright (C) 2010 Free Software Foundation, Inc.
+;;      Copyright (C) 2010, 2020 Free Software Foundation, Inc.
 ;;
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -107,7 +107,7 @@
                   (make-programming-error make-violation)
                   (programming-error? violation?)
 
-                  (&assertion-failure &assertion-violation)
+                  (&assertion-failure &assertion)
                   (make-assertion-failure make-assertion-violation)
                   (assertion-failure? assertion-violation?)
 
