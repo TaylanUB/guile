@@ -24,13 +24,26 @@
   #:use-module (web request)
   #:use-module (test-suite lib))
 
+;; FIXME: replace with mkdtemp! (or equivalent) when available
+(define (make-tempdir)
+  (let loop ((try 0)
+             (n (random:uniform)))
+    (let* ((path (string-append "/tmp/repl-server-test-" (number->string n)))
+           (dir (false-if-exception (mkdir path #o700))))
+      (cond
+       (dir path)
+       ((> try 10)
+        (error "Unable to create directory in /tmp for 00-repl-server.test"))
+       (else (loop (1+ try) (random:uniform)))))))
+
 (define (call-with-repl-server proc)
   "Set up a REPL server in a separate process and call PROC with a
 socket connected to that server."
-  (let ((sockaddr      (make-socket-address AF_UNIX "/tmp/repl-server"))
-        (client-socket (socket AF_UNIX SOCK_STREAM 0)))
-    (false-if-exception
-     (delete-file (sockaddr:path sockaddr)))
+  (let* ((tmpdir (make-tempdir))
+         (sockaddr (make-socket-address AF_UNIX (string-append tmpdir "/repl-server")))
+         (client-socket (socket AF_UNIX SOCK_STREAM 0)))
+    (false-if-exception (delete-file (sockaddr:path sockaddr)))
+    (false-if-exception (rmdir tmpdir))
 
     ;; The REPL server requires thread. The test requires fork.
     (unless (and (provided? 'threads) (provided? 'fork))
