@@ -1,7 +1,7 @@
 ;;;; (statprof) -- a statistical profiler for Guile
 ;;;; -*-scheme-*-
 ;;;;
-;;;; 	Copyright (C) 2009, 2010, 2011, 2013-2018  Free Software Foundation, Inc.
+;;;; 	Copyright (C) 2009, 2010, 2011, 2013-2018, 2020  Free Software Foundation, Inc.
 ;;;;    Copyright (C) 2004, 2009 Andy Wingo <wingo at pobox dot com>
 ;;;;    Copyright (C) 2001 Rob Browning <rlb at defaultvalue dot org>
 ;;;; 
@@ -827,6 +827,10 @@ The return value is a list of nodes, each of which is of the type:
   (call-with-values (lambda () (thunk))
     (lambda results
       (apply values results))))
+
+;; Prevent inlining of 'call-thunk' so that it can be used to determine
+;; the stack boundaries passed to 'make-stack'.
+(set! call-thunk call-thunk)
 
 (define* (statprof thunk #:key (loop 1) (hz 100) (count-calls? #f)
                    (port (current-output-port)) full-stacks?
