@@ -2322,7 +2322,7 @@ Equivalent to @code{open-pipe} with mode @code{OPEN_READ}.
 
 @lisp
 (let* ((port (open-input-pipe "date --utc"))
-       (str  (read-line port)))
+       (str  (read-line port))) ; from (ice-9 rdelim)
   (close-pipe port)
   str)
 @result{} "Mon Mar 11 20:10:44 UTC 2002"
