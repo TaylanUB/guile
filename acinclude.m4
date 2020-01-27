@@ -427,10 +427,12 @@ AC_DEFUN([GUILE_READLINE], [
                    [[#include <stdio.h>]
                     [#include <readline/readline.h>]])
 
-    dnl Check for rl_get_keymap.  We only use this for deciding whether to
-    dnl install paren matching on the Guile command line (when using
-    dnl readline for input), so it's completely optional.
-    AC_CHECK_FUNCS([rl_get_keymap])
+    dnl Check rl_get_keymap_name instead of rl_get_keymap because some
+    dnl systems only have the latter and the feature needs both.
+    dnl We only use this for deciding whether to install paren matching on
+    dnl the Guile command line (when using readline for input), so it's
+    dnl completely optional.
+    AC_CHECK_FUNCS([rl_get_keymap_name])
 
     AC_CACHE_CHECK([for rl_getc_function pointer in readline],
 		     ac_cv_var_rl_getc_function,
