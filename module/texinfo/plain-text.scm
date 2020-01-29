@@ -1,6 +1,6 @@
 ;;;; (texinfo plain-text) -- rendering stexinfo as plain text
 ;;;;
-;;;; 	Copyright (C) 2009, 2010, 2011, 2013  Free Software Foundation, Inc.
+;;;; 	Copyright (C) 2009, 2010, 2011, 2013, 2020  Free Software Foundation, Inc.
 ;;;;    Copyright (C) 2003,2004,2009  Andy Wingo <wingo at pobox dot com>
 ;;;; 
 ;;;; This library is free software; you can redistribute it and/or
@@ -32,7 +32,8 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-13)
   #:use-module (ice-9 match)
-  #:export (stexi->plain-text))
+  #:export (stexi->plain-text
+            *line-width*))
 
 ;; The return value is a string.
 (define (arg-ref key %-args)
@@ -52,6 +53,7 @@
 
 (define *indent* (make-fluid ""))
 (define *itemizer* (make-fluid (make-ticker "* ")))
+(define *line-width* (make-fluid 72))
 
 (define-macro (with-indent n . body)
   `(with-fluids ((*indent* (string-append (fluid-ref *indent*)
@@ -69,9 +71,10 @@
      ,@body))
 
 (define (wrap* . strings)
-  (let ((indent (fluid-ref *indent*)))
+  (let ((indent (fluid-ref *indent*))
+        (width  (fluid-ref *line-width*)))
     (fill-string (string-concatenate strings)
-                 #:line-width 72 #:initial-indent indent
+                 #:line-width width #:initial-indent indent
                  #:subsequent-indent indent)))
 (define (wrap . strings)
   (string-append (apply wrap* strings) "\n\n"))
