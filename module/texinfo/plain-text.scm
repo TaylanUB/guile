@@ -198,6 +198,16 @@
 (define (var tag . body)
   (string-upcase (stexi->plain-text body)))
 
+(define (acronym tag . elts)
+  (match elts
+    ((('% ('acronym text)))
+     (stexi->plain-text text))
+    ((('% ('acronym text) ('meaning . body)))
+     (string-append (stexi->plain-text text)
+                    " ("
+                    (string-concatenate (map stexi->plain-text body))
+                    ")"))))
+
 (define (passthrough tag . body)
   (stexi->plain-text body))
 
@@ -246,7 +256,8 @@
     (url          ,code)
     (dfn          ,(make-surrounder "\""))
     (cite         ,(make-surrounder "\""))
-    (acro         ,passthrough)
+    (acro         ,acronym)                       ;XXX: useless?
+    (acronym      ,acronym)
     (email        ,key)
     (emph         ,(make-surrounder "_"))
     (sc           ,var)

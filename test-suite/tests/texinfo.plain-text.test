@@ -31,4 +31,22 @@
       "This is another sentence.\nThat too.\n\n"
     (with-fluids ((*line-width* 26))
       (stexi->plain-text
-       '(*fragment* (para "This is another sentence. That too."))))))
+       '(*fragment* (para "This is another sentence. That too.")))))
+
+  (pass-if-equal "acronym"
+      "What's GNU (GNU's Not Unix)?\n\n"
+    (stexi->plain-text
+     '(*fragment* (para "What's "
+                        (acronym (% (acronym "GNU")
+                                    (meaning "GNU's Not Unix")))
+                        "?"))))
+
+  (pass-if-equal "recursive acronym"
+      "What's GNU (GNU's Not Unix)?\n\n"
+    (stexi->plain-text
+     '(*fragment* (para "What's "
+                        (acronym (% (acronym "GNU")
+                                    (meaning (acronym
+                                              (% (acronym "GNU")))
+                                             "'s Not Unix")))
+                        "?")))))
