@@ -143,7 +143,7 @@ static void
 capture_auxiliary_stack (scm_thread *thread, scm_t_contregs *continuation)
 {
 #if SCM_HAVE_AUXILIARY_STACK
-# if !(defined __ia64 or defined __ia64__)
+# if !defined __ia64 || !defined __ia64__
 # error missing auxiliary stack implementation for architecture
 # endif
   char *top;
@@ -155,9 +155,9 @@ capture_auxiliary_stack (scm_thread *thread, scm_t_contregs *continuation)
 #if defined __hpux
   __uc_get_ar_bsp (ctx, (uint64_t *) &top);
 #elif defined linux
-  top = (char *) ctx->uc_mcontext.sc_ar_bsp;
+  top = (char *) ctx.uc_mcontext.sc_ar_bsp;
 #elif defined __FreeBSD__
-  top = (char *)(ctx->uc_mcontext.mc_special.bspstore
+  top = (char *)(ctx.uc_mcontext.mc_special.bspstore
                  + ctx->uc_mcontext.mc_special.ndirty);
 #else
 #error missing auxiliary stack implementation for ia64 on this OS
