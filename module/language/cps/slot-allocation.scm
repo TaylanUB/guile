@@ -1,6 +1,6 @@
 ;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -482,10 +482,18 @@ are comparable with eqv?.  A tmp slot may be used."
                             tmp)
                       (loop to-move b (cons s+d moved) last-source))))))))))
 
-(define (compute-shuffles cps slots call-allocs live-in)
-  (define (add-live-slot slot live-slots)
-    (logior live-slots (ash 1 slot)))
+(define-inlinable (add-live-slot slot live-slots)
+  (logior live-slots (ash 1 slot)))
 
+(define-inlinable (kill-dead-slot slot live-slots)
+  (logand live-slots (lognot (ash 1 slot))))
+
+(define-inlinable (compute-slot live-slots hint)
+  (if (and hint (not (logbit? hint live-slots)))
+      hint
+      (find-first-zero live-slots)))
+
+(define (compute-shuffles cps slots call-allocs live-in)
   (define (get-cont label)
     (intmap-ref cps label))
 
@@ -664,17 +672,6 @@ are comparable with eqv?.  A tmp slot may be used."
                                    (1+ n))))))))
                       (_ slots)))
                   cps empty-intmap))))
-
-(define-inlinable (add-live-slot slot live-slots)
-  (logior live-slots (ash 1 slot)))
-
-(define-inlinable (kill-dead-slot slot live-slots)
-  (logand live-slots (lognot (ash 1 slot))))
-
-(define-inlinable (compute-slot live-slots hint)
-  (if (and hint (not (logbit? hint live-slots)))
-      hint
-      (find-first-zero live-slots)))
 
 (define (allocate-lazy-vars cps slots call-allocs live-in lazy)
   (define (compute-live-slots slots label)
