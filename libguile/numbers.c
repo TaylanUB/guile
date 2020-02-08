@@ -1,4 +1,4 @@
-/* Copyright 1995-2016,2018-2019
+/* Copyright 1995-2016,2018-2020
      Free Software Foundation, Inc.
 
    Portions Copyright 1990-1993 by AT&T Bell Laboratories and Bellcore.
@@ -237,19 +237,20 @@ finalize_bignum (void *ptr, void *data)
 static void *
 custom_gmp_malloc (size_t alloc_size)
 {
-  return scm_malloc (alloc_size);
+  return scm_gc_malloc_pointerless (alloc_size, "GMP");
 }
 
 static void *
 custom_gmp_realloc (void *old_ptr, size_t old_size, size_t new_size)
 {
-  return scm_realloc (old_ptr, new_size);
+  return scm_gc_realloc (old_ptr, old_size, new_size, "GMP");
 }
 
 static void
 custom_gmp_free (void *ptr, size_t size)
 {
-  free (ptr);
+  /* Do nothing: all memory allocated by GMP is under GC control and
+     will be freed when needed.  */
 }
 
 
@@ -260,11 +261,15 @@ make_bignum (void)
   scm_t_bits *p;
 
   /* Allocate one word for the type tag and enough room for an `mpz_t'.  */
-  p = scm_gc_malloc_pointerless (sizeof (scm_t_bits) + sizeof (mpz_t),
-				 "bignum");
+  p = scm_gc_malloc (sizeof (scm_t_bits) + sizeof (mpz_t),
+                     "bignum");
   p[0] = scm_tc16_big;
 
-  scm_i_set_finalizer (p, finalize_bignum, NULL);
+  /* When the 'custom_gmp_*' functions are in use, no need to set a
+     finalizer since allocated memory is under GC control.  In other
+     cases, set a finalizer to call 'mpz_clear', which is expensive.  */
+  if (!scm_install_gmp_memory_functions)
+    scm_i_set_finalizer (p, finalize_bignum, NULL);
 
   return SCM_PACK (p);
 }
