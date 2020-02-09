@@ -1,7 +1,7 @@
 #ifndef SCM_ERROR_H
 #define SCM_ERROR_H
 
-/* Copyright 1995-1998,2000-2002,2006,2008,2011,2014,2018
+/* Copyright 1995-1998,2000-2002,2006,2008,2011,2014,2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -110,8 +110,6 @@ SCM_INTERNAL void scm_init_error (void);
   SCM_I_MAKE_VALIDATE_MSG2 (pos, var, SCM_ ## pred, msg)
 
 #define SCM_SYSERROR do { scm_syserror (FUNC_NAME); } while (0)
-
-#define SCM_MEMORY_ERROR do { scm_memory_error (FUNC_NAME); } while (0)
 
 #define SCM_SYSERROR_MSG(str, args, val) \
   do { scm_syserror_msg (FUNC_NAME, (str), (args), (val)); } while (0)

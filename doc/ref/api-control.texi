@@ -1669,7 +1669,7 @@ scm_foo (SCM s1, SCM s2)
 
   c_res = foo (c_s1, c_s2);
   if (c_res == NULL)
-    scm_memory_error ("foo");
+    scm_misc_error ("foo", "out of memory!", SCM_EOL);
 
   scm_dynwind_end ();
 
@@ -2288,7 +2288,6 @@ and the call to these routines doesn't change @code{errno}.
 @deftypefnx {C Function} void scm_wrong_num_args (SCM @var{proc})
 @deftypefnx {C Function} void scm_wrong_type_arg (char *@var{subr}, int @var{argnum}, SCM @var{bad_value})
 @deftypefnx {C Function} void scm_wrong_type_arg_msg (char *@var{subr}, int @var{argnum}, SCM @var{bad_value}, const char *@var{expected})
-@deftypefnx {C Function} void scm_memory_error (char *@var{subr})
 @deftypefnx {C Function} void scm_misc_error (const char *@var{subr}, const char *@var{message}, SCM @var{args})
 Throw an error with the various keys described above.
 

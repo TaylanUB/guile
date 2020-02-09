@@ -2263,7 +2263,6 @@
 (scm_memoized_environment (groups scm C) (scan-data T))
 (scm_memoized_p (groups scm C) (scan-data T))
 (scm_memory_alloc_key (groups scm C) (scan-data B))
-(scm_memory_error (groups scm C) (scan-data T))
 (scm_memq (groups scm C) (scan-data T))
 (scm_memv (groups scm C) (scan-data T))
 (scm_merge (groups scm C) (scan-data T))
