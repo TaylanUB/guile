@@ -1,7 +1,7 @@
 #ifndef SCM_DEPRECATED_H
 #define SCM_DEPRECATED_H
 
-/* Copyright 2003-2007,2009-2018
+/* Copyright 2003-2007,2009-2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -110,6 +110,8 @@ typedef ptrdiff_t scm_t_ptrdiff SCM_DEPRECATED_TYPE;
 
 typedef struct scm_thread scm_i_thread SCM_DEPRECATED_TYPE;
 #undef SCM_DEPRECATED_TYPE
+
+#define SCM_MEMORY_ERROR do { scm_report_out_of_memory (); } while (0)
 
 SCM_DEPRECATED char* scm_find_executable (const char *name);
 

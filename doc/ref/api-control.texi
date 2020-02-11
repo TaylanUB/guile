@@ -1669,7 +1669,7 @@ scm_foo (SCM s1, SCM s2)
 
   c_res = foo (c_s1, c_s2);
   if (c_res == NULL)
-    scm_misc_error ("foo", "out of memory!", SCM_EOL);
+    scm_report_out_of_memory ();
 
   scm_dynwind_end ();
 
