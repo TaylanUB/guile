@@ -1,5 +1,5 @@
 ;;; Type analysis on CPS
-;;; Copyright (C) 2014-2019 Free Software Foundation, Inc.
+;;; Copyright (C) 2014-2020 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software: you can redistribute it and/or modify
 ;;; it under the terms of the GNU Lesser General Public License as
@@ -1383,6 +1383,7 @@ minimum, and maximum."
                                              (&min/0 count)
                                              (&max/u64 count))))
     (define-exact-integer! result min max)))
+(define-simple-type-checker (lsh/immediate &exact-integer))
 (define-type-inferrer/param (lsh/immediate count val result)
   (restrict! val &exact-integer -inf.0 +inf.0)
   (let-values (((min max) (compute-ash-range (&min val)
@@ -1396,6 +1397,7 @@ minimum, and maximum."
                                              (- (&min/0 count))
                                              (- (&max/u64 count)))))
     (define-exact-integer! result min max)))
+(define-simple-type-checker (rsh/immediate &exact-integer))
 (define-type-inferrer/param (rsh/immediate count val result)
   (restrict! val &exact-integer -inf.0 +inf.0)
   (let-values (((min max) (compute-ash-range (&min val)
