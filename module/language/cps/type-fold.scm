@@ -1,5 +1,5 @@
 ;;; Abstract constant folding on CPS
-;;; Copyright (C) 2014, 2015, 2017, 2018 Free Software Foundation, Inc.
+;;; Copyright (C) 2014-2020 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software: you can redistribute it and/or modify
 ;;; it under the terms of the GNU Lesser General Public License as
@@ -424,6 +424,25 @@
                     ($continue kand src
                       ($primcall 'logand #f (mask arg1)))))
       ($ (compute-mask kmask src))))
+   (else
+    (with-cps cps #f))))
+
+(define-binary-primcall-reducer (logior cps k src param
+                                        arg0 type0 min0 max0
+                                        arg1 type1 min1 max1)
+  (cond
+   ((type<=? (logior type0 type1) &exact-integer)
+    (cond
+     ((= 0 min0 max0)
+      (with-cps cps
+        (build-term
+          ($continue k src ($values (arg1))))))
+     ((= 0 min1 max1)
+      (with-cps cps
+        (build-term
+          ($continue k src ($values (arg0))))))
+     (else
+      (with-cps cps #f))))
    (else
     (with-cps cps #f))))
 
