@@ -4597,6 +4597,9 @@ R6RS.  @xref{R6RS Incompatibilities} in the manual."
   "Make changes to the default environment to better conform to the
 R7RS."
   (install-r6rs!)
+  (set! %load-extensions
+        (cons* ".guile.sld" ".sld"
+               (delete ".guile.sld" (delete ".sld" (delete ".guile.sls" (delete ".sls" %load-extensions))))))
   (read-enable 'r7rs-symbols))
 
 
