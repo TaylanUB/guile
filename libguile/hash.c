@@ -35,6 +35,7 @@
 #include "chars.h"
 #include "foreign.h"
 #include "gsubr.h"
+#include "keywords.h"
 #include "numbers.h"
 #include "pairs.h"
 #include "ports.h"
@@ -307,6 +308,8 @@ scm_raw_ihash (SCM obj, size_t depth)
       return scm_i_string_hash (obj);
     case scm_tc7_symbol:
       return scm_i_symbol_hash (obj);
+    case scm_tc7_keyword:
+      return SCM_I_KEYWORD_HASH (obj);
     case scm_tc7_pointer:
       return scm_raw_ihashq ((uintptr_t) SCM_POINTER_VALUE (obj));
     case scm_tc7_wvect:

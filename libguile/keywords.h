@@ -60,6 +60,8 @@ SCM_API void
 scm_c_bind_keyword_arguments (const char *subr, SCM rest,
                               scm_t_keyword_arguments_flags flags, ...);
 
+#define SCM_I_KEYWORD_HASH(x) scm_i_symbol_hash (SCM_CELL_OBJECT_1 (x))
+
 SCM_INTERNAL void scm_init_keywords (void);
 
 #endif  /* SCM_KEYWORDS_H */
