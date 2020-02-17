@@ -328,6 +328,10 @@ reset_abi_arg_iterator(struct abi_arg_iterator *iter, size_t argc,
   memset(iter, 0, sizeof *iter);
   iter->argc = argc;
   iter->args = args;
+#if __CYGWIN__ && __X64
+  // Reserve slots on the stack for 4 register parameters (8 bytes each).
+  iter->stack_size = 32;
+#endif
 }
 
 static void
