@@ -819,7 +819,9 @@ emit_direct_tail_call (scm_jit_state *j, const uint32_t *vcode)
 
   if (vcode == j->start)
     {
-      jit_jmpi (j->jit, j->labels[inline_label_offset (0)]);
+      uint8_t *mcode = j->labels[inline_label_offset (0)];
+      ASSERT (mcode);
+      jit_jmpi (j->jit, mcode);
     }
   else
     {
@@ -5359,14 +5361,28 @@ compile_s64_to_f64_slow (scm_jit_state *j, uint16_t dst, uint16_t src)
     comp (j, a, b, c, d, e);                                            \
   }
 
-static uint8_t first_seen[256];
+static uintptr_t opcodes_seen[256 / (SCM_SIZEOF_UINTPTR_T * 8)];
+
+static uintptr_t
+bitvector_ref (const uintptr_t *bv, size_t n)
+{
+  uintptr_t word = bv[n / (SCM_SIZEOF_UINTPTR_T * 8)];
+  return word & (((uintptr_t) 1) << (n & (SCM_SIZEOF_UINTPTR_T * 8 - 1)));
+}
+
+static void
+bitvector_set (uintptr_t *bv, size_t n)
+{
+  uintptr_t *word_loc = &bv[n / (SCM_SIZEOF_UINTPTR_T * 8)];
+  *word_loc |= ((uintptr_t) 1) << (n & (SCM_SIZEOF_UINTPTR_T * 8 - 1));
+}
 
 static void
 compile1 (scm_jit_state *j)
 {
   uint8_t opcode = j->ip[0] & 0xff;
 
-  if (!first_seen[opcode])
+  if (jit_log_level >= LOG_LEVEL_DEBUG)
     {
       const char *n;
       switch (opcode)
@@ -5377,8 +5393,14 @@ compile1 (scm_jit_state *j)
         default:
           UNREACHABLE ();
         }
-      first_seen[opcode] = 1;
-      DEBUG ("Instruction first seen at vcode %p: %s\n", j->ip, n);
+
+      if (!bitvector_ref (opcodes_seen, opcode))
+        {
+          bitvector_set (opcodes_seen, opcode);
+          DEBUG ("Instruction first seen at vcode %p: %s\n", j->ip, n);
+        }
+
+      LOG ("Instruction at vcode %p: %s\n", j->ip, n);
     }
 
   j->next_ip = j->ip + op_lengths[opcode];
@@ -5646,11 +5668,16 @@ compute_mcode (scm_thread *thread, uint32_t *entry_ip,
 
   analyze (j);
 
-  data->mcode = emit_code (j, compile);
-  if (data->mcode)
-    entry_mcode = j->labels[inline_label_offset (j->entry - j->start)];
+  uint8_t *mcode = emit_code (j, compile);
+  if (mcode)
+    {
+      entry_mcode = j->labels[inline_label_offset (j->entry - j->start)];
+      data->mcode = mcode;
+    }
   else
-    entry_mcode = NULL;
+    {
+      entry_mcode = NULL;
+    }
 
   free (j->op_attrs);
   j->op_attrs = NULL;
