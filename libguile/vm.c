@@ -1051,6 +1051,11 @@ push_interrupt_frame (scm_thread *thread, uint8_t *mra)
   size_t old_frame_size = frame_locals_count (thread);
   SCM proc = scm_i_async_pop (thread);
 
+#if ENABLE_JIT
+  if (!mra)
+    mra = scm_jit_return_to_interpreter_trampoline;
+#endif
+
   /* Reserve space for frame and callee.  */
   alloc_frame (thread, old_frame_size + frame_overhead + 1);
 
@@ -1190,6 +1195,12 @@ compose_continuation (scm_thread *thread, SCM cont)
 
   if (SCM_UNLIKELY (! SCM_VM_CONT_REWINDABLE_P (cont)))
     scm_wrong_type_arg_msg (NULL, 0, cont, "resumable continuation");
+
+#if ENABLE_JIT
+  if (!SCM_FRAME_MACHINE_RETURN_ADDRESS (vp->fp))
+    SCM_FRAME_SET_MACHINE_RETURN_ADDRESS
+      (vp->fp, scm_jit_return_to_interpreter_trampoline);
+#endif
 
   nargs = frame_locals_count (thread) - 1;
   args = alloca (nargs * sizeof (*args));
