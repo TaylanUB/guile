@@ -5623,6 +5623,21 @@ initialize_jit (void)
     (scm_jit_return_to_interpreter_trampoline);
 }
 
+static scm_i_pthread_once_t create_perf_map_once = SCM_I_PTHREAD_ONCE_INIT;
+static FILE *perf_map = NULL;
+static void
+create_perf_map (void)
+{
+  unsigned long pid = getpid ();
+  char *file_name;
+  if (asprintf (&file_name, "/tmp/perf-%lu.map", pid) < 0)
+    return;
+  perf_map = fopen (file_name, "w");
+  if (perf_map)
+    DEBUG ("created %s\n", file_name);
+  free (file_name);
+}
+
 static uint8_t *
 compute_mcode (scm_thread *thread, uint32_t *entry_ip,
                struct scm_jit_function_data *data)
@@ -5673,6 +5688,16 @@ compute_mcode (scm_thread *thread, uint32_t *entry_ip,
     {
       entry_mcode = j->labels[inline_label_offset (j->entry - j->start)];
       data->mcode = mcode;
+
+      if (jit_log_level >= LOG_LEVEL_INFO) {
+        scm_i_pthread_once (&create_perf_map_once, create_perf_map);
+        if (perf_map) {
+          uint8_t *end = j->code_arena->base + j->code_arena->used;
+          fprintf (perf_map, "%lx %zx %p,+%zu\n", (long)mcode, end - mcode,
+                   j->start, j->end - j->start);
+          fflush (perf_map);
+        }
+      }
     }
   else
     {
