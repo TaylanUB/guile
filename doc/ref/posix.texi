@@ -2370,6 +2370,34 @@ processes, and a system-wide limit on the number of pipes, so pipes
 should be closed explicitly when no longer needed, rather than letting
 the garbage collector pick them up at some later time.
 
+@findex pipeline
+@deffn {Scheme Procedure} pipeline commands
+Execute a @code{pipeline} of @var{commands} --- where each command is a
+list of a program and its arguments as strings --- returning an input
+port to the end of the pipeline, an output port to the beginning of the
+pipeline and a list of PIDs of the processes executing the @var{commands}.
+
+@example
+(let ((commands '(("git" "ls-files")
+                  ("tar" "-cf-" "-T-")
+                  ("sha1sum" "-")))
+      (pipe-fail? (lambda (pid)
+                    (not
+                     (zero?
+                      (status:exit-val
+                       (cdr
+                        (waitpid pid))))))))
+  (receive (from to pids) (pipeline commands)
+    (let* ((sha1 (read-delimited " " from))
+           (index (list-index pipe-fail? (reverse pids))))
+      (close to)
+      (close from)
+      (if (not index) sha1
+          (string-append "pipeline failed in command: "
+                         (string-join (list-ref commands index)))))))
+@result{} "52f99d234503fca8c84ef94b1005a3a28d8b3bc1"
+@end example
+@end deffn
 
 @node Networking
 @subsection Networking

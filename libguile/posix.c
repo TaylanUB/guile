@@ -1372,10 +1372,9 @@ start_child (const char *exec_file, char **exec_argv,
 
 #ifdef HAVE_START_CHILD
 static SCM
-scm_open_process (SCM mode, SCM prog, SCM args)
-#define FUNC_NAME "open-process"
+scm_piped_process (SCM prog, SCM args, SCM from, SCM to)
+#define FUNC_NAME "piped-process"
 {
-  long mode_bits;
   int reading, writing;
   int c2p[2]; /* Child to parent.  */
   int p2c[2]; /* Parent to child.  */
@@ -1383,44 +1382,27 @@ scm_open_process (SCM mode, SCM prog, SCM args)
   int pid;
   char *exec_file;
   char **exec_argv;
-  SCM read_port = SCM_BOOL_F, write_port = SCM_BOOL_F;
 
   exec_file = scm_to_locale_string (prog);
   exec_argv = scm_i_allocate_string_pointers (scm_cons (prog, args));
 
-  mode_bits = scm_i_mode_bits (mode);
-  reading = mode_bits & SCM_RDNG;
-  writing = mode_bits & SCM_WRTNG;
+  reading = scm_is_pair (from);
+  writing = scm_is_pair (to);
 
   if (reading)
     {
-      if (pipe (c2p))
-        {
-          int errno_save = errno;
-          free (exec_file);
-          errno = errno_save;
-          SCM_SYSERROR;
-        }
+      c2p[0] = scm_to_int (scm_car (from));
+      c2p[1] = scm_to_int (scm_cdr (from));
       out = c2p[1];
     }
-  
+
   if (writing)
     {
-      if (pipe (p2c))
-        {
-          int errno_save = errno;
-          free (exec_file);
-          if (reading)
-            {
-              close (c2p[0]);
-              close (c2p[1]);
-            }
-          errno = errno_save;
-          SCM_SYSERROR;
-        }
+      p2c[0] = scm_to_int (scm_car (to));
+      p2c[1] = scm_to_int (scm_cdr (to));
       in = p2c[0];
     }
-  
+
   {
     SCM port;
 
@@ -1453,23 +1435,12 @@ scm_open_process (SCM mode, SCM prog, SCM args)
       SCM_SYSERROR;
     }
 
-  /* There is no sense in catching errors on close().  */
   if (reading)
-    {
-      close (c2p[1]);
-      read_port = scm_i_fdes_to_port (c2p[0], scm_mode_bits ("r0"),
-                                      sym_read_pipe,
-                                      SCM_FPORT_OPTION_NOT_SEEKABLE);
-    }
+    close (c2p[1]);
   if (writing)
-    {
-      close (p2c[0]);
-      write_port = scm_i_fdes_to_port (p2c[1], scm_mode_bits ("w0"),
-                                       sym_write_pipe,
-                                       SCM_FPORT_OPTION_NOT_SEEKABLE);
-    }
+    close (p2c[0]);
 
-  return scm_values_3 (read_port, write_port, scm_from_int (pid));
+  return scm_from_int (pid);
 }
 #undef FUNC_NAME
 
@@ -1514,8 +1485,8 @@ SCM_DEFINE (scm_system_star, "system*", 0, 0, 1,
 "Example: (system* \"echo\" \"foo\" \"bar\")")
 #define FUNC_NAME s_scm_system_star
 {
-  SCM prog, res;
-  int pid, status, wait_result;
+  SCM prog, pid;
+  int status, wait_result;
 
   if (scm_is_null (args))
     SCM_WRONG_NUM_ARGS ();
@@ -1533,9 +1504,8 @@ SCM_DEFINE (scm_system_star, "system*", 0, 0, 1,
                          SCM_UNDEFINED);
 #endif
 
-  res = scm_open_process (scm_nullstr, prog, args);
-  pid = scm_to_int (scm_c_value_ref (res, 2));
-  SCM_SYSCALL (wait_result = waitpid (pid, &status, 0));
+  pid = scm_piped_process (prog, args, SCM_UNDEFINED, SCM_UNDEFINED);
+  SCM_SYSCALL (wait_result = waitpid (scm_to_int (pid), &status, 0));
   if (wait_result == -1)
     SCM_SYSERROR;
 
@@ -2382,7 +2352,7 @@ SCM_DEFINE (scm_gethostname, "gethostname", 0, 0, 0,
 static void
 scm_init_popen (void)
 {
-  scm_c_define_gsubr ("open-process", 2, 0, 1, scm_open_process);
+  scm_c_define_gsubr ("piped-process", 2, 2, 0, scm_piped_process);
 }
 #endif /* HAVE_START_CHILD */
 

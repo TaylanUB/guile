@@ -22,9 +22,10 @@
   #:use-module (rnrs bytevectors)
   #:use-module (ice-9 binary-ports)
   #:use-module (ice-9 threads)
+  #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-9)
   #:export (port/pid-table open-pipe* open-pipe close-pipe open-input-pipe
-            open-output-pipe open-input-output-pipe))
+            open-output-pipe open-input-output-pipe pipeline))
 
 (eval-when (expand load eval)
   (load-extension (string-append "libguile-" (effective-version))
@@ -83,6 +84,28 @@
 ;; is populated for backward compatibility only (since it is exported).
 (define port/pid-table (make-weak-key-hash-table))
 (define port/pid-table-mutex (make-mutex))
+
+(define (pipe->fdes)
+  (let ((p (pipe)))
+   (cons (port->fdes (car p))
+         (port->fdes (cdr p)))))
+
+(define (open-process mode command . args)
+  "Backwards compatible implementation of the former procedure in
+libguile/posix.c (scm_open_process) replaced by
+scm_piped_process. Executes the program @var{command} with optional
+arguments @var{args} (all strings) in a subprocess.  A port to the
+process (based on pipes) is created and returned.  @var{mode} specifies
+whether an input, an output or an input-output port to the process is
+created: it should be the value of @code{OPEN_READ}, @code{OPEN_WRITE}
+or @code{OPEN_BOTH}."
+  (let* ((from (and (or (string=? mode OPEN_READ)
+                        (string=? mode OPEN_BOTH)) (pipe->fdes)))
+         (to (and (or (string=? mode OPEN_WRITE)
+                      (string=? mode OPEN_BOTH)) (pipe->fdes)))
+         (pid (piped-process command args from to)))
+    (values (and from (fdes->inport (car from)))
+            (and to (fdes->outport (cdr to))) pid)))
 
 (define (open-pipe* mode command . args)
   "Executes the program @var{command} with optional arguments
@@ -176,3 +199,24 @@ information on how to interpret this value."
   "Equivalent to @code{open-pipe} with mode @code{OPEN_BOTH}"
   (open-pipe command OPEN_BOTH))
 
+(define (pipeline commands)
+  "Execute a pipeline of @var(commands) -- where each command is a list of a
+program and its arguments as strings -- returning an input port to the
+end of the pipeline, an output port to the beginning of the pipeline and
+a list of PIDs of the processes executing the @var(commands)."
+  (let* ((to (pipe->fdes))
+         (pipes (map (lambda _ (pipe->fdes)) commands))
+	 (pipeline (fold (lambda (from proc prev)
+                           (let* ((to (car prev))
+                                  (pids (cdr prev))
+                                  (pid (piped-process (car proc)
+                                                      (cdr proc)
+                                                      from
+                                                      to)))
+                             (cons from (cons pid pids))))
+                         `(,to)
+                         pipes
+                         commands))
+	 (from (car pipeline))
+	 (pids (cdr pipeline)))
+    (values (fdes->inport (car from)) (fdes->outport (cdr to)) pids)))

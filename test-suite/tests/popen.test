@@ -1,6 +1,6 @@
 ;;;; popen.test --- exercise ice-9/popen.scm      -*- scheme -*-
 ;;;;
-;;;; Copyright 2003, 2006, 2010, 2011, 2013, 2014 Free Software Foundation, Inc.
+;;;; Copyright 2003, 2006, 2010, 2011, 2013, 2014, 2020 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -17,7 +17,10 @@
 ;;;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 (define-module (test-suite test-ice-9-popen)
-  #:use-module (test-suite lib))
+  #:use-module (test-suite lib)
+  #:use-module (ice-9 receive)
+  #:use-module (ice-9 rdelim))
+
 
 ;; read from PORT until eof is reached, return what's read as a string
 (define (read-string-to-eof port)
@@ -211,3 +214,34 @@ exec 2>~a; read REPLY"
      (let ((st (close-pipe (open-output-pipe "exit 1"))))
        (and (status:exit-val st)
             (= 1 (status:exit-val st)))))))
+
+
+;;
+;; pipeline related tests
+;;
+
+(pass-if "open-process"
+  (receive (from to pid)
+      ((@@ (ice-9 popen) open-process) OPEN_BOTH "rev")
+    (display "dlrow olleh" to) (close to)
+    (and (equal? "hello world" (read-string from))
+         (= 0 (status:exit-val (cdr (waitpid pid)))))))
+
+(pass-if "piped-process"
+  (= 42 (status:exit-val
+         (cdr (waitpid ((@@ (ice-9 popen) piped-process)
+                        "./meta/guile" '("-c" "(exit 42)")))))))
+
+(pass-if "piped-process: with output"
+  (let* ((p (pipe))
+         (pid ((@@ (ice-9 popen) piped-process) "echo" '("foo" "bar")
+                             (cons (port->fdes (car p))
+                                   (port->fdes (cdr p))))))
+    (and (equal? "foo bar\n" (read-string (car p)))
+         (= 0 (status:exit-val (cdr (waitpid pid)))))))
+
+(pass-if "pipeline"
+  (receive (from to pids)
+      (pipeline '(("echo" "dlrow olleh") ("rev")))
+    (and (string=? "hello world\n" (read-string from))
+         (equal? '(0 0) (map (compose status:exit-val cdr waitpid) pids)))))
