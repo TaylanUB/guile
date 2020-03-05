@@ -3321,7 +3321,7 @@
           (lambda (stx)
             (letrec*
               ((src (syntax-source stx))
-               (filename (if src (assq-ref src filename) #f)))
+               (filename (if src (assq-ref src 'filename) #f)))
               (if (string? filename) (dirname filename) #f)))))
     (lambda* (filename proc #:key (dirname (syntax-dirname filename) #:dirname))
       "Like @code{call-with-input-file}, except relative paths are\nsearched relative to the @var{dirname} instead of the current working\ndirectory.  Also, @var{filename} can be a syntax object; in that case,\nand if @var{dirname} is not specified, the @code{syntax-source} of\n@var{filename} is used to obtain a base directory for relative file\nnames."

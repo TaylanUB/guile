@@ -3234,7 +3234,7 @@
 (define call-with-include-port
   (let ((syntax-dirname (lambda (stx)
                           (define src (syntax-source stx))
-                          (define filename (and src (assq-ref src filename)))
+                          (define filename (and src (assq-ref src 'filename)))
                           (and (string? filename)
                                (dirname filename)))))
     (lambda* (filename proc #:key (dirname (syntax-dirname filename)))
