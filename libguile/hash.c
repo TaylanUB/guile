@@ -1,4 +1,4 @@
-/* Copyright 1995-1997,2000-2001,2003-2004,2006,2008-2015,2017-2018
+/* Copyright 1995-1997,2000-2001,2003-2004,2006,2008-2015,2017-2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -331,6 +331,22 @@ scm_raw_ihash (SCM obj, size_t depth)
         h ^= scm_raw_ihash (scm_syntax_module (obj), depth);
         return h;
       }
+
+      /* The following tc7s have no 'equal?' implementation.  Thus, just
+         fall back to 'hashq'.  */
+    case scm_tc7_variable:
+    case scm_tc7_hashtable:
+    case scm_tc7_fluid:
+    case scm_tc7_dynamic_state:
+    case scm_tc7_frame:
+    case scm_tc7_atomic_box:
+    case scm_tc7_program:
+    case scm_tc7_vm_cont:
+    case scm_tc7_weak_set:
+    case scm_tc7_weak_table:
+    case scm_tc7_port:
+      return scm_raw_ihashq (SCM_UNPACK (obj));
+
     case scm_tcs_cons_imcar: 
     case scm_tcs_cons_nimcar:
       if (depth)
