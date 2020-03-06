@@ -243,7 +243,18 @@ host name without trailing dot."
     ;; underlying socket.
     (let ((record (session-record-port session)))
       (define (read! bv start count)
-        (define read-bv (get-bytevector-some record))
+        (define read-bv
+          (catch 'gnutls-error
+            (lambda ()
+              (get-bytevector-some record))
+            (lambda (key err proc . rest)
+              ;; When responding to "Connection: close" requests, some
+              ;; servers close the connection abruptly after sending the
+              ;; response body, without doing a proper TLS connection
+              ;; termination.  Treat it as EOF.
+              (if (eq? err error/premature-termination)
+                  the-eof-object
+                  (apply throw key err proc rest)))))
         (if (eof-object? read-bv)
             0  ; read! returns 0 on eof-object
             (let ((read-bv-len (bytevector-length read-bv)))
