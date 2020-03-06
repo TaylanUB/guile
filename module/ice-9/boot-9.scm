@@ -1082,7 +1082,7 @@ VALUE."
                                         (memq (car field) '(mutable immutable))
                                         (pair? (cdr field))
                                         (null? (cddr field)))
-                             (error (error "bad field declaration" field)))
+                             (error "bad field declaration" field))
                            (cadr field))))
                        fields)))
       (check-fields fields)
