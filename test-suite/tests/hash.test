@@ -1,7 +1,7 @@
 ;;;; hash.test --- test guile hashing     -*- scheme -*-
 ;;;;
 ;;;; Copyright (C) 2004, 2005, 2006, 2008, 2011, 2012,
-;;;;   2014 Free Software Foundation, Inc.
+;;;;   2014, 2020 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -39,6 +39,16 @@
   (pass-if (= 0 (hash -inf.0 1)))
   (pass-if (= 0 (hash +nan.0 1)))
   (pass-if (= 0 (hash '#() 1)))
+
+  (with-test-prefix "keyword"
+    (pass-if "equality"
+      (= (hash #:foo most-positive-fixnum)
+         (hash #:foo most-positive-fixnum)))
+    (pass-if "inequality"
+      ;; Inequality cannot be 100% guaranteed but should definitely be
+      ;; met for such a case.
+      (not (= (hash #:foo most-positive-fixnum)
+              (hash #:bar most-positive-fixnum)))))
 
   (pass-if "cyclic vectors"
     (let ()
