@@ -1,6 +1,6 @@
 ;;; open-coding primitive procedures
 
-;; Copyright (C) 2009-2015, 2017-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2015, 2017-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -395,7 +395,6 @@
                      (list (make-const src 'misc-error)
                            (make-const src #f)
                            (make-const src msg)
-                           (make-const src "?")
                            (make-primcall src 'list (cons message args))
                            (make-const src #f)))))))
 

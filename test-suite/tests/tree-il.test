@@ -1,7 +1,7 @@
 ;;;; tree-il.test --- test suite for compiling tree-il   -*- scheme -*-
 ;;;; Andy Wingo <wingo@pobox.com> --- May 2009
 ;;;;
-;;;; Copyright (C) 2009-2014,2018-2019 Free Software Foundation, Inc.
+;;;; Copyright (C) 2009-2014,2018-2020 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -114,7 +114,41 @@
 
     (pass-if-primitives-resolved
         (primcall equal? (const #nil) (toplevel x))
-      (primcall eq? (const #nil) (toplevel x)))))
+      (primcall eq? (const #nil) (toplevel x))))
+
+  (with-test-prefix "error"
+    (pass-if-primitives-resolved
+        (primcall error (const "message"))
+      (primcall throw (const misc-error) (const #f)
+                (const "message") (primcall list) (const #f)))
+
+    (pass-if-primitives-resolved
+        (primcall error (const "message") (const 42))
+      (primcall throw (const misc-error) (const #f)
+                (const "message ~S") (primcall list (const 42))
+                (const #f)))
+
+    (pass-if-equal "https://bugs.gnu.org/39509"
+        '(throw 'misc-error #f "~A" (list "message") #f)
+      (let ((module (make-fresh-user-module)))
+        (decompile (expand-primitives
+                    (resolve-primitives
+                     (compile '(error ((lambda () "message")))
+                              #:to 'tree-il)
+                     module))
+                   #:from 'tree-il
+                   #:to 'scheme)))
+
+    (pass-if-equal "https://bugs.gnu.org/39509 with argument"
+        '(throw 'misc-error #f "~A ~S" (list "message" 42) #f)
+      (let ((module (make-fresh-user-module)))
+        (decompile (expand-primitives
+                    (resolve-primitives
+                     (compile '(error ((lambda () "message")) 42)
+                              #:to 'tree-il)
+                     module))
+                   #:from 'tree-il
+                   #:to 'scheme)))))
 
 
 (with-test-prefix "tree-il->scheme"
