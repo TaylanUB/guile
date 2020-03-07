@@ -5,6 +5,83 @@ See the end for copying conditions.
 Please send Guile bug reports to bug-guile@gnu.org.
 
 
+Changes in 3.0.1 (since 3.0.0):
+
+* New interfaces and functionality
+
+** Export constructor and predicate for '&quit-exception'
+
+The (ice-9 exceptions) module, new in 3.0.0, now exports
+'quit-exception?' and 'make-quit-exception', which is consistent with
+other exception types.
+
+** (texinfo plain-text) now exports '*line-width*' fluid
+
+The new '*line-width*' fluid allows users to specify the width of a line
+for the purposes of line wrapping.  See "texinfo plain-text" in the
+manual.
+
+* Bug fixes
+
+** 'hash' correctly handles keywords, ports, hash tables, etc.
+   (<https://bugs.gnu.org/39634>)
+
+It used to be that the 'hash' procedure would return the same value for
+all keyword objects, the same value for all hash tables, the same value
+for all input ports, etc.
+
+** 'include' no longer rejects relative file names
+
+A bug in 3.0.0 would lead 'include' to error out when passed a relative
+file name.
+
+** Reduce GC pressure when using bignums
+
+Guile no longer installs a finalizer on each bignum (large integer) it
+creates.  This significantly improves speed and memory usage on
+applications that make heavy use of bignums, such as the compiler
+itself.
+
+** Fix expansion of 'error' calls with a non-constant argument
+   (<https://bugs.gnu.org/39509>)
+
+Calls to the 'error' primitive with a non-constant argument, as in
+(error message), would be incorrectly expanded by the compiler, leading
+to non-printable errors ("Error while printing exception").
+
+** Improve source location information for top-level references
+   (<https://bugs.gnu.org/38388>)
+
+Source location information, as is visible upon "unbound variable"
+errors, is now more accurate.
+
+** Web client treats TLS "premature termination" error as EOF
+   (<https://bugs.gnu.org/39800>)
+
+This allows 'http-request' from (web client) to gracefully handle
+servers that terminate connections abruptly after responding to a
+"Connection: close" request.
+
+** Fix bug restoring a JIT continuation from the interpreter
+
+** Export C symbols 'scm_sym_lambda', 'scm_sym_quote', etc. again
+
+Those C symbols were inadvertently made private in 3.0.0.
+
+** Fix build on IA64 and on platforms where the stack grows upwards
+
+** Fix JIT compilation on 64-bit Cygwin
+
+** texinfo properly renders @acronym in plain text
+
+See <https://bugs.gnu.org/37846> for details.
+
+** Fix Readline configure check for the sake of libedit
+
+This fixes builds on macOS against the system-provided libedit.
+
+
+
 Changes in 3.0.0 (since the stable 2.2 series):
 
 * Notable changes
