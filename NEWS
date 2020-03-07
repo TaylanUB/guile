@@ -21,6 +21,12 @@ The new '*line-width*' fluid allows users to specify the width of a line
 for the purposes of line wrapping.  See "texinfo plain-text" in the
 manual.
 
+** R7RS support recognizes the '.sld' extension
+
+The '.sld' is what the R7RS suggests as a source file name extension.
+It is now recognized when running "guile --r7rs", as well as
+the '.guile.sld' extension.
+
 * Bug fixes
 
 ** 'hash' correctly handles keywords, ports, hash tables, etc.
