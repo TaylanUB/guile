@@ -1437,7 +1437,7 @@
             e r w s mod))
           ((global-call)
            (expand-call
-            (build-global-reference (source-annotation (car e))
+            (build-global-reference (or (source-annotation (car e)) s)
                                     (if (syntax? value)
                                         (syntax-expression value)
                                         value)
