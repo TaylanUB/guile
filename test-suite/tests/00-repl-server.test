@@ -43,7 +43,6 @@ socket connected to that server."
          (sockaddr (make-socket-address AF_UNIX (string-append tmpdir "/repl-server")))
          (client-socket (socket AF_UNIX SOCK_STREAM 0)))
     (false-if-exception (delete-file (sockaddr:path sockaddr)))
-    (false-if-exception (rmdir tmpdir))
 
     ;; The REPL server requires thread. The test requires fork.
     (unless (and (provided? 'threads) (provided? 'fork))
@@ -90,6 +89,8 @@ socket connected to that server."
          (lambda ()
            (false-if-exception (close-port client-socket))
            (false-if-exception (kill pid SIGTERM))
+           (false-if-exception (delete-file (sockaddr:path sockaddr)))
+           (false-if-exception (rmdir tmpdir))
            (sigaction SIGPIPE SIG_DFL)))))))
 
 (define-syntax-rule (with-repl-server client-socket body ...)
