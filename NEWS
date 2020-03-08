@@ -77,14 +77,20 @@ Those C symbols were inadvertently made private in 3.0.0.
 ** Fix build on IA64 and on platforms where the stack grows upwards
 
 ** Fix JIT compilation on 64-bit Cygwin
+   (<https://bugs.gnu.org/39118>)
 
 ** texinfo properly renders @acronym in plain text
+   (<https://bugs.gnu.org/37846>)
 
-See <https://bugs.gnu.org/37846> for details.
+** Compiler now optimizes (logior 0 INT)
+   (<https://bugs.gnu.org/39573>)
 
 ** Fix Readline configure check for the sake of libedit
 
 This fixes builds on macOS against the system-provided libedit.
+
+** Provided 'GUILE_PKG' Autoconf macro now detects Guile 3.0
+   (<https://bugs.gnu.org/39437>)
 
 
 
