@@ -1,4 +1,4 @@
-/* Copyright 1996-2001,2003-2004,2006-2013,2015,2017-2018
+/* Copyright 1996-2001,2003-2004,2006-2013,2015,2017-2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -139,8 +139,10 @@ set_vtable_access_fields (SCM vtable)
   nfields = len / 2;
 
   bitmask_size = (nfields + 31U) / 32U;
-  unboxed_fields = scm_gc_malloc_pointerless (bitmask_size, "unboxed fields");
-  memset (unboxed_fields, 0, bitmask_size * sizeof(*unboxed_fields));
+  unboxed_fields =
+    scm_gc_malloc_pointerless (bitmask_size * sizeof (*unboxed_fields),
+                               "unboxed fields");
+  memset (unboxed_fields, 0, bitmask_size * sizeof (*unboxed_fields));
 
   /* Update FLAGS according to LAYOUT.  */
   for (field = 0; field < nfields; field++)
