@@ -9,7 +9,7 @@
 
 @cindex Debugging
 In order to understand Guile's debugging facilities, you first need to
-understand a little about how Guile represent the Scheme control stack.
+understand a little about how Guile represents the Scheme control stack.
 With that in place we explain the low level trap calls that the virtual
 machine can be configured to make, and the trap and breakpoint
 infrastructure that builds on top of those calls.
