@@ -68,6 +68,7 @@ extern "C" {
 #include "libguile/guardians.h"
 #include "libguile/hash.h"
 #include "libguile/hashtab.h"
+#include "libguile/hooks.h"
 #include "libguile/i18n.h"
 #include "libguile/init.h"
 #include "libguile/ioext.h"
