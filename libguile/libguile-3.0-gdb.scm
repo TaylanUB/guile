@@ -1,6 +1,6 @@
 ;;; GDB debugging support for Guile.
 ;;;
-;;; Copyright 2014, 2015, 2017 Free Software Foundation, Inc.
+;;; Copyright 2014, 2015, 2017, 2020 Free Software Foundation, Inc.
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by
@@ -70,12 +70,15 @@ if the information is not available."
 
 (define %gdb-memory-backend
   ;; The GDB back-end to access the inferior's memory.
-  (let ((void* (type-pointer (lookup-type "void"))))
+
+  ;; When run through 'rr replay', even the 'void' type is initially
+  ;; unavailable.  Thus, delay lookup until it's actually needed.
+  (let ((void* (delay (type-pointer (lookup-type "void")))))
     (define (dereference-word address)
       ;; Return the word at ADDRESS.
       (value->integer
        (value-dereference (value-cast (make-value address)
-                                      (type-pointer void*)))))
+                                      (type-pointer (force void*))))))
 
     (define (open address size)
       ;; Return a port to the SIZE bytes starting at ADDRESS.
@@ -167,11 +170,6 @@ if the information is not available."
 ;;; VM stack walking.
 ;;;
 
-(define ip-type (type-pointer (lookup-type "scm_t_uint32")))
-(define fp-type (type-pointer (lookup-type "SCM")))
-(define sp-type (type-pointer (lookup-type "SCM")))
-(define uint-type (type-pointer (lookup-type "scm_t_uintptr")))
-
 (define-record-type <vm-frame>
   (make-vm-frame ip sp fp saved-ip saved-fp)
   vm-frame?
@@ -184,6 +182,9 @@ if the information is not available."
 ;; See libguile/frames.h.
 (define* (vm-frame ip sp fp #:optional (backend %gdb-memory-backend))
   "Return the components of the stack frame at FP."
+  (define ip-type (type-pointer (lookup-type "scm_t_uint32")))
+  (define uint-type (type-pointer (lookup-type "scm_t_uintptr")))
+
   (make-vm-frame ip
                  sp
                  fp
