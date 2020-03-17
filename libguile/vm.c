@@ -1385,6 +1385,11 @@ scm_i_vm_emergency_abort (SCM *tag_and_argv, size_t n)
   fp = vp->stack_top - fp_offset;
   sp = vp->stack_top - sp_offset;
 
+  /* Restore FP first so that a concurrent 'scm_i_vm_mark_stack' does
+     not overwrite the 'abort' arguments assigned below (see
+     <https://bugs.gnu.org/28211>).  */
+  vp->fp = fp;
+
   /* Continuation gets nargs+1 values: the one more is for the cont.  */
   sp = sp - nargs - 1;
 
@@ -1398,7 +1403,6 @@ scm_i_vm_emergency_abort (SCM *tag_and_argv, size_t n)
     sp[nargs].as_scm = *argv++;
 
   /* Restore VM regs */
-  vp->fp = fp;
   vp->sp = sp;
   vp->ip = vra;
 
@@ -1456,6 +1460,11 @@ abort_to_prompt (scm_thread *thread, uint8_t *saved_mra)
   /* Continuation gets nargs+1 values: the one more is for the cont.  */
   sp = sp - nargs - 1;
 
+  /* Restore FP first so that a concurrent 'scm_i_vm_mark_stack' does
+     not overwrite the 'abort' arguments assigned below (see
+     <https://bugs.gnu.org/28211>).  */
+  vp->fp = fp;
+
   /* Shuffle abort arguments down to the prompt continuation.  We have
      to be jumping to an older part of the stack.  */
   if (sp < vp->sp)
@@ -1465,7 +1474,6 @@ abort_to_prompt (scm_thread *thread, uint8_t *saved_mra)
     sp[nargs] = vp->sp[nargs];
 
   /* Restore VM regs */
-  vp->fp = fp;
   vp->sp = sp;
   vp->ip = vra;
 
