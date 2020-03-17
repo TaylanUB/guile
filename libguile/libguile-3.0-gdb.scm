@@ -182,8 +182,8 @@ if the information is not available."
 ;; See libguile/frames.h.
 (define* (vm-frame ip sp fp #:optional (backend %gdb-memory-backend))
   "Return the components of the stack frame at FP."
-  (define ip-type (type-pointer (lookup-type "scm_t_uint32")))
-  (define uint-type (type-pointer (lookup-type "scm_t_uintptr")))
+  (define ip-type (type-pointer (lookup-type "uint32_t")))
+  (define uint-type (type-pointer (lookup-type "uintptr_t")))
 
   (make-vm-frame ip
                  sp
