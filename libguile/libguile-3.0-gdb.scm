@@ -297,6 +297,7 @@ if the information is not available."
       (define (ip-in-symbol? name)
         (let ((sym (lookup-symbol-or-false name)))
           (and sym
+               (not (value-optimized-out? (symbol-value sym)))
                (let* ((val (symbol-value sym))
                       (size (type-sizeof (value-type val)))
                       (char* (type-pointer (arch-char-type (current-arch))))
