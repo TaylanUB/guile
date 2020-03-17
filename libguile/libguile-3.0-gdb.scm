@@ -207,11 +207,12 @@ if the information is not available."
 
 (define (find-vp)
   "Find the scm_vm pointer for the current thread."
-  (let loop ((frame (newest-frame)))
-    (and frame
-         (if (vm-engine-frame? frame)
-             (frame-read-var frame "vp")
-             (loop (frame-older frame))))))
+  (match (lookup-symbol "scm_i_current_thread")
+    ((#f _)
+     #f)
+    ((symbol _)
+     (let ((thread (symbol-value symbol)))
+       (value-field thread "vm")))))
 
 (define (newest-vm-frame)
   "Return the newest VM frame or #f."
