@@ -23,6 +23,8 @@
 
 #include <stdlib.h>
 
+#include "libguile/scmconfig.h"
+
 
 #if SCM_USE_NULL_THREADS
 #include "null-threads.h"

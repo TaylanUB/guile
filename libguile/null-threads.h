@@ -36,6 +36,8 @@
 #include <signal.h>
 #include <errno.h>
 
+#include "libguile/scm.h"
+
 /* Threads
 */
 typedef int scm_i_pthread_t;
