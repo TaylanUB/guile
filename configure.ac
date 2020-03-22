@@ -166,6 +166,10 @@ AC_ARG_ENABLE(regex,
   [  --disable-regex         omit regular expression interfaces],,
   enable_regex=yes)
 
+AC_ARG_ENABLE(tmpnam,
+  AS_HELP_STRING([--disable-tmpnam],[omit POSIX tmpnam]),,
+  enable_tmpnam=yes)
+
 AC_ARG_ENABLE([deprecated],
   AS_HELP_STRING([--disable-deprecated],[omit deprecated features]))
 
@@ -907,6 +911,10 @@ fi
 if test "$enable_regex" = yes; then
    AC_LIBOBJ([regex-posix])
    AC_DEFINE([ENABLE_REGEX], 1, [Define when regex support is enabled.])
+fi
+
+if test "$enable_tmpnam" = yes; then
+   AC_DEFINE([ENABLE_TMPNAM], 1, [Define when tmpnam support is enabled.])
 fi
 
 AC_REPLACE_FUNCS([strerror memmove])

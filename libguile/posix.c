@@ -87,6 +87,10 @@
 #include "vectors.h"
 #include "version.h"
 
+#if (SCM_ENABLE_DEPRECATED == 1)
+#include "deprecation.h"
+#endif
+
 #include "posix.h"
 
 #if HAVE_SYS_WAIT_H
@@ -1588,6 +1592,8 @@ SCM_DEFINE (scm_environ, "environ", 0, 1, 0,
 }
 #undef FUNC_NAME
 
+#if (SCM_ENABLE_DEPRECATED == 1)
+#ifdef ENABLE_TMPNAM
 #ifdef L_tmpnam
 
 SCM_DEFINE (scm_tmpnam, "tmpnam", 0, 0, 0,
@@ -1602,6 +1608,9 @@ SCM_DEFINE (scm_tmpnam, "tmpnam", 0, 0, 0,
   char name[L_tmpnam];
   char *rv;
 
+  scm_c_issue_deprecation_warning
+      ("Use of tmpnam is deprecated.  Use mkstemp! instead.");
+
   SCM_SYSCALL (rv = tmpnam (name));
   if (rv == NULL)
     /* not SCM_SYSERROR since errno probably not set.  */
@@ -1610,6 +1619,8 @@ SCM_DEFINE (scm_tmpnam, "tmpnam", 0, 0, 0,
 }
 #undef FUNC_NAME
 
+#endif
+#endif
 #endif
 
 SCM_DEFINE (scm_tmpfile, "tmpfile", 0, 0, 0,
