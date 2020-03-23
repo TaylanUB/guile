@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2015, 2016, 2017, 2018, 2019 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -230,8 +230,29 @@
                    ($primcall 'untag-fixnum #f (b-int)))))
     (build-term ($branch kretag kfix src 'fixnum? #f (b-int)))))
 
+;; compute-significant-bits solves a flow equation to compute a
+;; least-fixed-point over the lattice VAR -> BITMASK, where X > Y if
+;; X[VAR] > Y[VAR] for any VAR.  Adjoining VAR -> BITMASK to X results
+;; in a distinct value X' (in the sense of eq?) if and only if X' > X.
+;; This property is used in compute-significant-bits to know when to
+;; stop iterating, and is ensured by intmaps, provided that the `meet'
+;; function passed to `intmap-add' and so on also preserves this
+;; property.
+;;
+;; The meet function for adding bits is `sigbits-union'; the first
+;; argument is the existing value, and the second is the bitmask to
+;; adjoin.  For fixnums, BITMASK' will indeed be distinct if and only if
+;; bits were added.  However for bignums it's possible that (= X' X) but
+;; not (eq? X' X).  This preserve-eq? helper does the impedance matching
+;; for bignums, returning the first value if the values are =.
+(define (preserve-eq? x x*)
+  (if (= x x*)
+      x
+      x*))
+
 (define (sigbits-union x y)
-  (and x y (logior x y)))
+  (and x y
+       (preserve-eq? x (logior x y))))
 
 (define (sigbits-intersect x y)
   (cond
