@@ -563,6 +563,7 @@ weak_set_add_x (scm_t_weak_set *set, unsigned long hash,
       if (set->n_items > set->upper)
         /* Full set, time to resize.  */
         {
+          vacuum_weak_set (set);
           resize_set (set);
           return weak_set_add_x (set, hash >> 1, pred, closure, obj);
         }
