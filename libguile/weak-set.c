@@ -363,11 +363,11 @@ resize_set (scm_t_weak_set *set)
       if (new_size_index == set->size_index)
         return;
       new_size = hashset_size[new_size_index];
-      new_entries = scm_gc_malloc_pointerless (new_size * sizeof(scm_t_weak_entry),
-                                               "weak set");
     }
   while (!is_acceptable_size_index (set, new_size_index));
 
+  new_entries = scm_gc_malloc_pointerless (new_size * sizeof (scm_t_weak_entry),
+                                           "weak set");
   old_entries = set->entries;
   old_size = set->size;
 
