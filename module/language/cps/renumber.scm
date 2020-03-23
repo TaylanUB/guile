@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -80,8 +80,8 @@
         (let-values (((order visited) (visit k0 order visited)))
           (visit k1 order visited)))
       (if (intset-ref visited k)
-          (values order visited)
-          (let ((visited (intset-add visited k)))
+          (values order (persistent-intset visited))
+          (let ((visited (intset-add! visited k)))
             (call-with-values
                 (lambda ()
                   (match (intmap-ref conts k)
@@ -109,7 +109,7 @@
                     (($ $ktail) (values order visited))))
               (lambda (order visited)
                 ;; Add k to the reverse post-order.
-                (values (cons k order) visited))))))))
+                (values (cons k order) (persistent-intset visited)))))))))
 
 (define (compute-renaming conts kfun)
   ;; labels := old -> new
