@@ -30,9 +30,9 @@ illustration, transforming a music album catalog language into HTML.
 @lisp
 (define (album->html x)
   (sxml-match x
-    [(album (@@ (title ,t)) (catalog (num ,n) (fmt ,f)) ...)
+    ((album (@@ (title ,t)) (catalog (num ,n) (fmt ,f)) ...)
      `(ul (li ,t)
-          (li (b ,n) (i ,f)) ...)]))
+          (li (b ,n) (i ,f)) ...))))
 @end lisp
 
 Three macros are provided: @code{sxml-match}, @code{sxml-match-let}, and
@@ -138,8 +138,8 @@ The example below illustrates the pattern matching of an XML element:
 
 @lisp
 (sxml-match '(e (@@ (i 1)) 3 4 5)
-  [(e (@@ (i ,d)) ,a ,b ,c) (list d a b c)]
-  [,otherwise #f])
+  ((e (@@ (i ,d)) ,a ,b ,c) (list d a b c))
+  (,otherwise #f))
 @end lisp
 
 Each clause in @code{sxml-match} contains two parts: a pattern and one or more
@@ -165,8 +165,8 @@ where nested ellipses are used to match the children of repeated instances of an
 (define x '(d (a 1 2 3) (a 4 5) (a 6 7 8) (a 9 10)))
 
 (sxml-match x
-  [(d (a ,b ...) ...)
-   (list (list b ...) ...)])
+  ((d (a ,b ...) ...)
+   (list (list b ...) ...)))
 @end lisp
 
 The above expression returns a value of @code{((1 2 3) (4 5) (6 7 8) (9 10))}.
@@ -179,8 +179,8 @@ in the example below.
 
 @lisp
 (sxml-match '(e 3 4 5 6 7)
-  [(e ,i ... 6 7) `("start" ,(list 'wrap i) ... "end")]
-  [,otherwise #f])
+  ((e ,i ... 6 7) `("start" ,(list 'wrap i) ... "end"))
+  (,otherwise #f))
 @end lisp
 
 The general pattern is that @code{`(something ,i ...)} is rewritten as
@@ -193,8 +193,8 @@ identifier list.  The example below illustrates matching a nodeset.
 
 @lisp
 (sxml-match '("i" "j" "k" "l" "m")
-  [(list ,a ,b ,c ,d ,e)
-   `((p ,a) (p ,b) (p ,c) (p ,d) (p ,e))])
+  ((list ,a ,b ,c ,d ,e)
+   `((p ,a) (p ,b) (p ,c) (p ,d) (p ,e))))
 @end lisp
 
 This example wraps each nodeset item in an HTML paragraph element.  This example
@@ -202,8 +202,8 @@ can be rewritten and simplified through using ellipsis:
 
 @lisp
 (sxml-match '("i" "j" "k" "l" "m")
-  [(list ,i ...)
-   `((p ,i) ...)])
+  ((list ,i ...)
+   `((p ,i) ...)))
 @end lisp
 
 This version will match nodesets of any length, and wrap each item in the
@@ -218,8 +218,8 @@ This is illustrated in the example below:
 
 @lisp
 (sxml-match '(e 3 (f 4 5 6) 7)
-  [(e ,a (f . ,y) ,d)
-   (list a y d)])
+  ((e ,a (f . ,y) ,d)
+   (list a y d)))
 @end lisp
 
 The above expression returns @code{(3 (4 5 6) 7)}.
@@ -233,8 +233,8 @@ illustrated in the example below:
 
 @lisp
 (sxml-match '(a (@@ (z 1) (y 2) (x 3)) 4 5 6)
-  [(a (@@ (y ,www) . ,qqq) ,t ,u ,v)
-   (list www qqq t u v)])
+  ((a (@@ (y ,www) . ,qqq) ,t ,u ,v)
+   (list www qqq t u v)))
 @end lisp
 
 The above expression matches the attribute @code{y} and binds a list of the
@@ -245,8 +245,8 @@ This type of pattern also allows the binding of all attributes:
 
 @lisp
 (sxml-match '(a (@@ (z 1) (y 2) (x 3)))
-  [(a (@@ . ,qqq))
-   qqq])
+  ((a (@@ . ,qqq))
+   qqq))
 @end lisp
 
 @unnumberedsubsec Default Values in Attribute Patterns
@@ -257,7 +257,7 @@ the following example:
 
 @lisp
 (sxml-match '(e 3 4 5)
-  [(e (@@ (z (,d 1))) ,a ,b ,c) (list d a b c)])
+  ((e (@@ (z (,d 1))) ,a ,b ,c) (list d a b c)))
 @end lisp
 
 The value @code{1} is used when the attribute @code{z} is absent from the
@@ -289,35 +289,35 @@ basic arithmetic operations, which are represented by the XML elements
 (define simple-eval
   (lambda (x)
     (sxml-match x
-      [,i (guard (integer? i)) i]
-      [(plus ,x ,y) (+ (simple-eval x) (simple-eval y))]
-      [(times ,x ,y) (* (simple-eval x) (simple-eval y))]
-      [(minus ,x ,y) (- (simple-eval x) (simple-eval y))]
-      [(div ,x ,y) (/ (simple-eval x) (simple-eval y))]
-      [,otherwise (error "simple-eval: invalid expression" x)])))
+      (,i (guard (integer? i)) i)
+      ((plus ,x ,y) (+ (simple-eval x) (simple-eval y)))
+      ((times ,x ,y) (* (simple-eval x) (simple-eval y)))
+      ((minus ,x ,y) (- (simple-eval x) (simple-eval y)))
+      ((div ,x ,y) (/ (simple-eval x) (simple-eval y)))
+      (,otherwise (error "simple-eval: invalid expression" x)))))
 @end lisp
 
 Using the catamorphism feature of @code{sxml-match}, a more concise version of
-@code{simple-eval} can be written.  The pattern @code{,[x]} recursively invokes
+@code{simple-eval} can be written.  The pattern @code{,(x)} recursively invokes
 the pattern matcher on the value bound in this position.
 
 @lisp
 (define simple-eval
   (lambda (x)
     (sxml-match x
-      [,i (guard (integer? i)) i]
-      [(plus ,[x] ,[y]) (+ x y)]
-      [(times ,[x] ,[y]) (* x y)]
-      [(minus ,[x] ,[y]) (- x y)]
-      [(div ,[x] ,[y]) (/ x y)]
-      [,otherwise (error "simple-eval: invalid expression" x)])))
+      (,i (guard (integer? i)) i)
+      ((plus ,(x) ,(y)) (+ x y))
+      ((times ,(x) ,(y)) (* x y))
+      ((minus ,(x) ,(y)) (- x y))
+      ((div ,(x) ,(y)) (/ x y))
+      (,otherwise (error "simple-eval: invalid expression" x)))))
 @end lisp
 
 @unnumberedsubsec Named-Catamorphisms
 
 It is also possible to explicitly name the operator in the ``cata'' position.
-Where @code{,[id*]} recurs to the top of the current @code{sxml-match},
-@code{,[cata -> id*]} recurs to @code{cata}.  @code{cata} must evaluate to a
+Where @code{,(id*)} recurs to the top of the current @code{sxml-match},
+@code{,(cata -> id*)} recurs to @code{cata}.  @code{cata} must evaluate to a
 procedure which takes one argument, and returns as many values as there are
 identifiers following @code{->}.
 
@@ -329,29 +329,29 @@ transformation that formats a ``TV Guide'' into HTML.
 (define (tv-guide->html g)
   (define (cast-list cl)
     (sxml-match cl
-      [(CastList (CastMember (Character (Name ,ch)) (Actor (Name ,a))) ...)
-       `(div (ul (li ,ch ": " ,a) ...))]))
+      ((CastList (CastMember (Character (Name ,ch)) (Actor (Name ,a))) ...)
+       `(div (ul (li ,ch ": " ,a) ...)))))
   (define (prog p)
     (sxml-match p
-      [(Program (Start ,start-time) (Duration ,dur) (Series ,series-title)
+      ((Program (Start ,start-time) (Duration ,dur) (Series ,series-title)
                 (Description ,desc ...))
        `(div (p ,start-time
                 (br) ,series-title
-                (br) ,desc ...))]
-      [(Program (Start ,start-time) (Duration ,dur) (Series ,series-title)
+                (br) ,desc ...)))
+      ((Program (Start ,start-time) (Duration ,dur) (Series ,series-title)
                 (Description ,desc ...)
-                ,[cast-list -> cl])
+                ,(cast-list -> cl))
        `(div (p ,start-time
                 (br) ,series-title
                 (br) ,desc ...)
-             ,cl)]))
+             ,cl))))
   (sxml-match g
-    [(TVGuide (@@ (start ,start-date)
+    ((TVGuide (@@ (start ,start-date)
                  (end ,end-date))
-              (Channel (Name ,nm) ,[prog -> p] ...) ...)
+              (Channel (Name ,nm) ,(prog -> p) ...) ...)
      `(html (head (title "TV Guide"))
             (body (h1 "TV Guide")
-                  (div (h2 ,nm) ,p ...) ...))]))
+                  (div (h2 ,nm) ,p ...) ...)))))
 @end lisp
 
 @unnumberedsubsec @code{sxml-match-let} and @code{sxml-match-let*}
@@ -365,7 +365,7 @@ an XML pattern in the binding position, rather than a simple variable.
 For example, the expression below:
 
 @lisp
-(sxml-match-let ([(a ,i ,j) '(a 1 2)])
+(sxml-match-let (((a ,i ,j) '(a 1 2)))
   (+ i j))
 @end lisp
 
