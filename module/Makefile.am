@@ -312,6 +312,9 @@ SOURCES =					\
   srfi/srfi-88.scm				\
   srfi/srfi-98.scm				\
   srfi/srfi-111.scm				\
+  srfi/srfi-171.scm                             \
+  srfi/srfi-171/gnu.scm                         \
+  srfi/srfi-171/meta.scm                        \
 						\
   statprof.scm					\
 						\

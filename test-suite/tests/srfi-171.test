@@ -1,0 +1,267 @@
+;; 	Copyright (C) 2020 Free Software Foundation, Inc.
+;;
+;; This library is free software; you can redistribute it and/or
+;; modify it under the terms of the GNU Lesser General Public
+;; License as published by the Free Software Foundation; either
+;; version 3 of the License, or (at your option) any later version.
+;; 
+;; This library is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;; Lesser General Public License for more details.
+;; 
+;; You should have received a copy of the GNU Lesser General Public
+;; License along with this library; if not, write to the Free Software
+;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+
+(define-module (test-srfi-171)
+  #:use-module (test-suite lib)
+  #:use-module (ice-9 hash-table)
+  #:use-module (srfi srfi-171)
+  #:use-module (srfi srfi-171 gnu)
+  #:use-module (rnrs bytevectors)
+  #:use-module ((rnrs hashtables) #:prefix rnrs:)
+  #:use-module ((srfi srfi-69) #:prefix srfi:))
+
+(define (add1 x) (+ x 1))
+
+(define numeric-list (iota 5))
+(define numeric-vec (list->vector numeric-list))
+(define bv (list->u8vector numeric-list))
+(define test-string "0123456789abcdef")
+(define list-of-chars (string->list test-string))
+
+;; for testing all treplace variations
+(define replace-alist '((1 . s) (2 . c) (3 . h) (4 . e) (5 . m)))
+(define guile-hashtable (alist->hash-table replace-alist))
+(define srfi69-hashtable (srfi:alist->hash-table replace-alist))
+(define rnrs-hashtable (rnrs:make-eq-hashtable))
+(rnrs:hashtable-set! rnrs-hashtable 1 's)
+(rnrs:hashtable-set! rnrs-hashtable 2 'c)
+(rnrs:hashtable-set! rnrs-hashtable 3 'h)
+(rnrs:hashtable-set! rnrs-hashtable 4 'e)
+(rnrs:hashtable-set! rnrs-hashtable 5 'm)
+(define (replace-function val)
+  (case val
+    ((1) 's)
+    ((2) 'c)
+    ((3) 'h)
+    ((4) 'e)
+    ((5) 'm)
+    (else val)))
+
+;; Test procedures for port-transduce
+;; broken out to properly close port
+(define (port-transduce-test)
+  (let* ((port (open-input-string "0 1 2 3 4"))
+        (res (equal? 15 (port-transduce (tmap add1) + read
+                                        (open-input-string "0 1 2 3 4")))))
+    (close-port port)
+    res))
+(define (port-transduce-with-identity-test)
+  (let* ((port (open-input-string "0 1 2 3 4"))
+         (res (equal? 15 (port-transduce (tmap add1)
+                                         +
+                                         0
+                                         read
+                                         (open-input-string "0 1 2 3 4")))))
+    (close-port port)
+    res))
+
+(with-test-prefix "transducers"
+  (pass-if "tmap" (equal? '(1 2 3 4 5) (list-transduce (tmap add1)
+                                                       rcons
+                                                       numeric-list)))
+
+  (pass-if "tfilter" (equal? '(0 2 4) (list-transduce (tfilter even?)
+                                                      rcons
+                                                      numeric-list)))
+
+  (pass-if "tfilter+tmap" (equal?
+                           '(1 3 5)
+                           (list-transduce (compose (tfilter even?) (tmap add1))
+                                           rcons
+                                           numeric-list)))
+
+  (pass-if "tfilter-map"
+           (equal? '(1 3 5)
+                   (list-transduce (tfilter-map
+                                    (lambda (x)
+                                      (if (even? x)
+                                          (+ x 1)
+                                          #f)))
+                                   rcons numeric-list)))
+
+  (pass-if "tremove"
+    (equal? (list-transduce (tremove char-alphabetic?)
+                            rcount
+                            list-of-chars)
+            (string-transduce (tremove char-alphabetic?)
+                              rcount
+                              test-string)))
+
+  (pass-if "treplace with alist"
+           (equal? '(s c h e m e  r o c k s)
+                   (list-transduce (treplace replace-alist)
+                                   rcons
+                                   '(1 2 3 4 5 4 r o c k s) )))
+
+  (pass-if "treplace with replace-function"
+           (equal? '(s c h e m e  r o c k s)
+                   (list-transduce (treplace replace-function)
+                                   rcons
+                                   '(1 2 3 4 5 4 r o c k s))))
+
+
+  (pass-if "treplace with guile hash-table"
+           (equal? '(s c h e m e  r o c k s)
+                   (list-transduce (treplace guile-hashtable)
+                                   rcons
+                                   '(1 2 3 4 5 4 r o c k s))))
+
+  (pass-if "treplace with srfi-69 hash-table"
+           (equal? '(s c h e m e  r o c k s)
+                   (list-transduce (treplace srfi69-hashtable)
+                                   rcons
+                                   '(1 2 3 4 5 4 r o c k s))))
+
+  (pass-if "treplace with rnrs hash-table"
+           (equal? '(s c h e m e  r o c k s)
+                   (list-transduce (treplace rnrs-hashtable)
+                                   rcons
+                                   '(1 2 3 4 5 4 r o c k s))))
+
+  (pass-if "ttake"
+           (equal? 6 (list-transduce (ttake 4) + numeric-list)))
+
+  (pass-if "tdrop"
+           (equal? 7 (list-transduce (tdrop 3) + numeric-list)))
+
+  (pass-if "tdrop-while"
+    (equal? '(3 4)
+            (list-transduce (tdrop-while (lambda (x) (< x 3)))
+                            rcons
+                            numeric-list)))
+
+  (pass-if "ttake-while"
+    (equal? '(0 1 2)
+            (list-transduce (ttake-while (lambda (x) (< x 3)))
+                            rcons
+                            numeric-list)))
+
+  (pass-if "tconcatenate"
+    (equal? '(0 1 2 3 4) (list-transduce tconcatenate
+                                         rcons
+                                         '((0 1) (2 3) (4)))))
+
+  (pass-if "tappend-map"
+    (equal? '(1 2 2 4 3 6)
+            (list-transduce (tappend-map (lambda (x) (list x (* x 2))))
+                            rcons
+                            '(1 2 3))))
+
+  (pass-if "tdelete-neighbor-duplicates"
+    (equal? '(1 2 1 2 3)
+            (list-transduce (tdelete-neighbor-duplicates)
+                            rcons
+                            '(1 1 1 2 2 1 2 3 3))))
+
+  (pass-if "tdelete-neighbor-duplicates with equality predicate"
+    (equal? '(a b c "hej" "hej")
+            (list-transduce (tdelete-neighbor-duplicates eq?)
+                            rcons
+                            (list 'a 'a 'b 'c 'c "hej" (string #\h #\e #\j)))))
+
+  (pass-if "tdelete-duplicates"
+    (equal? '(1 2 3 4)
+            (list-transduce (tdelete-duplicates)
+                            rcons
+                            '(1 1 2 1 2 3 3 1 2 3 4))))
+
+  (pass-if "tdelete-duplicates with predicate"
+    (equal? '("hej" "hopp")
+            (list-transduce (tdelete-duplicates string-ci=?)
+                            rcons
+                            (list "hej" "HEJ" "hopp" "HOPP" "heJ"))))
+
+  (pass-if "tflatten"
+    (equal? '(1 2 3 4 5 6 7 8 9)
+            (list-transduce tflatten rcons '((1 2) 3 (4 (5 6) 7) 8 (9)))))
+
+  (pass-if "tpartition"
+    (equal? '((1 1 1 1) (2 2 2 2) (3 3 3) (4 4 4 4))
+            (list-transduce (tpartition even?)
+                            rcons
+                            '(1 1 1 1 2 2 2 2 3 3 3 4 4 4 4))))
+
+  (pass-if "tsegment"
+    (equal? '((0 1) (2 3) (4))
+            (vector-transduce (tsegment 2) rcons numeric-vec)))
+
+  (pass-if "tadd-between"
+    (equal? '(0 and 1 and 2 and 3 and 4)
+            (list-transduce (tadd-between 'and) rcons numeric-list)))
+
+  (pass-if "tenumerate"
+    (equal? '((-1 . 0) (0 . 1) (1 . 2) (2 . 3) (3 . 4))
+            (list-transduce (tenumerate (- 1)) rcons numeric-list)))
+
+  (pass-if "tbatch"
+    (equal?
+            '((0 1) (2 3) (4))
+            (list-transduce (tbatch (ttake 2) rcons) rcons numeric-list)))
+
+  (pass-if "tfold"
+           (equal?
+            '(0 1 3 6 10)
+            (list-transduce (tfold +) rcons numeric-list))))
+
+
+(with-test-prefix "x-transduce"
+  (pass-if "list-transduce" 
+           (equal? 15 (list-transduce (tmap add1) + numeric-list)))
+
+  (pass-if "list-transduce with identity"
+           (equal? 15 (list-transduce (tmap add1) + 0 numeric-list)))
+
+  (pass-if "vector-transduce"
+           (equal? 15 (vector-transduce (tmap add1) + numeric-vec)))
+
+  (pass-if "vector-transduce with identity"
+    (equal? 15
+            (vector-transduce (tmap add1) + 0 numeric-vec)))
+
+  (pass-if "port-transduce" (port-transduce-test))
+  (pass-if "port-transduce with identity" (port-transduce-with-identity-test))
+
+  ;; Converts each numeric char to it's corresponding integer  and sums them.
+  (pass-if "string-transduce" 
+    (equal?
+     15
+     (string-transduce (tmap (lambda (x) (- (char->integer x) 47))) + "01234")))
+
+  (pass-if "string-transduce with identity" 
+    (equal?
+     15
+     (string-transduce  (tmap (lambda (x) (- (char->integer x) 47)))
+                        +
+                        0
+                        "01234")))
+
+  (pass-if "generator-transduce" 
+    (equal?
+     '(1 2 3)
+     (parameterize ((current-input-port (open-input-string "1 2 3")))
+       (generator-transduce (tmap (lambda (x) x)) rcons read))))
+
+  (pass-if "generator-transduce with identity" 
+    (equal?
+     '(1 2 3)
+     (parameterize ((current-input-port (open-input-string "1 2 3")))
+       (generator-transduce (tmap (lambda (x) x)) rcons '() read))))
+
+  (pass-if "bytevector-u8-transduce" 
+    (equal? 15 (bytevector-u8-transduce (tmap add1) + bv)))
+
+  (pass-if "bytevector-u8-transduce with identity" 
+    (equal? 15 (bytevector-u8-transduce (tmap add1) + 0 bv))))

@@ -64,6 +64,7 @@ get the relevant SRFI documents from the SRFI home page
 * SRFI-98::                     Accessing environment variables.
 * SRFI-105::                    Curly-infix expressions.
 * SRFI-111::                    Boxes.
+* SRFI-171::                    Transducers
 @end menu
 
 
@@ -5600,6 +5601,492 @@ Return the current contents of @var{box}.
 
 @deffn {Scheme Procedure} set-box! box value
 Set the contents of @var{box} to @var{value}.
+@end deffn
+
+@node SRFI-171
+@subsection Transducers
+@cindex SRFI-171
+@cindex transducers
+
+Some of the most common operations used in the Scheme language are those
+transforming lists: map, filter, take and so on.  They work well, are well
+understood, and are used daily by most Scheme programmers.  They are however not
+general because they only work on lists, and they do not compose very well
+since combining N of them builds @code{(- N 1)} intermediate lists.
+
+Transducers are oblivious to what kind of process they are used in, and
+are composable without building intermediate collections.  This means we
+can create a transducer that squares all even numbers:
+
+@example
+(compose (tfilter odd?) (tmap (lambda (x) (* x x))))
+@end example
+
+and reuse it with lists, vectors, or in just about any context where
+data flows in one direction.  We could use it as a processing step for
+asynchronous channels, with an event framework as a pre-processing step,
+or even in lazy contexts where you pass a lazy collection and a
+transducer to a function and get a new lazy collection back.
+
+The traditional Scheme approach of having collection-specific procedures
+is not changed.  We instead specify a general form of transformations
+that complement these procedures. The benefits are obvious: a clear,
+well-understood way of describing common transformations in a way that
+is faster than just chaining the collection-specific counterparts.  For
+guile in particular this means a lot better GC performance.
+
+Notice however that @code{(compose @dots{})} composes transducers
+left-to-right, due to how transducers are initiated.
+
+@menu
+* SRFI-171 General Discussion::       General information about transducers
+* SRFI-171 Applying Transducers::     Documentation of collection-specific forms
+* SRFI-171 Reducers::                 Reducers specified by the SRFI
+* SRFI-171 Transducers::              Transducers specified by the SRFI
+* SRFI-171 Helpers::                  Utilities for writing your own transducers
+@end menu
+
+@node SRFI-171 General Discussion
+@subsubsection SRFI-171 General Discussion
+@cindex transducers discussion
+
+@subheading The concept of reducers
+The central part of transducers are 3-arity reducing procedures.
+
+@itemize
+@item
+no arguments: Produces the identity of the reducer.
+
+@item
+(result-so-far): completion. Returns @code{result-so-far} either with or
+without transforming it first.
+
+@item
+(result-so-far input) combines @code{result-so-far} and @code{input} to produce
+a new @code{result-so-far}.
+@end itemize
+
+In the case of a summing @code{+} reducer, the reducer would produce, in
+arity order: @code{0}, @code{result-so-far}, @code{(+ result-so-far
+input)}. This happens to be exactly what the regular @code{+} does.
+
+@subheading The concept of transducers
+A transducer is a one-arity procedure that takes a reducer and produces a
+reducing function that behaves as follows:
+
+@itemize
+@item
+no arguments: calls reducer with no arguments (producing its identity)
+
+@item
+(result-so-far): Maybe transform the result-so-far and call reducer with it.
+
+@item
+(result-so-far input) Maybe do something to input and maybe call the
+reducer with result-so-far and the maybe-transformed input.
+@end itemize
+
+A simple example is as following:
+
+@example
+(list-transduce (tfilter odd?)+ '(1 2 3 4 5)).
+@end example
+
+This first returns a transducer filtering all odd
+elements, then it runs @code{+} without arguments to retrieve its
+identity.  It then starts the transduction by passing @code{+} to the
+transducer returned by @code{(tfilter odd?)} which returns a reducing
+function.  It works not unlike reduce from SRFI 1, but also checks
+whether one of the intermediate transducers returns a "reduced" value
+(implemented as a SRFI 9 record), which means the reduction finished
+early.
+
+Because transducers compose and the final reduction is only executed in
+the last step, composed transducers will not build any intermediate
+result or collections.  Although the normal way of thinking about
+application of composed functions is right to left, due to how the
+transduction is built it is applied left to right.  @code{(compose
+(tfilter odd?) (tmap sqrt))} will create a transducer that first filters
+out any odd values and then computes the square root of the rest.
+
+
+@subheading State
+Even though transducers appear to be somewhat of a generalisation of
+@code{map} and friends, this is not really true.  Since transducers don't
+know in which context they are being used, some transducers must keep
+state where their collection-specific counterparts do not.  The
+transducers that keep state do so using hidden mutable state, and as
+such all the caveats of mutation, parallelism, and multi-shot
+continuations apply.  Each transducer keeping state is clearly described
+as doing so in the documentation.
+
+@subheading Naming
+
+Reducers exported from the transducers module are named as in their
+SRFI-1 counterpart, but prepended with an r.  Transducers also follow
+that naming, but are prepended with a t.
+
+
+@node SRFI-171 Applying Transducers
+@subsubsection Applying Transducers
+@cindex transducers applying
+
+@deffn {Scheme Procedure} list-transduce xform f lst
+@deffnx {Scheme Procedure} list-transduce xform f identity lst
+Initialize the transducer @var{xform} by passing the reducer @var{f}
+to it.  If no identity is provided, @var{f} runs without arguments to
+return the reducer identity.  It then reduces over @var{lst} using the
+identity as the seed.
+
+If one of the transducers finishes early (such as @code{ttake} or
+@code{tdrop}), it communicates this by returning a reduced value, which
+in the guile implementation is just a value wrapped in a SRFI 9 record
+type named ``reduced''.  If such a value is returned by the transducer,
+@code{list-transduce} must stop execution and return an unreduced value
+immediately.
+@end deffn
+
+@deffn {Scheme Procedure} vector-transduce xform f vec
+@deffnx {Scheme Procedure} vector-transduce xform f identity vec
+@deffnx {Scheme Procedure} string-transduce xform f str
+@deffnx {Scheme Procedure} string-transduce xform f identity str
+@deffnx {Scheme Procedure} bytevector-u8-transduce xform f bv
+@deffnx {Scheme Procedure} bytevector-u8-transduce xform f identity bv
+@deffnx {Scheme Procedure} generator-transduce xform f gen
+@deffnx {Scheme Procedure} generator-transduce xform f identity gen
+
+Same as @code{list-transduce}, but for vectors, strings, u8-bytevectors
+and SRFI-158-styled generators respectively.
+@end deffn
+
+@deffn {Scheme Procedure} port-transduce xform f reader
+@deffnx {Scheme Procedure} port-transduce xform f reader port
+@deffnx {Scheme Procedure} port-transduce xform f identity reader port
+
+Same as @code{list-reduce} but for ports.  Called without a port, it
+reduces over the results of applying @var{(reader)} until the
+EOF-object is returned, presumably to read from
+@code{current-input-port}.  With a port @var{reader} is applied to
+@var{port} instead of without any arguments.  If @var{identity} is
+provided, that is used as the initial identity in the reduction.
+@end deffn
+
+
+@node SRFI-171 Reducers
+@subsubsection Reducers
+@cindex transducers reducers
+
+@deffn {Scheme Procedure} rcons
+a simple consing reducer. When called without values, it returns its
+identity, @code{'()}.  With one value, which will be a list, it reverses
+the list (using @code{reverse!}).  When called with two values, it conses
+the second value to the first.
+
+@example
+(list-transduce (tmap (lambda (x) (+ x 1)) rcons (list 0 1 2 3))
+@result{} (1 2 3 4)
+@end example
+@end deffn
+
+@deffn {Scheme Procedure} reverse-rcons
+same as rcons, but leaves the values in their reversed order.
+@example
+(list-transduce (tmap (lambda (x) (+ x 1))) reverse-rcons (list 0 1 2 3))
+@result{} (4 3 2 1)
+@end example
+@end deffn
+
+@deffn {Scheme Procedure} rany pred?
+The reducer version of any.  Returns @code{(reduced (pred? value))} if
+any @code{(pred? value)} returns non-#f.  The identity is #f.
+
+@example
+(list-transduce (tmap (lambda (x) (+ x 1))) (rany odd?) (list 1 3 5))
+@result{} #f
+
+(list-transduce (tmap (lambda (x) (+ x 1))) (rany odd?) (list 1 3 4 5))
+@result{} #t
+@end example
+@end deffn
+
+@deffn {Scheme Procedure} revery pred?
+The reducer version of every.  Stops the transduction and returns
+@code{(reduced #f)} if any @code{(pred? value)} returns #f.  If every
+@code{(pred? value)} returns true, it returns the result of the last
+invocation of @code{(pred? value)}.  The identity is #t.
+
+@example
+(list-transduce
+  (tmap (lambda (x) (+ x 1)))
+  (revery (lambda (v) (if (odd? v) v #f)))
+  (list 2 4 6))
+  @result{} 7
+
+(list-transduce (tmap (lambda (x) (+ x 1)) (revery odd?) (list 2 4 5 6))
+@result{} #f
+@end example
+@end deffn
+
+@deffn {Scheme Procedure} rcount
+A simple counting reducer.  Counts the values that pass through the
+transduction.
+@example
+(list-transduce (tfilter odd?) rcount (list 1 2 3 4)) @result{} 2.
+@end example
+@end deffn
+
+
+@node SRFI-171 Transducers
+@subsubsection Transducers
+@cindex transducers transducers
+
+@deffn {Scheme Procedure} tmap proc
+Returns a transducer that applies @var{proc} to all values.  Stateless.
+@end deffn
+
+@deffn tfilter pred?
+Returns a transducer that removes values for which @var{pred?} returns #f.
+
+Stateless.
+@end deffn
+
+@deffn {Scheme Procedure} tremove pred?
+Returns a transducer that removes values for which @var{pred?} returns non-#f.
+
+Stateless
+@end deffn
+
+@deffn {Scheme Procedure} tfilter-map proc
+The same as @code{(compose (tmap proc) (tfilter values))}.  Stateless.
+@end deffn
+
+@deffn {Scheme Procedure} treplace mapping
+The argument @var{mapping} is an association list (using @code{equal?}
+to compare keys), a hash-table, a one-argument procedure taking one
+argument and either producing that same argument or a replacement value.
+
+Returns a transducer which checks for the presence of any value passed
+through it in mapping.  If a mapping is found, the value of that mapping
+is returned, otherwise it just returns the original value.
+
+Does not keep internal state, but modifying the mapping while it's in
+use by treplace is an error.
+@end deffn
+
+@deffn {Scheme Procedure} tdrop n
+Returns a transducer that discards the first @var{n} values.
+
+Stateful.
+@end deffn
+
+@deffn {Scheme Procedure} ttake n
+Returns a transducer that discards all values and stops the transduction
+after the first @var{n} values have been let through.  Any subsequent values
+are ignored.
+
+Stateful.
+@end deffn
+
+
+@deffn {Scheme Procedure} tdrop-while pred?
+Returns a transducer that discards the the first values for which
+@var{pred?} returns true.
+
+Stateful.
+@end deffn
+
+
+@deffn {Scheme Procedure} ttake-while pred?
+@deffnx {Scheme Procedure} ttake-while pred? retf
+Returns a transducer that stops the transduction after @var{pred?} has
+returned #f.  Any subsequent values are ignored and the last successful
+value is returned.  @var{retf} is a function that gets called whenever
+@var{pred?} returns false.  The arguments passed are the result so far
+and the input for which pred? returns @code{#f}.  The default function is
+@code{(lambda (result input) result)}.
+
+Stateful.
+@end deffn
+
+
+@deffn {Scheme Procedure} tconcatenate
+tconcatenate @emph{is} a transducer that concatenates the content of
+each value (that must be a list) into the reduction.
+@example
+(list-transduce tconcatenate rcons '((1 2) (3 4 5) (6 (7 8) 9)))
+@result{} (1 2 3 4 5 6 (7 8) 9)
+@end example
+@end deffn
+
+@deffn {Scheme Procedure} tappend-map proc
+The same as @code{(compose (tmap proc) tconcatenate)}.
+@end deffn
+
+@deffn {Scheme Procedure} tflatten
+tflatten @emph{is} a transducer that flattens an input consisting of lists.
+
+@example
+(list-transduce tflatten rcons '((1 2) 3 (4 (5 6) 7 8) 9)
+@result{} (1 2 3 4 5 6 7 8 9)
+@end example
+@end deffn
+
+@deffn {Scheme Procedure} tdelete-neighbor-duplicates
+@deffnx {Scheme Procedure} tdelete-neighbor-duplicates equality-predicate
+Returns a transducer that removes any directly following duplicate
+elements.  The default @var{equality-predicate} is @code{equal?}.
+
+Stateful.
+@end deffn
+
+@deffn {Scheme Procedure} tdelete-duplicates
+@deffnx {Scheme Procedure} tdelete-duplicates equality-predicate
+Returns a transducer that removes any subsequent duplicate elements
+compared using @var{equality-predicate}.  The default
+@var{equality-predicate} is @code{equal?}.
+
+Stateful.
+@end deffn
+
+@deffn {Scheme Procedure} tsegment n
+Returns a transducer that groups @var{n} inputs in lists of @var{n}
+elements.  When the transduction stops, it flushes any remaining
+collection, even if it contains fewer than @var{n} elements.
+
+Stateful.
+@end deffn
+
+@deffn {Scheme Procedure} tpartition pred?
+Returns a transducer that groups inputs in lists by whenever
+@code{(pred? input)} changes value.
+
+Stateful.
+@end deffn
+
+@deffn {Scheme Procedure} tadd-between value
+Returns a transducer which interposes @var{value} between each value
+and the next.  This does not compose gracefully with transducers like
+@code{ttake}, as you might end up ending the transduction on
+@code{value}.
+
+Stateful.
+@end deffn
+
+@deffn {Scheme Procedure} tenumerate
+@deffnx {Scheme Procedure} tenumerate start
+Returns a transducer that indexes values passed through it, starting at
+@var{start}, which defaults to 0.  The indexing is done through cons
+pairs like @code{(index . input)}.
+
+@example
+(list-transduce (tenumerate 1) rcons (list 'first 'second 'third))
+@result{} ((1 . first) (2 . second) (3 . third))
+@end example
+
+Stateful.
+@end deffn
+
+@deffn {Scheme Procedure} tlog
+@deffnx {Scheme Procedure} tlog logger
+Returns a transducer that can be used to log or print values and
+results.  The result of the @var{logger} procedure is discarded.  The
+default @var{logger} is @code{(lambda (result input) (write input)
+(newline))}.
+
+Stateless.
+@end deffn
+
+@subheading Guile-specific transducers
+These transducers are available in the @code{(srfi srfi-171 gnu)}
+library, and are provided outside the standard described by the SRFI-171
+document.
+
+@deffn {Scheme Procedure} tbatch reducer
+@deffnx {Scheme Procedure} tbatch transducer reducer
+A batching transducer that accumulates results using @var{reducer} or
+@code{((transducer) reducer)} until it returns a reduced value.  This can
+be used to generalize something like @code{tsegment}:
+
+@example
+;; This behaves exactly like (tsegment 4).
+(list-transduce (tbatch (ttake 4) rcons) rcons (iota 10))
+@result {} ((0 1 2 3) (4 5 6 7) (8 9))
+@end example
+@end deffn
+
+@deffn {Scheme Procedure} tfold reducer
+@deffnx {Scheme Procedure} tfold reducer seed
+
+A folding transducer that yields the result of @code{(reducer seed
+value)}, saving it's result between iterations.
+
+@example
+(list-transduce (tfold +) rcons (iota 10))
+@result{} (0 1 3 6 10 15 21 28 36 45)
+@end example
+@end deffn
+
+
+@node SRFI-171 Helpers
+@subsubsection Helper functions for writing transducers
+@cindex transducers helpers
+
+These functions are in the @code{(srfi srfi-171 meta)} module and are only
+usable when you want to write your own transducers.
+
+@deffn {Scheme Procedure} reduced value
+Wraps a value in a @code{<reduced>} container, signalling that the
+reduction should stop.
+@end deffn
+
+@deffn {Scheme Procedure} reduced? value
+Returns #t if value is a @code{<reduced>} record.
+@end deffn
+
+@deffn {Scheme Procedure} unreduce reduced-container
+Returns the value in reduced-container.
+@end deffn
+
+@deffn {Scheme Procedure} ensure-reduced value
+Wraps value in a @code{<reduced>} container if it is not already reduced.
+@end deffn
+
+@deffn {Scheme Procedure} preserving-reduced reducer
+Wraps @code{reducer} in another reducer that encapsulates any returned
+reduced value in another reduced container.  This is useful in places
+where you re-use a reducer with [collection]-reduce.  If the reducer
+returns a reduced value, [collection]-reduce unwraps it.  Unless handled,
+this leads to the reduction continuing.
+@end deffn
+
+@deffn {Scheme Procedure} list-reduce f identity lst
+The reducing function used internally by @code{list-transduce}.  @var{f}
+is a reducer as returned by a transducer.  @var{identity} is the
+identity (sometimes called "seed") of the reduction.  @var{lst} is a
+list.  If @var{f} returns a reduced value, the reduction stops
+immediately and the unreduced value is returned.
+@end deffn
+
+@deffn {Scheme Procedure} vector-reduce f identity vec
+The vector version of list-reduce.
+@end deffn
+
+@deffn {Scheme Procedure} string-reduce f identity str
+The string version of list-reduce.
+@end deffn
+
+@deffn {Scheme Procedure} bytevector-u8-reduce f identity bv
+The bytevector-u8 version of list-reduce.
+@end deffn
+
+@deffn {Scheme Procedure} port-reduce f identity reader port
+The port version of list-reducer.  It reduces over port using reader
+until reader returns the EOF object.
+@end deffn
+
+@deffn {Scheme Procedure} generator-reduce f identity gen
+The port version of list-reduce.  It reduces over @code{gen} until it
+returns the EOF object
 @end deffn
 
 @c srfi-modules.texi ends here
