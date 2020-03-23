@@ -1,4 +1,4 @@
-/* Copyright 1995-1996,1998-2001,2006,2008-2012,2014,2018-2019
+/* Copyright 1995-1996,1998-2001,2006,2008-2012,2014,2018-2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -241,6 +241,11 @@ SCM_DEFINE (scm_make_vector, "make-vector", 1, 1, 0,
 }
 #undef FUNC_NAME
 
+static SCM
+make_vector (size_t size)
+{
+  return scm_words ((size << 8) | scm_tc7_vector, size + 1);
+}
 
 SCM
 scm_c_make_vector (size_t k, SCM fill)
@@ -251,8 +256,7 @@ scm_c_make_vector (size_t k, SCM fill)
 
   SCM_ASSERT_RANGE (1, scm_from_size_t (k), k <= VECTOR_MAX_LENGTH);
 
-  vector = scm_words ((k << 8) | scm_tc7_vector, k + 1);
-
+  vector = make_vector (k);
   for (j = 0; j < k; ++j)
     SCM_SIMPLE_VECTOR_SET (vector, j, fill);
 
@@ -273,7 +277,7 @@ SCM_DEFINE (scm_vector_copy, "vector-copy", 1, 0, 0,
 
   src = scm_vector_elements (vec, &handle, &len, &inc);
 
-  result = scm_c_make_vector (len, SCM_UNDEFINED);
+  result = make_vector (len);
   dst = SCM_I_VECTOR_WELTS (result);
   for (i = 0; i < len; i++, src += inc)
     dst[i] = *src;
