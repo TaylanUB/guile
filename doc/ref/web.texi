@@ -774,7 +774,7 @@ The MD5 digest of a resource.
 @deftypevr {HTTP Header} List content-range
 A range specification, as a list of three elements: the symbol
 @code{bytes}, either the symbol @code{*} or a pair of integers,
-indicating the byte rage, and either @code{*} or an integer, for the
+indicating the byte range, and either @code{*} or an integer, for the
 instance length.  Used to indicate that a response only includes part of
 a resource.
 @example
