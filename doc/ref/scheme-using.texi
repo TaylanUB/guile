@@ -311,6 +311,9 @@ will be printed farther to the right, though if the width of the
 indentation passes the @var{max-indent}, the indentation is abbreviated.
 @end deffn
 
+These REPL commands can also be called as regular functions in scheme
+code on including the @code{(ice-9 time)} module.
+
 @node Debug Commands
 @subsubsection Debug Commands
 
