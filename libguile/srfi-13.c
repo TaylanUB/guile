@@ -382,11 +382,12 @@ SCM_SYMBOL (scm_sym_prefix, "prefix");
 
 SCM_DEFINE (scm_string_join, "string-join", 1, 2, 0,
             (SCM ls, SCM delimiter, SCM grammar),
-	    "Append the string in the string list @var{ls}, using the string\n"
-	    "@var{delimiter} as a delimiter between the elements of @var{ls}.\n"
-	    "@var{grammar} is a symbol which specifies how the delimiter is\n"
-	    "placed between the strings, and defaults to the symbol\n"
-	    "@code{infix}.\n"
+            "Append the string in the string list @var{ls}, using the string\n"
+            "@var{delimiter} as a delimiter between the elements of @var{ls}.\n"
+            "@var{delimiter} defaults to @w{@samp{ }}, that is, strings in @var{ls}\n"
+            "are appended with the space character in between them.  @var{grammar} is\n"
+            "a symbol which specifies how the delimiter is placed between the\n"
+            "strings, and defaults to the symbol @code{infix}.\n"
 	    "\n"
 	    "@table @code\n"
 	    "@item infix\n"

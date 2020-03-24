@@ -3183,9 +3183,10 @@ produce the corresponding string element.  The order in which
 @deffnx {C Function} scm_string_join (ls, delimiter, grammar)
 Append the string in the string list @var{ls}, using the string
 @var{delimiter} as a delimiter between the elements of @var{ls}.
-@var{grammar} is a symbol which specifies how the delimiter is
-placed between the strings, and defaults to the symbol
-@code{infix}.
+@var{delimiter} defaults to @w{@samp{ }}, that is, strings in @var{ls}
+are appended with the space character in between them.  @var{grammar} is
+a symbol which specifies how the delimiter is placed between the
+strings, and defaults to the symbol @code{infix}.
 
 @table @code
 @item infix
