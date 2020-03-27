@@ -419,11 +419,12 @@ argument, or @code{#f}.
 @var{kw} is a list of the form, @code{(@var{allow-other-keys?}
 (@var{keyword} @var{name} @var{var}) ...)}, where @var{keyword} is the
 keyword corresponding to the argument named @var{name}, and whose
-corresponding gensym is @var{var}.  @var{inits} are tree-il expressions
-corresponding to all of the optional and keyword arguments, evaluated to
-bind variables whose value is not supplied by the procedure caller.
-Each @var{init} expression is evaluated in the lexical context of
-previously bound variables, from left to right.
+corresponding gensym is @var{var}, or @code{#f} if there are no keyword
+arguments.  @var{inits} are tree-il expressions corresponding to all of
+the optional and keyword arguments, evaluated to bind variables whose
+value is not supplied by the procedure caller.  Each @var{init}
+expression is evaluated in the lexical context of previously bound
+variables, from left to right.
 
 @var{gensyms} is a list of gensyms corresponding to all arguments:
 first all of the required arguments, then the optional arguments if
