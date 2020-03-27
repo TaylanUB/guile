@@ -5,6 +5,73 @@ See the end for copying conditions.
 Please send Guile bug reports to bug-guile@gnu.org.
 
 
+Changes in 3.0.2 (since 3.0.1)
+
+* New interfaces and functionality
+
+** New (srfi srfi-171) module
+
+This module implements "tranducers" as specified in
+<https://srfi.schemers.org/srfi-171/srfi-171.html>.
+Thanks to Linus Björnstam for this new API!
+
+** SRFI-14 character data set upgraded to Unicode 13.0.0
+
+* Bug fixes
+
+** Fix heap corruption when allocating structs
+   (<https://bugs.gnu.org/39266>)
+
+This bug would cause random crashes; users are invited to upgrade.
+Thanks to rr (<https://rr-project.org/>) for being instrumental in
+finding this bug!
+
+** Fix race condition between 'abort-to-prompt' and stack marking
+   (<https://bugs.gnu.org/28211>)
+
+This bug could occasionally cause crashes in multi-threaded Guile
+programs using delimited continuations or exceptions.
+
+** Ensure weak sets are occasionally vacuumed
+   (<https://bugs.gnu.org/40194>)
+
+Previously, weak sets, which are used internally for interned symbols
+and for ports with SCM_PORT_TYPE_NEEDS_CLOSE_ON_GC, could grow seemingly
+indefinitely without being vacuumed.
+
+** Interpret dynamic library name as literal file name first
+   (<https://bugs.gnu.org/21076>)
+
+Until now, 'dynamic-link' would always append an extension, such as
+".so", to the user-provided file names.  Now, 'dynamic-link' first tries
+the file name literally, and only then falls back to adding the OS
+shared library file name extension.
+
+This allows users to refer to "libsomething.so.1.2.3" instead of
+"libsomething.so", the latter being usually provided by "-dev" packages
+of GNU/Linux distributions, unlike the former.
+
+** <libguile.h> includes <libguile/hooks.h> again
+
+This fixes an omission in Guile 3.0.
+
+** Fix fixpoint computation in compute-significant-bits
+   (<https://bugs.gnu.org/38486>)
+
+** Fix compilation '--without-threads'
+   (<https://bugs.gnu.org/40075>)
+
+* New deprecations
+
+** 'tmpnam' is now deprecated
+
+The 'tmpnam' function in the C library has been deprecated for years due
+to security concerns; the Scheme procedure 'tmpnam' is now deprecated as
+well, in favor of 'mkstemp!'.  In addition, a new '--disable-tmpnam'
+option has been added to 'configure' for users who would like to disable
+it right away.
+
+
 Changes in 3.0.1 (since 3.0.0):
 
 * New interfaces and functionality
