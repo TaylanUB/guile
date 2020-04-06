@@ -379,7 +379,7 @@ jit_patch_there(jit_state_t* _jit, jit_reloc_t reloc, jit_pointer_t addr)
   ASSERT((diff & ((1 << reloc.rsh) - 1)) == 0);
   diff >>= reloc.rsh;
 
-  switch (reloc.kind)
+  switch (reloc.kind & JIT_RELOC_MASK)
     {
     case JIT_RELOC_ABSOLUTE:
       if (sizeof(diff) == 4)
@@ -1365,7 +1365,7 @@ emit_literal_pool(jit_state_t *_jit, enum guard_pool guard)
     if (_jit->overflow)
       return;
 
-    switch (entry->reloc.kind) {
+    switch (entry->reloc.kind & JIT_RELOC_MASK) {
     case JIT_RELOC_JMP_WITH_VENEER:
       patch_jmp_offset((uint32_t*) loc, diff);
       emit_veneer(_jit, (void*) (uintptr_t) entry->value);

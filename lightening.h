@@ -91,6 +91,8 @@ enum jit_reloc_kind
   JIT_RELOC_JCC_WITH_VENEER,
   JIT_RELOC_LOAD_FROM_POOL,
 #endif
+  JIT_RELOC_MASK = 15,
+  JIT_RELOC_FLAG_0 = 16,
 };
 
 typedef struct jit_reloc
