@@ -107,9 +107,11 @@ static void emit_literal_pool(jit_state_t *_jit, enum guard_pool guard);
 static int32_t read_jmp_offset(uint32_t *loc);
 static int offset_in_jmp_range(ptrdiff_t offset);
 static void patch_jmp_offset(uint32_t *loc, ptrdiff_t offset);
+static void patch_veneer_jmp_offset(uint32_t *loc, ptrdiff_t offset);
 static int32_t read_jcc_offset(uint32_t *loc);
 static int offset_in_jcc_range(ptrdiff_t offset);
 static void patch_jcc_offset(uint32_t *loc, ptrdiff_t offset);
+static void patch_veneer_jcc_offset(uint32_t *loc, ptrdiff_t offset);
 static void patch_veneer(uint32_t *loc, jit_pointer_t addr);
 static int32_t read_load_from_pool_offset(uint32_t *loc);
 #endif
@@ -1367,11 +1369,11 @@ emit_literal_pool(jit_state_t *_jit, enum guard_pool guard)
 
     switch (entry->reloc.kind & JIT_RELOC_MASK) {
     case JIT_RELOC_JMP_WITH_VENEER:
-      patch_jmp_offset((uint32_t*) loc, diff);
+      patch_veneer_jmp_offset((uint32_t*) loc, diff);
       emit_veneer(_jit, (void*) (uintptr_t) entry->value);
       break;
     case JIT_RELOC_JCC_WITH_VENEER:
-      patch_jcc_offset((uint32_t*) loc, diff);
+      patch_veneer_jcc_offset((uint32_t*) loc, diff);
       emit_veneer(_jit, (void*) (uintptr_t) entry->value);
       break;
     case JIT_RELOC_LOAD_FROM_POOL:

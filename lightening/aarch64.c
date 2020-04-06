@@ -114,8 +114,12 @@ DEFINE_ENCODER(size, 2, 22, unsigned, uint32_t)
     }                                                                   \
   }
 
-DEFINE_PATCHABLE_INSTRUCTION(jmp, simm26, JMP_WITH_VENEER, 2);
-DEFINE_PATCHABLE_INSTRUCTION(jcc, simm19, JCC_WITH_VENEER, 2);
+#define DEFINE_PATCHABLE_INSTRUCTIONS(name, kind, RELOC, rsh)           \
+    DEFINE_PATCHABLE_INSTRUCTION(name, kind, RELOC, rsh);               \
+    DEFINE_PATCHABLE_INSTRUCTION(veneer_##name, kind, RELOC, rsh);
+
+DEFINE_PATCHABLE_INSTRUCTIONS(jmp, simm26, JMP_WITH_VENEER, 2);
+DEFINE_PATCHABLE_INSTRUCTIONS(jcc, simm19, JCC_WITH_VENEER, 2);
 DEFINE_PATCHABLE_INSTRUCTION(load_from_pool, simm19, LOAD_FROM_POOL, 2);
 
 struct veneer

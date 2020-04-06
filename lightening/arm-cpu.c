@@ -325,6 +325,12 @@ patch_jmp_offset(uint32_t *loc, int32_t v)
   write_wide_thumb(loc, patch_thumb_jump(read_wide_thumb(loc), v));
 }
 
+static void
+patch_veneer_jmp_offset(uint32_t *loc, int32_t v)
+{
+  patch_jmp_offset(loc, v);
+}
+
 static jit_reloc_t
 emit_thumb_jump(jit_state_t *_jit, uint32_t inst)
 {
@@ -399,6 +405,12 @@ static void
 patch_jcc_offset(uint32_t *loc, int32_t v)
 {
   write_wide_thumb(loc, patch_thumb_cc_jump(read_wide_thumb(loc), v));
+}
+
+static void
+patch_veneer_jcc_offset(uint32_t *loc, int32_t v)
+{
+  patch_jcc_offset(loc, v);
 }
 
 static jit_reloc_t
