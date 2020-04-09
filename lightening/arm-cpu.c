@@ -2066,7 +2066,7 @@ rshi_u(jit_state_t *_jit, int32_t r0, int32_t r1, jit_word_t i0)
 static void
 jmpr(jit_state_t *_jit, int32_t r0)
 {
-  T1_MOV(_jit, jit_gpr_regno(_PC), r0);
+  T1_BX(_jit, r0);
 }
 
 static jit_reloc_t
@@ -3022,11 +3022,10 @@ emit_veneer(jit_state_t *_jit, jit_pointer_t target)
 {
   uint16_t thumb1_ldr = 0x4800;
   int32_t tmp = jit_gpr_regno(JIT_TMP1);
-  int32_t rd = jit_gpr_regno(_PC);
   ASSERT(tmp < 8);
   // Loaded addr is 4 bytes after the LDR, which is aligned, so offset is 0.
   emit_u16(_jit, thumb1_ldr | (tmp << 8));
-  emit_u16(_jit, THUMB_MOV|((_u4(rd)&8)<<4)|(_u4(tmp)<<3)|(rd&7));
+  emit_u16(_jit, THUMB_BX|(_u4(tmp)<<3));
   emit_u32(_jit, (uint32_t) target);
 }
 
