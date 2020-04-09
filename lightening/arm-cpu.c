@@ -316,7 +316,13 @@ encode_thumb_jump(int32_t v)
 static uint32_t
 patch_thumb_jump(uint32_t inst, int32_t v)
 {
-  return (inst & thumb_jump_mask) | encode_thumb_jump(v);
+  inst &= thumb_jump_mask;
+  if (!(v & 1)) {
+    ASSERT(inst == THUMB2_BLI || inst == THUMB2_BLXI);
+    v = (v + 2) & ~2;
+    inst = THUMB2_BLXI;
+  }
+  return inst | encode_thumb_jump(v);
 }
 
 static int32_t
