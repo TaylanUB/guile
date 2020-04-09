@@ -171,7 +171,7 @@ jit_pointer_t
 jit_address(jit_state_t *_jit)
 {
   ASSERT (_jit->start);
-  return _jit->pc.uc;
+  return jit_address_to_function_pointer (_jit->pc.uc);
 }
 
 void
