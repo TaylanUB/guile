@@ -1042,12 +1042,6 @@ T2_BLI(jit_state_t *_jit)
   return tb(_jit, THUMB2_BLI);
 }
 
-static jit_reloc_t
-T2_BLXI(jit_state_t *_jit)
-{
-  return tb(_jit, THUMB2_BLXI);
-}
-
 enum dmb_option { DMB_ISH = 0xb };
 static void
 T1_DMB(jit_state_t *_jit, enum dmb_option option)
