@@ -48,7 +48,8 @@
    test-on-group-begin-simple test-on-group-end-simple
    test-on-bad-count-simple test-on-bad-end-name-simple
    test-on-final-simple test-on-test-end-simple
-   test-on-final-simple))
+   test-on-final-simple)
+  #:declarative? #f) ; #f needed for test-log-to-file
 
 (cond-expand-provide (current-module) '(srfi-64))
 
