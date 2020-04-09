@@ -105,11 +105,11 @@ enum guard_pool { GUARD_NEEDED, NO_GUARD_NEEDED };
 static void emit_literal_pool(jit_state_t *_jit, enum guard_pool guard);
 
 static int32_t read_jmp_offset(uint32_t *loc);
-static int offset_in_jmp_range(ptrdiff_t offset);
+static int offset_in_jmp_range(ptrdiff_t offset, int flags);
 static void patch_jmp_offset(uint32_t *loc, ptrdiff_t offset);
 static void patch_veneer_jmp_offset(uint32_t *loc, ptrdiff_t offset);
 static int32_t read_jcc_offset(uint32_t *loc);
-static int offset_in_jcc_range(ptrdiff_t offset);
+static int offset_in_jcc_range(ptrdiff_t offset, int flags);
 static void patch_jcc_offset(uint32_t *loc, ptrdiff_t offset);
 static void patch_veneer_jcc_offset(uint32_t *loc, ptrdiff_t offset);
 static void patch_veneer(uint32_t *loc, jit_pointer_t addr);
@@ -380,6 +380,7 @@ jit_patch_there(jit_state_t* _jit, jit_reloc_t reloc, jit_pointer_t addr)
   ptrdiff_t diff = (uint8_t*)addr - pc_base;
   ASSERT((diff & ((1 << reloc.rsh) - 1)) == 0);
   diff >>= reloc.rsh;
+  int flags = reloc.kind & ~JIT_RELOC_MASK;
 
   switch (reloc.kind & JIT_RELOC_MASK)
     {
@@ -406,7 +407,7 @@ jit_patch_there(jit_state_t* _jit, jit_reloc_t reloc, jit_pointer_t addr)
       uint8_t *target = pc_base + (voff << reloc.rsh);
       if (target == loc.uc) {
         // PC still in range to reify direct branch.
-        if (offset_in_jmp_range(diff)) {
+        if (offset_in_jmp_range(diff, flags)) {
           // Target also in range: reify direct branch.
           patch_jmp_offset(loc.ui, diff);
           remove_pending_literal(_jit, reloc);
@@ -425,7 +426,7 @@ jit_patch_there(jit_state_t* _jit, jit_reloc_t reloc, jit_pointer_t addr)
       int32_t voff = read_jcc_offset(loc.ui);
       uint8_t *target = pc_base + (voff << reloc.rsh);
       if (target == loc.uc) {
-        if (offset_in_jcc_range(diff)) {
+        if (offset_in_jcc_range(diff, flags)) {
           patch_jcc_offset(loc.ui, diff);
           remove_pending_literal(_jit, reloc);
         } else {

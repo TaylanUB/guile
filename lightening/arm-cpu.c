@@ -186,6 +186,8 @@
 
 #define _NOREG (jit_gpr_regno(_PC))
 
+#define JIT_RELOC_B JIT_RELOC_FLAG_0
+
 static void
 emit_wide_thumb(jit_state_t *_jit, uint32_t inst)
 {
@@ -265,9 +267,12 @@ write_wide_thumb(uint32_t *loc, uint32_t v)
 }
 
 static int
-offset_in_jmp_range(int32_t offset)
+offset_in_jmp_range(int32_t offset, int flags)
 {
-  return -0x1000000 <= offset && offset <= 0xffffff;
+  if (!(offset & 1) && flags | JIT_RELOC_B)
+    return 0;
+  else
+    return -0x1000000 <= offset && offset <= 0xffffff;
 }
 
 static int32_t
@@ -295,7 +300,7 @@ static const uint32_t thumb_jump_mask = 0xf800d000;
 static uint32_t
 encode_thumb_jump(int32_t v)
 {
-  ASSERT(offset_in_jmp_range(v));
+  ASSERT(offset_in_jmp_range(v, 0));
   v >>= 1;
   uint32_t s  = !!(v & 0x800000);
   uint32_t i1 = !!(v & 0x400000);
@@ -339,8 +344,10 @@ emit_thumb_jump(jit_state_t *_jit, uint32_t inst)
   while (1) {
     uint8_t *pc_base = _jit->pc.uc + 4;
     int32_t off = (uint8_t*)jit_address(_jit) - pc_base;
-    jit_reloc_t ret =
-      jit_reloc (_jit, JIT_RELOC_JMP_WITH_VENEER, 0, _jit->pc.uc, pc_base, 0);
+    enum jit_reloc_kind kind = JIT_RELOC_JMP_WITH_VENEER;
+    if (inst == THUMB2_B)
+      kind |= JIT_RELOC_B;
+    jit_reloc_t ret = jit_reloc (_jit, kind, 0, _jit->pc.uc, pc_base, 0);
     uint8_t thumb_jump_width = 24;
     if (add_pending_literal(_jit, ret, thumb_jump_width - 1)) {
       emit_wide_thumb(_jit, patch_thumb_jump(inst, off));
@@ -350,9 +357,12 @@ emit_thumb_jump(jit_state_t *_jit, uint32_t inst)
 }
 
 static int
-offset_in_jcc_range(int32_t v)
+offset_in_jcc_range(int32_t v, int flags)
 {
-  return -0x100000 <= v && v <= 0xfffff;
+  if (!(v & 1))
+    return 0;
+  else
+    return -0x100000 <= v && v <= 0xfffff;
 }
 
 static int32_t
@@ -378,7 +388,7 @@ static const uint32_t thumb_cc_jump_mask = 0xfbc0d000;
 static uint32_t
 encode_thumb_cc_jump(int32_t v)
 {
-  ASSERT(offset_in_jcc_range(v));
+  ASSERT(offset_in_jcc_range(v, 0));
   v >>= 1;
   uint32_t s  = !!(v & 0x80000);
   uint32_t j2 = !!(v & 0x40000);

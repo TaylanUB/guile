@@ -90,9 +90,9 @@ DEFINE_ENCODER(size, 2, 22, unsigned, uint32_t)
   {                                                                     \
     return read_signed_bitfield(*loc, kind##_width, kind##_shift);      \
   }                                                                     \
-  static int offset_in_##name##_range(ptrdiff_t diff) maybe_unused;     \
+  static int offset_in_##name##_range(ptrdiff_t diff, int flags) maybe_unused; \
   static int                                                            \
-  offset_in_##name##_range(ptrdiff_t diff)                              \
+  offset_in_##name##_range(ptrdiff_t diff, int flags)                   \
   {                                                                     \
     return in_signed_range(diff, kind##_width);                         \
   }                                                                     \
