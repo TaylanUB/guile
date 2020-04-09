@@ -267,7 +267,7 @@ write_wide_thumb(uint32_t *loc, uint32_t v)
 static int
 offset_in_jmp_range(int32_t offset)
 {
-  return -0x800000 <= offset && offset <= 0x7fffff;
+  return -0x1000000 <= offset && offset <= 0xffffff;
 }
 
 static int32_t
@@ -287,7 +287,7 @@ decode_thumb_jump(uint32_t v)
   ret |= i2 << 21;
   ret |= hi << 11;
   ret |= lo;
-  return ret;
+  return ret << 1;
 }
 
 static const uint32_t thumb_jump_mask = 0xf800d000;
@@ -296,13 +296,14 @@ static uint32_t
 encode_thumb_jump(int32_t v)
 {
   ASSERT(offset_in_jmp_range(v));
+  v >>= 1;
   uint32_t s  = !!(v & 0x800000);
   uint32_t i1 = !!(v & 0x400000);
   uint32_t i2 = !!(v & 0x200000);
   uint32_t j1 = s ? i1 : !i1;
   uint32_t j2 = s ? i2 : !i2;
   uint32_t ret = (s<<26)|((v&0x1ff800)<<5)|(j1<<13)|(j2<<11)|(v&0x7ff);
-  ASSERT(decode_thumb_jump(ret) == v);
+  ASSERT(decode_thumb_jump(ret) == v << 1);
   ASSERT((ret & thumb_jump_mask) == 0);
   return ret;
 }
@@ -322,13 +323,14 @@ read_jmp_offset(uint32_t *loc)
 static void
 patch_jmp_offset(uint32_t *loc, int32_t v)
 {
-  write_wide_thumb(loc, patch_thumb_jump(read_wide_thumb(loc), v));
+  write_wide_thumb(loc, patch_thumb_jump(read_wide_thumb(loc), v | 1));
 }
 
 static void
 patch_veneer_jmp_offset(uint32_t *loc, int32_t v)
 {
-  patch_jmp_offset(loc, v);
+  ASSERT(!(v & 1));
+  patch_jmp_offset(loc, v | 1);
 }
 
 static jit_reloc_t
@@ -336,10 +338,9 @@ emit_thumb_jump(jit_state_t *_jit, uint32_t inst)
 {
   while (1) {
     uint8_t *pc_base = _jit->pc.uc + 4;
-    uint8_t rsh = 1;
-    int32_t off = (_jit->pc.uc - pc_base) >> rsh;
+    int32_t off = (uint8_t*)jit_address(_jit) - pc_base;
     jit_reloc_t ret =
-      jit_reloc (_jit, JIT_RELOC_JMP_WITH_VENEER, 0, _jit->pc.uc, pc_base, rsh);
+      jit_reloc (_jit, JIT_RELOC_JMP_WITH_VENEER, 0, _jit->pc.uc, pc_base, 0);
     uint8_t thumb_jump_width = 24;
     if (add_pending_literal(_jit, ret, thumb_jump_width - 1)) {
       emit_wide_thumb(_jit, patch_thumb_jump(inst, off));
@@ -351,7 +352,7 @@ emit_thumb_jump(jit_state_t *_jit, uint32_t inst)
 static int
 offset_in_jcc_range(int32_t v)
 {
-  return -0x80000 <= v && v <= 0x7ffff;
+  return -0x100000 <= v && v <= 0xfffff;
 }
 
 static int32_t
@@ -369,7 +370,7 @@ decode_thumb_cc_jump(uint32_t v)
   ret |= j1 << 17;
   ret |= hi << 11;
   ret |= lo;
-  return ret;
+  return ret << 1;
 }
 
 static const uint32_t thumb_cc_jump_mask = 0xfbc0d000;
@@ -378,13 +379,14 @@ static uint32_t
 encode_thumb_cc_jump(int32_t v)
 {
   ASSERT(offset_in_jcc_range(v));
+  v >>= 1;
   uint32_t s  = !!(v & 0x80000);
   uint32_t j2 = !!(v & 0x40000);
   uint32_t j1 = !!(v & 0x20000);
   uint32_t hi = (v >> 11) & 0x3f;
   uint32_t lo = v & 0x7ff;
   uint32_t ret = (s<<26)|(hi << 16)|(j1<<13)|(j2<<11)|lo;
-  ASSERT(decode_thumb_cc_jump(ret) == v);
+  ASSERT(decode_thumb_cc_jump(ret) == v << 1);
   ASSERT((ret & thumb_cc_jump_mask) == 0);
   return ret;
 }
@@ -404,13 +406,14 @@ read_jcc_offset(uint32_t *loc)
 static void
 patch_jcc_offset(uint32_t *loc, int32_t v)
 {
-  write_wide_thumb(loc, patch_thumb_cc_jump(read_wide_thumb(loc), v));
+  write_wide_thumb(loc, patch_thumb_cc_jump(read_wide_thumb(loc), v | 1));
 }
 
 static void
 patch_veneer_jcc_offset(uint32_t *loc, int32_t v)
 {
-  patch_jcc_offset(loc, v);
+  ASSERT(!(v & 1));
+  patch_jcc_offset(loc, v | 1);
 }
 
 static jit_reloc_t
@@ -418,10 +421,9 @@ emit_thumb_cc_jump(jit_state_t *_jit, uint32_t inst)
 {
   while (1) {
     uint8_t *pc_base = _jit->pc.uc + 4;
-    uint8_t rsh = 1;
-    int32_t off = (_jit->pc.uc - pc_base) >> rsh;
+    int32_t off = (uint8_t*)jit_address(_jit) - pc_base;
     jit_reloc_t ret =
-      jit_reloc (_jit, JIT_RELOC_JCC_WITH_VENEER, 0, _jit->pc.uc, pc_base, rsh);
+      jit_reloc (_jit, JIT_RELOC_JCC_WITH_VENEER, 0, _jit->pc.uc, pc_base, 0);
     uint8_t thumb_cc_jump_width = 20;
     if (add_pending_literal(_jit, ret, thumb_cc_jump_width - 1)) {
       emit_wide_thumb(_jit, patch_thumb_cc_jump(inst, off));
@@ -2076,8 +2078,6 @@ jmp(jit_state_t *_jit)
 static void
 jmpi(jit_state_t *_jit, jit_word_t i0)
 {
-  /* Strip thumb bit, if any.  */
-  i0 &= ~1;
   return jit_patch_there(_jit, jmp(_jit), (void*)i0);
 }
 
@@ -2917,10 +2917,7 @@ callr(jit_state_t *_jit, int32_t r0)
 static void
 calli(jit_state_t *_jit, jit_word_t i0)
 {
-  if (i0 & 1)
-    jit_patch_there(_jit, T2_BLI(_jit), (void*)(i0 & ~1));
-  else
-    jit_patch_there(_jit, T2_BLXI(_jit), (void*)i0);
+  jit_patch_there(_jit, T2_BLI(_jit), (void*)i0);
 }
 
 static void
@@ -3002,8 +2999,7 @@ static void
 patch_jmp_without_veneer(jit_state_t *_jit, uint32_t *loc)
 {
   uint8_t *pc_base = ((uint8_t *)loc) + 4;
-  uint8_t rsh = 1;
-  int32_t off = (_jit->pc.uc - pc_base) >> rsh;
+  int32_t off = (uint8_t*)jit_address(_jit) - pc_base;
   write_wide_thumb(loc, THUMB2_B | encode_thumb_jump(off));
 }
 
