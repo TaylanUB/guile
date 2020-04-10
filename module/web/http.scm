@@ -1108,6 +1108,8 @@ symbol, like ‘GET’."
    ((string= str "DELETE" start end) 'DELETE)
    ((string= str "OPTIONS" start end) 'OPTIONS)
    ((string= str "TRACE" start end) 'TRACE)
+   ((string= str "CONNECT" start end) 'CONNECT)
+   ((string= str "PATCH" start end) 'PATCH)
    (else (bad-request "Invalid method: ~a" (substring str start end)))))
 
 (define* (parse-request-uri str #:optional (start 0) (end (string-length str)))
