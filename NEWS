@@ -9,16 +9,17 @@ Changes in 3.0.3 (since 3.0.2)
 
 * New interfaces and functionality
 
-** New bitvector-count procedure
+** New bitvector-count, bitvector-position procedures
 
-This replaces the wonky "bit-count" procedure.  See "Bit Vectors" in the
-manual, for more.
+These replace the wonky "bit-count" and "bit-position" procedures.  See
+"Bit Vectors" in the manual, for more.
 
 * New deprecations
 
-** bit-count deprecated
+** bit-count, bit-position deprecated
 
-Use bitvector-count instead.  See "Bit Vectors" in the manual.
+Use bitvector-count or bitvector-position instead.  See "Bit Vectors" in
+the manual.
 
 ** Passing a u32vector to 'bit-set*!' and 'bit-count*' deprecated
 

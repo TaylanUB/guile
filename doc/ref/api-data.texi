@@ -6622,16 +6622,16 @@ Return a count of how many entries in @var{bitvector} are set.
 @end example
 @end deffn
 
-@deffn {Scheme Procedure} bit-position bool bitvector start
-@deffnx {C Function} scm_bit_position (bool, bitvector, start)
+@deffn {Scheme Procedure} bitvector-position bitvector bool start
+@deffnx {C Function} scm_bitvector_position (bitvector, bool, start)
 Return the index of the first occurrence of @var{bool} in
 @var{bitvector}, starting from @var{start}.  If there is no @var{bool}
 entry between @var{start} and the end of @var{bitvector}, then return
 @code{#f}.  For example,
 
 @example
-(bit-position #t #*000101 0)  @result{} 3
-(bit-position #f #*0001111 3) @result{} #f
+(bitvector-position #*000101 #t 0)  @result{} 3
+(bitvector-position #*0001111 #f 3) @result{} #f
 @end example
 @end deffn
 

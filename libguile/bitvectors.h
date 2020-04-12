@@ -43,8 +43,8 @@ SCM_API SCM scm_bitvector_to_list (SCM vec);
 SCM_API SCM scm_bitvector_fill_x (SCM vec, SCM val);
 
 SCM_API SCM scm_bitvector_count (SCM v);
+SCM_API SCM scm_bitvector_position (SCM v, SCM item, SCM start);
 
-SCM_API SCM scm_bit_position (SCM item, SCM v, SCM k);
 SCM_API SCM scm_bit_set_star_x (SCM v, SCM kv, SCM obj);
 SCM_API SCM scm_bit_count_star (SCM v, SCM kv, SCM obj);
 SCM_API SCM scm_bit_invert_x (SCM v);

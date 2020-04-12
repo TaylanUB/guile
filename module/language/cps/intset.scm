@@ -781,7 +781,7 @@
         out
         (intset-union out (make-intset min *leaf-bits* tail))))
   (let lp ((out empty-intset) (min 0) (pos 0) (tail 0))
-    (let ((pos (bit-position #t bv pos)))
+    (let ((pos (bitvector-position bv #t pos)))
       (cond
        ((not pos)
         (finish-tail out min tail))

@@ -76,5 +76,13 @@
   (pass-if-equal 2 (let ((bv #*01110111))
                      (- (bitvector-length bv) (bitvector-count bv)))))
 
+(with-test-prefix "bitvector-position"
+  (pass-if-equal 0 (bitvector-position #*01110111 #f))
+  (pass-if-equal 1 (bitvector-position #*01110111 #t))
+  (pass-if-equal 4 (bitvector-position #*01110111 #f 1))
+  (pass-if-equal 4 (bitvector-position #*01110111 #f 4))
+  (pass-if-equal 5 (bitvector-position #*01110111 #t 5))
+  (pass-if-equal #f (bitvector-position #*01110111 #f 5)))
+
 (with-test-prefix "bit-count*"
   (pass-if-equal 3 (bit-count* #*01110111 #*11001101 #t)))

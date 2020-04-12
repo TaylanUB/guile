@@ -1076,9 +1076,9 @@ allocation limit is exceeded, an exception will be thrown to the
 (define bitvector-bindings
   '(((guile)
      bitvector-count
+     bitvector-position
      bit-count*
      bit-extract
-     bit-position
      bitvector
      bitvector->list
      bitvector-length

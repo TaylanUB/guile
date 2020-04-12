@@ -283,7 +283,7 @@
                             (bit-set*! tmp (vector-ref killv (1- n)) #f)
                             tmp))))
             (let lp ((n 0))
-              (let ((n (bit-position #t live n)))
+              (let ((n (bitvector-position live #t n)))
                 (if n
                     (match (vector-ref defs n)
                       (#(name def-offset slot representation)

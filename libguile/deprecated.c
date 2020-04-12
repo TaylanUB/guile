@@ -124,6 +124,48 @@ SCM_DEFINE (scm_bit_count, "bit-count", 2, 0, 0,
 }
 #undef FUNC_NAME
 
+SCM_DEFINE (scm_bit_position, "bit-position", 3, 0, 0,
+           (SCM item, SCM v, SCM k),
+	    "Return the index of the first occurrence of @var{item} in bit\n"
+	    "vector @var{v}, starting from @var{k}.  If there is no\n"
+	    "@var{item} entry between @var{k} and the end of\n"
+	    "@var{v}, then return @code{#f}.  For example,\n"
+	    "\n"
+	    "@example\n"
+	    "(bit-position #t #*000101 0)  @result{} 3\n"
+	    "(bit-position #f #*0001111 3) @result{} #f\n"
+	    "@end example")
+#define FUNC_NAME s_scm_bit_position
+{
+  scm_c_issue_deprecation_warning
+    ("bit-position is deprecated.  Use bitvector-position, or "
+     "array-ref in a loop if you need generic arrays instead.");
+
+  if (scm_is_true (scm_bitvector_p (v)))
+    return scm_bitvector_position (v, item, k);
+
+  scm_t_array_handle handle;
+  size_t off, len;
+  ssize_t inc;
+  scm_bitvector_elements (v, &handle, &off, &len, &inc);
+  int bit = scm_to_bool (item);
+  size_t first_bit = scm_to_unsigned_integer (k, 0, len);
+  SCM res = SCM_BOOL_F;
+  for (size_t i = first_bit; i < len; i++)
+    {
+      SCM elt = scm_array_handle_ref (&handle, i*inc);
+      if ((bit && scm_is_true (elt)) || (!bit && scm_is_false (elt)))
+        {
+          res = scm_from_size_t (i);
+          break;
+        }
+    }
+  scm_array_handle_release (&handle);
+
+  return res;
+}
+#undef FUNC_NAME
+
 SCM
 scm_istr2bve (SCM str)
 {

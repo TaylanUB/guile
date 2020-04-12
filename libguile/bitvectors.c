@@ -530,73 +530,48 @@ find_first_one (uint32_t x)
   return pos;
 }
 
-SCM_DEFINE (scm_bit_position, "bit-position", 3, 0, 0,
-           (SCM item, SCM v, SCM k),
-	    "Return the index of the first occurrence of @var{item} in bit\n"
-	    "vector @var{v}, starting from @var{k}.  If there is no\n"
-	    "@var{item} entry between @var{k} and the end of\n"
+SCM_DEFINE (scm_bitvector_position, "bitvector-position", 2, 1, 0,
+            (SCM v, SCM bit, SCM start),
+	    "Return the index of the first occurrence of @var{bit} in bit\n"
+	    "vector @var{v}, starting from @var{start} (or zero if not given)\n."
+	    "If there is no @var{bit} entry between @var{start} and the end of\n"
 	    "@var{v}, then return @code{#f}.  For example,\n"
 	    "\n"
 	    "@example\n"
-	    "(bit-position #t #*000101 0)  @result{} 3\n"
-	    "(bit-position #f #*0001111 3) @result{} #f\n"
+	    "(bitvector-position #*000101 #t)  @result{} 3\n"
+	    "(bitvector-position #*0001111 #f 3) @result{} #f\n"
 	    "@end example")
-#define FUNC_NAME s_scm_bit_position
+#define FUNC_NAME s_scm_bitvector_position
 {
-  int bit = scm_to_bool (item);
-  SCM res = SCM_BOOL_F;
+  VALIDATE_BITVECTOR (1, v);
+
+  size_t len = BITVECTOR_LENGTH (v);
+  int c_bit = scm_to_bool (bit);
+  size_t first_bit =
+    SCM_UNBNDP (start) ? 0 : scm_to_unsigned_integer (start, 0, len);
   
-  if (IS_BITVECTOR (v))
-    {
-      size_t len = BITVECTOR_LENGTH (v);
-      if (len > 0)
-        {
-          size_t first_bit = scm_to_unsigned_integer (k, 0, len);
-          const uint32_t *bits = BITVECTOR_BITS (v);
-          size_t word_len = (len + 31) / 32;
-          uint32_t last_mask =  ((uint32_t)-1) >> (32*word_len - len);
-          size_t first_word = first_bit / 32;
-          uint32_t first_mask =
-            ((uint32_t)-1) << (first_bit - 32*first_word);
+  if (first_bit == len)
+    return SCM_BOOL_F;
+
+  const uint32_t *bits = BITVECTOR_BITS (v);
+  size_t word_len = (len + 31) / 32;
+  uint32_t last_mask =  ((uint32_t)-1) >> (32*word_len - len);
+  size_t first_word = first_bit / 32;
+  uint32_t first_mask =
+    ((uint32_t)-1) << (first_bit - 32*first_word);
       
-          for (size_t i = first_word; i < word_len; i++)
-            {
-              uint32_t w = bit ? bits[i] : ~bits[i];
-              if (i == first_word)
-                w &= first_mask;
-              if (i == word_len-1)
-                w &= last_mask;
-              if (w)
-                {
-                  res = scm_from_size_t (32*i + find_first_one (w));
-                  break;
-                }
-            }
-        }
-    }
-  else
+  for (size_t i = first_word; i < word_len; i++)
     {
-      scm_t_array_handle handle;
-      size_t off, len;
-      ssize_t inc;
-      scm_bitvector_elements (v, &handle, &off, &len, &inc);
-      scm_c_issue_deprecation_warning
-        ("Using bit-position on arrays is deprecated.  "
-         "Use array-ref in a loop instead.");
-      size_t first_bit = scm_to_unsigned_integer (k, 0, len);
-      for (size_t i = first_bit; i < len; i++)
-	{
-	  SCM elt = scm_array_handle_ref (&handle, i*inc);
-	  if ((bit && scm_is_true (elt)) || (!bit && scm_is_false (elt)))
-	    {
-	      res = scm_from_size_t (i);
-	      break;
-	    }
-	}
-      scm_array_handle_release (&handle);
+      uint32_t w = c_bit ? bits[i] : ~bits[i];
+      if (i == first_word)
+        w &= first_mask;
+      if (i == word_len-1)
+        w &= last_mask;
+      if (w)
+        return scm_from_size_t (32*i + find_first_one (w));
     }
 
-  return res;
+  return SCM_BOOL_F;
 }
 #undef FUNC_NAME
 
