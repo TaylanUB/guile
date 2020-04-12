@@ -5,6 +5,30 @@ See the end for copying conditions.
 Please send Guile bug reports to bug-guile@gnu.org.
 
 
+Changes in 3.0.3 (since 3.0.2)
+
+* New deprecations
+
+** Passing a u32vector to 'bit-set*!' and 'bit-count*' deprecated
+
+These functions had an interface that allowed the second bit-selection
+argument to be a u32vector of bit indices to select.  This added only
+complexity and no efficiency compared to just calling 'bitvector-set!'
+or 'bitvector-ref' in a loop.
+
+** Accessing generic arrays using the bitvector procedures deprecated
+
+For the same efficiency reasons that use of 'vector-ref' on generic
+arrays was deprecated in Guile 2.0.10, using 'bitvector-ref' and similar
+procedures on 1-dimensional boolean-typed arrays is now deprecated.  Use
+'array-ref' and similar procedures on arrays.
+
+** scm_istr2bve deprecated
+
+This C-only procedure to parse a bitvector from a string should be
+replaced by calling `read' on a string port instead, if needed.
+
+
 Changes in 3.0.2 (since 3.0.1)
 
 * New interfaces and functionality

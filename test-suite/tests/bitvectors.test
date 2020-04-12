@@ -1,6 +1,6 @@
 ;;;; bitvectors.test --- tests guile's bitvectors     -*- scheme -*-
 ;;;;
-;;;; Copyright 2010, 2011, 2013, 2014 Free Software Foundation, Inc.
+;;;; Copyright 2010, 2011, 2013, 2014, 2020 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -72,5 +72,4 @@
       (equal? v #*0100))))
 
 (with-test-prefix "bit-count*"
-  (pass-if-equal 3 (bit-count* #*01110111 #*11001101 #t))
-  (pass-if-equal 2 (bit-count* #*01110111 #u32(7 0 4) #f)))
+  (pass-if-equal 3 (bit-count* #*01110111 #*11001101 #t)))

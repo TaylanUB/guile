@@ -1,4 +1,4 @@
-/* Copyright 1995-1998,2000-2006,2009-2014,2018
+/* Copyright 1995-1998,2000-2006,2009-2014,2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -29,6 +29,7 @@
 #include "array-handle.h"
 #include "arrays.h"
 #include "boolean.h"
+#include "deprecation.h"
 #include "generalized-vectors.h"
 #include "gsubr.h"
 #include "list.h"
@@ -40,12 +41,15 @@
 #include "bitvectors.h"
 
 
-/* Bit vectors. Would be nice if they were implemented on top of bytevectors,
- * but alack, all we have is this crufty C.
- */
-
 #define SCM_F_BITVECTOR_IMMUTABLE (0x80)
 
+/* To do in Guile 3.1.x:
+    - Allocate bits inline with bitvector, starting from &SCM_CELL_WORD_2.
+    - Use uintptr_t for bitvector component instead of uint32_t.
+    - Remove deprecated support for bitvector-ref et al on arrays.
+    - Replace primitives that operator on bitvectors but don't have
+      bitvector- prefix.
+    - Add Scheme compiler support for bitvector primitives.  */
 #define IS_BITVECTOR(obj)         SCM_HAS_TYP7  ((obj), scm_tc7_bitvector)
 #define IS_MUTABLE_BITVECTOR(x)                                 \
   (SCM_NIMP (x) &&                                              \
@@ -246,7 +250,6 @@ scm_bitvector_writable_elements (SCM vec,
 SCM
 scm_c_bitvector_ref (SCM vec, size_t idx)
 {
-  scm_t_array_handle handle;
   const uint32_t *bits;
 
   if (IS_BITVECTOR (vec))
@@ -259,10 +262,14 @@ scm_c_bitvector_ref (SCM vec, size_t idx)
   else
     {
       SCM res;
+      scm_t_array_handle handle;
       size_t len, off;
       ssize_t inc;
   
       bits = scm_bitvector_elements (vec, &handle, &off, &len, &inc);
+      scm_c_issue_deprecation_warning
+        ("Using bitvector-ref on arrays is deprecated.  "
+         "Use array-ref instead.");
       if (idx >= len)
 	scm_out_of_range (NULL, scm_from_size_t (idx));
       idx = idx*inc + off;
@@ -300,6 +307,9 @@ scm_c_bitvector_set_x (SCM vec, size_t idx, SCM val)
       ssize_t inc;
   
       bits = scm_bitvector_writable_elements (vec, &handle, &off, &len, &inc);
+      scm_c_issue_deprecation_warning
+        ("Using bitvector-set! on arrays is deprecated.  "
+         "Use array-set! instead.");
       if (idx >= len)
 	scm_out_of_range (NULL, scm_from_size_t (idx));
       idx = idx*inc + off;
@@ -332,40 +342,46 @@ SCM_DEFINE (scm_bitvector_fill_x, "bitvector-fill!", 2, 0, 0,
 	    "@var{vec} when @var{val} is true, else clear them.")
 #define FUNC_NAME s_scm_bitvector_fill_x
 {
-  scm_t_array_handle handle;
-  size_t off, len;
-  ssize_t inc;
-  uint32_t *bits;
-
-  bits = scm_bitvector_writable_elements (vec, &handle,
-					  &off, &len, &inc);
-
-  if (off == 0 && inc == 1 && len > 0)
+  if (IS_MUTABLE_BITVECTOR (vec))
     {
-      /* the usual case
-       */
-      size_t word_len = (len + 31) / 32;
-      uint32_t last_mask =  ((uint32_t)-1) >> (32*word_len - len);
+      size_t len = BITVECTOR_LENGTH (vec);
 
-      if (scm_is_true (val))
-	{
-	  memset (bits, 0xFF, sizeof(uint32_t)*(word_len-1));
-	  bits[word_len-1] |= last_mask;
-	}
-      else
-	{
-	  memset (bits, 0x00, sizeof(uint32_t)*(word_len-1));
-	  bits[word_len-1] &= ~last_mask;
-	}
+      if (len > 0)
+        {
+          uint32_t *bits = BITVECTOR_BITS (vec);
+          size_t word_len = (len + 31) / 32;
+          uint32_t last_mask =  ((uint32_t)-1) >> (32*word_len - len);
+
+          if (scm_is_true (val))
+            {
+              memset (bits, 0xFF, sizeof(uint32_t)*(word_len-1));
+              bits[word_len-1] |= last_mask;
+            }
+          else
+            {
+              memset (bits, 0x00, sizeof(uint32_t)*(word_len-1));
+              bits[word_len-1] &= ~last_mask;
+            }
+        }
     }
   else
     {
+      scm_t_array_handle handle;
+      size_t off, len;
+      ssize_t inc;
+
+      scm_bitvector_writable_elements (vec, &handle, &off, &len, &inc);
+
+      scm_c_issue_deprecation_warning
+        ("Using bitvector-fill! on arrays is deprecated.  "
+         "Use array-set! instead.");
+
       size_t i;
       for (i = 0; i < len; i++)
 	scm_array_handle_set (&handle, i*inc, val);
-    }
 
-  scm_array_handle_release (&handle);
+      scm_array_handle_release (&handle);
+    }
 
   return SCM_UNSPECIFIED;
 }
@@ -380,9 +396,7 @@ SCM_DEFINE (scm_list_to_bitvector, "list->bitvector", 1, 0, 0,
   size_t bit_len = scm_to_size_t (scm_length (list));
   SCM vec = scm_c_make_bitvector (bit_len, SCM_UNDEFINED);
   size_t word_len = (bit_len+31)/32;
-  scm_t_array_handle handle;
-  uint32_t *bits = scm_bitvector_writable_elements (vec, &handle,
-							NULL, NULL, NULL);
+  uint32_t *bits = BITVECTOR_BITS (vec);
   size_t i, j;
 
   for (i = 0; i < word_len && scm_is_pair (list); i++, bit_len -= 32)
@@ -395,8 +409,6 @@ SCM_DEFINE (scm_list_to_bitvector, "list->bitvector", 1, 0, 0,
 	  bits[i] |= mask;
     }
 
-  scm_array_handle_release (&handle);
-
   return vec;
 }
 #undef FUNC_NAME
@@ -407,37 +419,40 @@ SCM_DEFINE (scm_bitvector_to_list, "bitvector->list", 1, 0, 0,
 	    "of the bitvector @var{vec}.")
 #define FUNC_NAME s_scm_bitvector_to_list
 {
-  scm_t_array_handle handle;
-  size_t off, len;
-  ssize_t inc;
-  const uint32_t *bits;
   SCM res = SCM_EOL;
 
-  bits = scm_bitvector_elements (vec, &handle, &off, &len, &inc);
-
-  if (off == 0 && inc == 1)
+  if (IS_BITVECTOR (vec))
     {
-      /* the usual case
-       */
+      const uint32_t *bits = BITVECTOR_BITS (vec);
+      size_t len = BITVECTOR_LENGTH (vec);
       size_t word_len = (len + 31) / 32;
-      size_t i, j;
 
-      for (i = 0; i < word_len; i++, len -= 32)
+      for (size_t i = 0; i < word_len; i++, len -= 32)
 	{
 	  uint32_t mask = 1;
-	  for (j = 0; j < 32 && j < len; j++, mask <<= 1)
+	  for (size_t j = 0; j < 32 && j < len; j++, mask <<= 1)
 	    res = scm_cons ((bits[i] & mask)? SCM_BOOL_T : SCM_BOOL_F, res);
 	}
     }
   else
     {
-      size_t i;
-      for (i = 0; i < len; i++)
+      scm_t_array_handle handle;
+      size_t off, len;
+      ssize_t inc;
+
+      scm_bitvector_elements (vec, &handle, &off, &len, &inc);
+
+      scm_c_issue_deprecation_warning
+        ("Using bitvector->list on arrays is deprecated.  "
+         "Use array->list instead.");
+
+      for (size_t i = 0; i < len; i++)
 	res = scm_cons (scm_array_handle_ref (&handle, i*inc), res);
+
+      scm_array_handle_release (&handle);
+  
     }
 
-  scm_array_handle_release (&handle);
-  
   return scm_reverse_x (res, SCM_EOL);
 }
 #undef FUNC_NAME
@@ -470,38 +485,45 @@ SCM_DEFINE (scm_bit_count, "bit-count", 2, 0, 0,
 	    "@var{bitvector}.")
 #define FUNC_NAME s_scm_bit_count
 {
-  scm_t_array_handle handle;
-  size_t off, len;
-  ssize_t inc;
-  const uint32_t *bits;
   int bit = scm_to_bool (b);
-  size_t count = 0;
+  size_t count = 0, len;
 
-  bits = scm_bitvector_elements (bitvector, &handle, &off, &len, &inc);
-
-  if (off == 0 && inc == 1 && len > 0)
+  if (IS_BITVECTOR (bitvector))
     {
-      /* the usual case
-       */
-      size_t word_len = (len + 31) / 32;
-      uint32_t last_mask =  ((uint32_t)-1) >> (32*word_len - len);
-      size_t i;
+      len = BITVECTOR_LENGTH (bitvector);
 
-      for (i = 0; i < word_len-1; i++)
-	count += count_ones (bits[i]);
-      count += count_ones (bits[i] & last_mask);
+      if (len > 0)
+        {
+          const uint32_t *bits = BITVECTOR_BITS (bitvector);
+          size_t word_len = (len + 31) / 32;
+          uint32_t last_mask =  ((uint32_t)-1) >> (32*word_len - len);
+
+          size_t i;
+          for (i = 0; i < word_len-1; i++)
+            count += count_ones (bits[i]);
+          count += count_ones (bits[i] & last_mask);
+        }
     }
   else
     {
-      size_t i;
-      for (i = 0; i < len; i++)
+      scm_t_array_handle handle;
+      size_t off;
+      ssize_t inc;
+
+      scm_bitvector_elements (bitvector, &handle, &off, &len, &inc);
+
+      scm_c_issue_deprecation_warning
+        ("Using bit-count on arrays is deprecated.  "
+         "Use array->list instead.");
+
+      for (size_t i = 0; i < len; i++)
 	if (scm_is_true (scm_array_handle_ref (&handle, i*inc)))
 	  count++;
+
+      scm_array_handle_release (&handle);
     }
   
-  scm_array_handle_release (&handle);
-
-  return scm_from_size_t (bit? count : len-count);
+  return scm_from_size_t (bit ? count : len-count);
 }
 #undef FUNC_NAME
 
@@ -538,43 +560,48 @@ SCM_DEFINE (scm_bit_position, "bit-position", 3, 0, 0,
 	    "@end example")
 #define FUNC_NAME s_scm_bit_position
 {
-  scm_t_array_handle handle;
-  size_t off, len, first_bit;
-  ssize_t inc;
-  const uint32_t *bits;
   int bit = scm_to_bool (item);
   SCM res = SCM_BOOL_F;
   
-  bits = scm_bitvector_elements (v, &handle, &off, &len, &inc);
-  first_bit = scm_to_unsigned_integer (k, 0, len);
-
-  if (off == 0 && inc == 1 && len > 0)
+  if (IS_BITVECTOR (v))
     {
-      size_t i, word_len = (len + 31) / 32;
-      uint32_t last_mask =  ((uint32_t)-1) >> (32*word_len - len);
-      size_t first_word = first_bit / 32;
-      uint32_t first_mask =
-	((uint32_t)-1) << (first_bit - 32*first_word);
-      uint32_t w;
+      size_t len = BITVECTOR_LENGTH (v);
+      if (len > 0)
+        {
+          size_t first_bit = scm_to_unsigned_integer (k, 0, len);
+          const uint32_t *bits = BITVECTOR_BITS (v);
+          size_t word_len = (len + 31) / 32;
+          uint32_t last_mask =  ((uint32_t)-1) >> (32*word_len - len);
+          size_t first_word = first_bit / 32;
+          uint32_t first_mask =
+            ((uint32_t)-1) << (first_bit - 32*first_word);
       
-      for (i = first_word; i < word_len; i++)
-	{
-	  w = (bit? bits[i] : ~bits[i]);
-	  if (i == first_word)
-	    w &= first_mask;
-	  if (i == word_len-1)
-	    w &= last_mask;
-	  if (w)
-	    {
-	      res = scm_from_size_t (32*i + find_first_one (w));
-	      break;
-	    }
-	}
+          for (size_t i = first_word; i < word_len; i++)
+            {
+              uint32_t w = bit ? bits[i] : ~bits[i];
+              if (i == first_word)
+                w &= first_mask;
+              if (i == word_len-1)
+                w &= last_mask;
+              if (w)
+                {
+                  res = scm_from_size_t (32*i + find_first_one (w));
+                  break;
+                }
+            }
+        }
     }
   else
     {
-      size_t i;
-      for (i = first_bit; i < len; i++)
+      scm_t_array_handle handle;
+      size_t off, len;
+      ssize_t inc;
+      scm_bitvector_elements (v, &handle, &off, &len, &inc);
+      scm_c_issue_deprecation_warning
+        ("Using bit-position on arrays is deprecated.  "
+         "Use array-ref in a loop instead.");
+      size_t first_bit = scm_to_unsigned_integer (k, 0, len);
+      for (size_t i = first_bit; i < len; i++)
 	{
 	  SCM elt = scm_array_handle_ref (&handle, i*inc);
 	  if ((bit && scm_is_true (elt)) || (!bit && scm_is_false (elt)))
@@ -583,9 +610,8 @@ SCM_DEFINE (scm_bit_position, "bit-position", 3, 0, 0,
 	      break;
 	    }
 	}
+      scm_array_handle_release (&handle);
     }
-
-  scm_array_handle_release (&handle);
 
   return res;
 }
@@ -621,82 +647,89 @@ SCM_DEFINE (scm_bit_set_star_x, "bit-set*!", 3, 0, 0,
 	    "@end example")
 #define FUNC_NAME s_scm_bit_set_star_x
 {
-  scm_t_array_handle v_handle;
-  size_t v_off, v_len;
-  ssize_t v_inc;
-  uint32_t *v_bits;
-  int bit;
-
   /* Validate that OBJ is a boolean so this is done even if we don't
-     need BIT.
-  */
-  bit = scm_to_bool (obj);
+     need BIT.  */
+  int bit = scm_to_bool (obj);
 
-  v_bits = scm_bitvector_writable_elements (v, &v_handle,
-					    &v_off, &v_len, &v_inc);
-
-  if (scm_is_bitvector (kv))
+  if (IS_MUTABLE_BITVECTOR (v) && IS_BITVECTOR (kv))
     {
-      scm_t_array_handle kv_handle;
-      size_t kv_off, kv_len;
-      ssize_t kv_inc;
-      const uint32_t *kv_bits;
-      
-      kv_bits = scm_bitvector_elements (kv, &kv_handle,
-					&kv_off, &kv_len, &kv_inc);
+      size_t v_len = BITVECTOR_LENGTH (v);
+      uint32_t *v_bits = BITVECTOR_BITS (v);
+      size_t kv_len = BITVECTOR_LENGTH (kv);
+      const uint32_t *kv_bits = BITVECTOR_BITS (kv);
 
       if (v_len < kv_len)
-	scm_misc_error (NULL,
-			"bit vectors must have equal length",
-			SCM_EOL);
-
-      if (v_off == 0 && v_inc == 1 && kv_off == 0 && kv_inc == 1 && kv_len > 0)
-	{
-	  size_t word_len = (kv_len + 31) / 32;
-	  uint32_t last_mask = ((uint32_t)-1) >> (32*word_len - kv_len);
-	  size_t i;
- 
-	  if (bit == 0)
-	    {
-	      for (i = 0; i < word_len-1; i++)
-		v_bits[i] &= ~kv_bits[i];
-	      v_bits[i] &= ~(kv_bits[i] & last_mask);
-	    }
-	  else
-	    {
-	      for (i = 0; i < word_len-1; i++)
-		v_bits[i] |= kv_bits[i];
-	      v_bits[i] |= kv_bits[i] & last_mask;
-	    }
-	}
-      else
-	{
-	  size_t i;
-	  for (i = 0; i < kv_len; i++)
-	    if (scm_is_true (scm_array_handle_ref (&kv_handle, i*kv_inc)))
-	      scm_array_handle_set (&v_handle, i*v_inc, obj);
-	}
+        scm_misc_error (NULL,
+                        "selection bitvector longer than target bitvector",
+                        SCM_EOL);
       
-      scm_array_handle_release (&kv_handle);
+      if (kv_len > 0)
+        {
+          size_t word_len = (kv_len + 31) / 32;
+          uint32_t last_mask = ((uint32_t)-1) >> (32*word_len - kv_len);
+          size_t i;
 
+          if (bit == 0)
+            {
+              for (i = 0; i < word_len-1; i++)
+                v_bits[i] &= ~kv_bits[i];
+              v_bits[i] &= ~(kv_bits[i] & last_mask);
+            }
+          else
+            {
+              for (i = 0; i < word_len-1; i++)
+                v_bits[i] |= kv_bits[i];
+              v_bits[i] |= kv_bits[i] & last_mask;
+            }
+        }
     }
-  else if (scm_is_true (scm_u32vector_p (kv)))
+  else
     {
-      scm_t_array_handle kv_handle;
-      size_t i, kv_len;
-      ssize_t kv_inc;
-      const uint32_t *kv_elts;
+      scm_t_array_handle v_handle;
+      size_t v_off, v_len;
+      ssize_t v_inc;
+      scm_bitvector_writable_elements (v, &v_handle, &v_off, &v_len, &v_inc);
 
-      kv_elts = scm_u32vector_elements (kv, &kv_handle, &kv_len, &kv_inc);
-      for (i = 0; i < kv_len; i++, kv_elts += kv_inc)
-	scm_array_handle_set (&v_handle, (*kv_elts)*v_inc, obj);
+      if (!IS_MUTABLE_BITVECTOR (v))
+        scm_c_issue_deprecation_warning
+          ("Using bit-set*! on arrays is deprecated.  "
+           "Use array-set! in a loop instead.");
 
-      scm_array_handle_release (&kv_handle);
+      if (IS_BITVECTOR (kv))
+        {
+          size_t kv_len = BITVECTOR_LENGTH (kv);
+
+          if (v_len < kv_len)
+            scm_misc_error (NULL,
+                            "selection bitvector longer than target bitvector",
+                            SCM_EOL);
+
+	  for (size_t i = 0; i < kv_len; i++)
+	    if (scm_is_true (scm_c_bitvector_ref (kv, i)))
+	      scm_array_handle_set (&v_handle, i*v_inc, obj);
+        }
+      else if (scm_is_true (scm_u32vector_p (kv)))
+        {
+          scm_c_issue_deprecation_warning
+            ("Passing a u32vector to bit-set*! is deprecated.  "
+             "Use bitvector-set! in a loop instead.");
+
+          scm_t_array_handle kv_handle;
+          size_t kv_len;
+          ssize_t kv_inc;
+          const uint32_t *kv_elts;
+
+          kv_elts = scm_u32vector_elements (kv, &kv_handle, &kv_len, &kv_inc);
+          for (size_t i = 0; i < kv_len; i++, kv_elts += kv_inc)
+            scm_array_handle_set (&v_handle, (*kv_elts)*v_inc, obj);
+
+          scm_array_handle_release (&kv_handle);
+        }
+      else
+        scm_wrong_type_arg_msg (NULL, 0, kv, "bitvector or u32vector");
+
+      scm_array_handle_release (&v_handle);
     }
-  else 
-    scm_wrong_type_arg_msg (NULL, 0, kv, "bitvector or u32vector");
-
-  scm_array_handle_release (&v_handle);
 
   return SCM_UNSPECIFIED;
 }
@@ -724,82 +757,84 @@ SCM_DEFINE (scm_bit_count_star, "bit-count*", 3, 0, 0,
 	    "@end example")
 #define FUNC_NAME s_scm_bit_count_star
 {
-  scm_t_array_handle v_handle;
-  size_t v_off, v_len;
-  ssize_t v_inc;
-  const uint32_t *v_bits;
   size_t count = 0;
-  int bit;
 
   /* Validate that OBJ is a boolean so this is done even if we don't
      need BIT.
   */
-  bit = scm_to_bool (obj);
+  int bit = scm_to_bool (obj);
 
-  v_bits = scm_bitvector_elements (v, &v_handle,
-				   &v_off, &v_len, &v_inc);
-
-  if (scm_is_bitvector (kv))
+  if (IS_BITVECTOR (v) && IS_BITVECTOR (kv))
     {
-      scm_t_array_handle kv_handle;
-      size_t kv_off, kv_len;
-      ssize_t kv_inc;
-      const uint32_t *kv_bits;
+      size_t v_len = BITVECTOR_LENGTH (v);
+      const uint32_t *v_bits = BITVECTOR_BITS (v);
+      size_t kv_len = BITVECTOR_LENGTH (kv);
+      const uint32_t *kv_bits = BITVECTOR_BITS (kv);
+
+      if (v_len < kv_len)
+        scm_misc_error (NULL,
+                        "selection bitvector longer than target bitvector",
+                        SCM_EOL);
       
-      kv_bits = scm_bitvector_elements (kv, &kv_handle,
-					&kv_off, &kv_len, &kv_inc);
+      size_t i, word_len = (kv_len + 31) / 32;
+      uint32_t last_mask = ((uint32_t)-1) >> (32*word_len - kv_len);
+      uint32_t xor_mask = bit? 0 : ((uint32_t)-1);
 
-      if (v_len != kv_len)
-	scm_misc_error (NULL,
-			"bit vectors must have equal length",
-			SCM_EOL);
+      for (i = 0; i < word_len-1; i++)
+        count += count_ones ((v_bits[i]^xor_mask) & kv_bits[i]);
+      count += count_ones ((v_bits[i]^xor_mask) & kv_bits[i] & last_mask);
+    }
+  else
+    {
+      scm_t_array_handle v_handle;
+      size_t v_off, v_len;
+      ssize_t v_inc;
 
-      if (v_off == 0 && v_inc == 1 && kv_off == 0 && kv_inc == 1 && kv_len > 0)
-	{
-	  size_t i, word_len = (kv_len + 31) / 32;
-	  uint32_t last_mask = ((uint32_t)-1) >> (32*word_len - kv_len);
-	  uint32_t xor_mask = bit? 0 : ((uint32_t)-1);
+      scm_bitvector_elements (v, &v_handle, &v_off, &v_len, &v_inc);
 
-	  for (i = 0; i < word_len-1; i++)
-	    count += count_ones ((v_bits[i]^xor_mask) & kv_bits[i]);
-	  count += count_ones ((v_bits[i]^xor_mask) & kv_bits[i] & last_mask);
- 	}
+      if (!IS_BITVECTOR (v))
+        scm_c_issue_deprecation_warning
+          ("Using bit-count* on arrays is deprecated.  "
+           "Use array-set! in a loop instead.");
+
+      if (IS_BITVECTOR (kv))
+        {
+          size_t kv_len = BITVECTOR_LENGTH (kv);
+          for (size_t i = 0; i < kv_len; i++)
+            if (scm_is_true (scm_c_bitvector_ref (kv, i)))
+              {
+                SCM elt = scm_array_handle_ref (&v_handle, i*v_inc);
+                if ((bit && scm_is_true (elt)) || (!bit && scm_is_false (elt)))
+                  count++;
+              }
+        }
+      else if (scm_is_true (scm_u32vector_p (kv)))
+        {
+          scm_t_array_handle kv_handle;
+          size_t i, kv_len;
+          ssize_t kv_inc;
+          const uint32_t *kv_elts;
+
+          scm_c_issue_deprecation_warning
+            ("Passing a u32vector to bit-count* is deprecated.  "
+             "Use bitvector-ref in a loop instead.");
+
+          kv_elts = scm_u32vector_elements (kv, &kv_handle, &kv_len, &kv_inc);
+
+          for (i = 0; i < kv_len; i++, kv_elts += kv_inc)
+            {
+              SCM elt = scm_array_handle_ref (&v_handle, (*kv_elts)*v_inc);
+              if ((bit && scm_is_true (elt)) || (!bit && scm_is_false (elt)))
+                count++;
+            }
+
+          scm_array_handle_release (&kv_handle);
+        }
       else
-	{
-	  size_t i;
-	  for (i = 0; i < kv_len; i++)
-	    if (scm_is_true (scm_array_handle_ref (&kv_handle, i)))
-	      {
-		SCM elt = scm_array_handle_ref (&v_handle, i*v_inc);
-		if ((bit && scm_is_true (elt)) || (!bit && scm_is_false (elt)))
-		  count++;
-	      }
-	}
-      
-      scm_array_handle_release (&kv_handle);
+        scm_wrong_type_arg_msg (NULL, 0, kv, "bitvector or u32vector");
 
+      scm_array_handle_release (&v_handle);
     }
-  else if (scm_is_true (scm_u32vector_p (kv)))
-    {
-      scm_t_array_handle kv_handle;
-      size_t i, kv_len;
-      ssize_t kv_inc;
-      const uint32_t *kv_elts;
-
-      kv_elts = scm_u32vector_elements (kv, &kv_handle, &kv_len, &kv_inc);
-      for (i = 0; i < kv_len; i++, kv_elts += kv_inc)
-	{
-	  SCM elt = scm_array_handle_ref (&v_handle, (*kv_elts)*v_inc);
-	  if ((bit && scm_is_true (elt)) || (!bit && scm_is_false (elt)))
-	    count++;
-	}
-
-      scm_array_handle_release (&kv_handle);
-    }
-  else 
-    scm_wrong_type_arg_msg (NULL, 0, kv, "bitvector or u32vector");
-
-  scm_array_handle_release (&v_handle);
 
   return scm_from_size_t (count);
 }
@@ -811,15 +846,10 @@ SCM_DEFINE (scm_bit_invert_x, "bit-invert!", 1, 0, 0,
 	    "its negation.")
 #define FUNC_NAME s_scm_bit_invert_x
 {
-  scm_t_array_handle handle;
-  size_t off, len;
-  ssize_t inc;
-  uint32_t *bits;
-
-  bits = scm_bitvector_writable_elements (v, &handle, &off, &len, &inc);
-  
-  if (off == 0 && inc == 1 && len > 0)
+  if (IS_MUTABLE_BITVECTOR (v))
     {
+      size_t len = BITVECTOR_LENGTH (v);
+      uint32_t *bits = BITVECTOR_BITS (v);
       size_t word_len = (len + 31) / 32;
       uint32_t last_mask = ((uint32_t)-1) >> (32*word_len - len);
       size_t i;
@@ -830,60 +860,23 @@ SCM_DEFINE (scm_bit_invert_x, "bit-invert!", 1, 0, 0,
     }
   else
     {
-      size_t i;
-      for (i = 0; i < len; i++)
+      size_t off, len;
+      ssize_t inc;
+      scm_t_array_handle handle;
+
+      scm_bitvector_writable_elements (v, &handle, &off, &len, &inc);
+      scm_c_issue_deprecation_warning
+        ("Using bit-invert! on arrays is deprecated.  "
+         "Use scalar array accessors in a loop instead.");
+      for (size_t i = 0; i < len; i++)
 	scm_array_handle_set (&handle, i*inc,
 			      scm_not (scm_array_handle_ref (&handle, i*inc)));
+      scm_array_handle_release (&handle);
     }
-
-  scm_array_handle_release (&handle);
 
   return SCM_UNSPECIFIED;
 }
 #undef FUNC_NAME
-
-
-SCM
-scm_istr2bve (SCM str)
-{
-  scm_t_array_handle handle;
-  size_t len = scm_i_string_length (str);
-  SCM vec = scm_c_make_bitvector (len, SCM_UNDEFINED);
-  SCM res = vec;
-
-  uint32_t mask;
-  size_t k, j;
-  const char *c_str;
-  uint32_t *data;
-
-  data = scm_bitvector_writable_elements (vec, &handle, NULL, NULL, NULL);
-  c_str = scm_i_string_chars (str);
-
-  for (k = 0; k < (len + 31) / 32; k++)
-    {
-      data[k] = 0L;
-      j = len - k * 32;
-      if (j > 32)
-	j = 32;
-      for (mask = 1L; j--; mask <<= 1)
-	switch (*c_str++)
-	  {
-	  case '0':
-	    break;
-	  case '1':
-	    data[k] |= mask;
-	    break;
-	  default:
-	    res = SCM_BOOL_F;
-	    goto exit;
-	  }
-    }
-  
- exit:
-  scm_array_handle_release (&handle);
-  scm_remember_upto_here_1 (str);
-  return res;
-}
 
 SCM_VECTOR_IMPLEMENTATION (SCM_ARRAY_ELEMENT_TYPE_BIT, scm_make_bitvector)
 

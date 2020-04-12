@@ -6641,17 +6641,15 @@ entry between @var{start} and the end of @var{bitvector}, then return
 Modify @var{bitvector} by replacing each element with its negation.
 @end deffn
 
-@deffn {Scheme Procedure} bit-set*! bitvector uvec bool
-@deffnx {C Function} scm_bit_set_star_x (bitvector, uvec, bool)
-Set entries of @var{bitvector} to @var{bool}, with @var{uvec}
-selecting the entries to change.  The return value is unspecified.
-
-If @var{uvec} is a bit vector, then those entries where it has
-@code{#t} are the ones in @var{bitvector} which are set to @var{bool}.
-@var{uvec} and @var{bitvector} must be the same length.  When
-@var{bool} is @code{#t} it's like @var{uvec} is OR'ed into
-@var{bitvector}.  Or when @var{bool} is @code{#f} it can be seen as an
-ANDNOT.
+@deffn {Scheme Procedure} bit-set*! bitvector bits bool
+@deffnx {C Function} scm_bit_set_star_x (bitvector, bits, bool)
+Set entries of @var{bitvector} to @var{bool}, with @var{bits} selecting
+the entries to change.  The return value is unspecified.  Those bits in
+the bitvector @var{bits} which are set to one indicate the bits in
+@var{bitvector} to set to @var{bool}.  @var{bitvector} must be at least
+as long as @var{bits}.  When @var{bool} is @code{#t} it is as if
+@var{bits} is OR'ed into @var{bitvector}, whereas when @var{bool} is
+@code{#f} is like an ANDNOT.
 
 @example
 (define bv #*01000010)
@@ -6659,34 +6657,18 @@ ANDNOT.
 bv
 @result{} #*11010011
 @end example
-
-If @var{uvec} is a uniform vector of unsigned long integers, then
-they're indexes into @var{bitvector} which are set to @var{bool}.  
-
-@example
-(define bv #*01000010)
-(bit-set*! bv #u(5 2 7) #t)
-bv
-@result{} #*01100111
-@end example
 @end deffn
 
-@deffn {Scheme Procedure} bit-count* bitvector uvec bool
-@deffnx {C Function} scm_bit_count_star (bitvector, uvec, bool)
+@deffn {Scheme Procedure} bit-count* bitvector bits bool
+@deffnx {C Function} scm_bit_count_star (bitvector, bits, bool)
 Return a count of how many entries in @var{bitvector} are equal to
-@var{bool}, with @var{uvec} selecting the entries to consider.
-
-@var{uvec} is interpreted in the same way as for @code{bit-set*!}
-above.  Namely, if @var{uvec} is a bit vector then entries which have
-@code{#t} there are considered in @var{bitvector}.  Or if @var{uvec}
-is a uniform vector of unsigned long integers then it's the indexes in
-@var{bitvector} to consider.
+@var{bool}, with the bitvector @var{bits} selecting the entries to
+consider.  @var{bitvector} must be at least as long as @var{bits}.
 
 For example,
 
 @example
 (bit-count* #*01110111 #*11001101 #t) @result{} 3
-(bit-count* #*01110111 #u32(7 0 4) #f)  @result{} 2
 @end example
 @end deffn
 

@@ -115,6 +115,8 @@ typedef struct scm_thread scm_i_thread SCM_DEPRECATED_TYPE;
 
 SCM_DEPRECATED char* scm_find_executable (const char *name);
 
+SCM_DEPRECATED SCM scm_istr2bve (SCM str);
+
 void scm_i_init_deprecated (void);
 
 #endif

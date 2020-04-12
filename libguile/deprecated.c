@@ -1,4 +1,4 @@
-/* Copyright 2003-2004,2006,2008-2018
+/* Copyright 2003-2004,2006,2008-2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -27,8 +27,10 @@
 
 #define SCM_BUILDING_DEPRECATED_CODE
 
+#include "bitvectors.h"
 #include "deprecation.h"
 #include "gc.h"
+#include "strings.h"
 
 #include "deprecated.h"
 
@@ -78,6 +80,55 @@ scm_find_executable (const char *name)
     }
   fclose (f);
   return strdup (name);
+}
+
+
+
+
+SCM
+scm_istr2bve (SCM str)
+{
+  scm_t_array_handle handle;
+  size_t len = scm_i_string_length (str);
+  SCM vec = scm_c_make_bitvector (len, SCM_UNDEFINED);
+  SCM res = vec;
+
+  uint32_t mask;
+  size_t k, j;
+  const char *c_str;
+  uint32_t *data;
+
+  scm_c_issue_deprecation_warning
+    ("scm_istr2bve is deprecated.  "
+     "Read from a string instead, prefixed with `#*'.");
+
+  data = scm_bitvector_writable_elements (vec, &handle, NULL, NULL, NULL);
+  c_str = scm_i_string_chars (str);
+
+  for (k = 0; k < (len + 31) / 32; k++)
+    {
+      data[k] = 0L;
+      j = len - k * 32;
+      if (j > 32)
+	j = 32;
+      for (mask = 1L; j--; mask <<= 1)
+	switch (*c_str++)
+	  {
+	  case '0':
+	    break;
+	  case '1':
+	    data[k] |= mask;
+	    break;
+	  default:
+	    res = SCM_BOOL_F;
+	    goto exit;
+	  }
+    }
+  
+ exit:
+  scm_array_handle_release (&handle);
+  scm_remember_upto_here_1 (str);
+  return res;
 }
 
 

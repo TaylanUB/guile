@@ -1,7 +1,7 @@
 #ifndef SCM_BITVECTORS_H
 #define SCM_BITVECTORS_H
 
-/* Copyright 1995-1997,1999-2001,2004,2006,2008-2009,2014,2018
+/* Copyright 1995-1997,1999-2001,2004,2006,2008-2009,2014,2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -47,7 +47,6 @@ SCM_API SCM scm_bit_position (SCM item, SCM v, SCM k);
 SCM_API SCM scm_bit_set_star_x (SCM v, SCM kv, SCM obj);
 SCM_API SCM scm_bit_count_star (SCM v, SCM kv, SCM obj);
 SCM_API SCM scm_bit_invert_x (SCM v);
-SCM_API SCM scm_istr2bve (SCM str);
 
 SCM_API int scm_is_bitvector (SCM obj);
 SCM_API SCM scm_c_make_bitvector (size_t len, SCM fill);
