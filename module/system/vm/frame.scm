@@ -243,7 +243,7 @@
               (out (vector-ref outv n))
               (kill (vector-ref killv n))
               (gen (vector-ref genv n)))
-          (let ((out-count (or changed? (bit-count #t out))))
+          (let ((out-count (or changed? (bitvector-count out))))
             (bitvector-fill! in (not (zero? n)))
             (let lp ((preds (vector-ref preds n)))
               (match preds
@@ -258,7 +258,7 @@
                         (bitvector-set! out def #t))
                       gen)
             (lp (1+ n) first?
-                (or changed? (not (eqv? out-count (bit-count #t out))))))))
+                (or changed? (not (eqv? out-count (bitvector-count out))))))))
        ((or changed? first?)
         (lp 0 #f #f))))
 

@@ -58,6 +58,10 @@
 #define BITVECTOR_LENGTH(obj)   ((size_t)SCM_CELL_WORD_1(obj))
 #define BITVECTOR_BITS(obj)     ((uint32_t *)SCM_CELL_WORD_2(obj))
 
+#define VALIDATE_BITVECTOR(_pos, _obj)                                  \
+  SCM_ASSERT_TYPE (IS_BITVECTOR (_obj), (_obj), (_pos), FUNC_NAME,      \
+                   "bitvector")
+
 uint32_t *
 scm_i_bitvector_bits (SCM vec)
 {
@@ -479,51 +483,30 @@ count_ones (uint32_t x)
   return (x+(x>>16)) & 0xff;
 }
 
-SCM_DEFINE (scm_bit_count, "bit-count", 2, 0, 0,
-	    (SCM b, SCM bitvector),
-	    "Return the number of occurrences of the boolean @var{b} in\n"
-	    "@var{bitvector}.")
-#define FUNC_NAME s_scm_bit_count
+SCM_DEFINE (scm_bitvector_count, "bitvector-count", 1, 0, 0,
+	    (SCM bitvector),
+	    "Return the number of set bits in @var{bitvector}.")
+#define FUNC_NAME s_scm_bitvector_count
 {
-  int bit = scm_to_bool (b);
-  size_t count = 0, len;
+  VALIDATE_BITVECTOR (1, bitvector);
 
-  if (IS_BITVECTOR (bitvector))
-    {
-      len = BITVECTOR_LENGTH (bitvector);
+  size_t len = BITVECTOR_LENGTH (bitvector);
 
-      if (len > 0)
-        {
-          const uint32_t *bits = BITVECTOR_BITS (bitvector);
-          size_t word_len = (len + 31) / 32;
-          uint32_t last_mask =  ((uint32_t)-1) >> (32*word_len - len);
+  if (len == 0)
+    return SCM_INUM0;
 
-          size_t i;
-          for (i = 0; i < word_len-1; i++)
-            count += count_ones (bits[i]);
-          count += count_ones (bits[i] & last_mask);
-        }
-    }
-  else
-    {
-      scm_t_array_handle handle;
-      size_t off;
-      ssize_t inc;
+  const uint32_t *bits = BITVECTOR_BITS (bitvector);
+  size_t count = 0;
 
-      scm_bitvector_elements (bitvector, &handle, &off, &len, &inc);
+  size_t word_len = (len + 31) / 32;
+  size_t i;
+  for (i = 0; i < word_len-1; i++)
+    count += count_ones (bits[i]);
 
-      scm_c_issue_deprecation_warning
-        ("Using bit-count on arrays is deprecated.  "
-         "Use array->list instead.");
+  uint32_t last_mask =  ((uint32_t)-1) >> (32*word_len - len);
+  count += count_ones (bits[i] & last_mask);
 
-      for (size_t i = 0; i < len; i++)
-	if (scm_is_true (scm_array_handle_ref (&handle, i*inc)))
-	  count++;
-
-      scm_array_handle_release (&handle);
-    }
-  
-  return scm_from_size_t (bit ? count : len-count);
+  return scm_from_size_t (count);
 }
 #undef FUNC_NAME
 

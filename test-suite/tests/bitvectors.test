@@ -71,5 +71,10 @@
       (bit-set*! v #*101 #f)
       (equal? v #*0100))))
 
+(with-test-prefix "bitvector-count"
+  (pass-if-equal 6 (bitvector-count #*01110111))
+  (pass-if-equal 2 (let ((bv #*01110111))
+                     (- (bitvector-length bv) (bitvector-count bv)))))
+
 (with-test-prefix "bit-count*"
   (pass-if-equal 3 (bit-count* #*01110111 #*11001101 #t)))

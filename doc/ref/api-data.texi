@@ -6613,13 +6613,12 @@ Return a new list initialized with the elements
 of the bitvector @var{vec}.
 @end deffn
 
-@deffn {Scheme Procedure} bit-count bool bitvector
-@deffnx {C Function} scm_bit_count (bool, bitvector)
-Return a count of how many entries in @var{bitvector} are equal to
-@var{bool}.  For example,
+@deffn {Scheme Procedure} bitvector-count bitvector
+@deffnx {C Function} scm_bitvector_count (bitvector)
+Return a count of how many entries in @var{bitvector} are set.
 
 @example
-(bit-count #f #*000111000)  @result{} 6
+(bitvector-count #*000111000)  @result{} 3
 @end example
 @end deffn
 

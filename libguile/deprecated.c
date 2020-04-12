@@ -27,9 +27,11 @@
 
 #define SCM_BUILDING_DEPRECATED_CODE
 
+#include "boolean.h"
 #include "bitvectors.h"
 #include "deprecation.h"
 #include "gc.h"
+#include "gsubr.h"
 #include "strings.h"
 
 #include "deprecated.h"
@@ -84,6 +86,43 @@ scm_find_executable (const char *name)
 
 
 
+
+SCM_DEFINE (scm_bit_count, "bit-count", 2, 0, 0,
+	    (SCM b, SCM bitvector),
+	    "Return the number of occurrences of the boolean @var{b} in\n"
+	    "@var{bitvector}.")
+#define FUNC_NAME s_scm_bit_count
+{
+  int bit = scm_to_bool (b);
+  size_t count = 0, len;
+
+  scm_c_issue_deprecation_warning
+    ("bit-count is deprecated.  Use bitvector-count, or a loop over array-ref "
+     "if array support is needed.");
+
+  if (scm_is_true (scm_bitvector_p (bitvector)))
+    {
+      len = scm_to_size_t (scm_bitvector_length (bitvector));
+      count = scm_to_size_t (scm_bitvector_count (bitvector));
+    }
+  else
+    {
+      scm_t_array_handle handle;
+      size_t off;
+      ssize_t inc;
+
+      scm_bitvector_elements (bitvector, &handle, &off, &len, &inc);
+
+      for (size_t i = 0; i < len; i++)
+	if (scm_is_true (scm_array_handle_ref (&handle, i*inc)))
+	  count++;
+
+      scm_array_handle_release (&handle);
+    }
+  
+  return scm_from_size_t (bit ? count : len-count);
+}
+#undef FUNC_NAME
 
 SCM
 scm_istr2bve (SCM str)

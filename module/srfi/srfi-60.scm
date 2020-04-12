@@ -1,6 +1,6 @@
 ;;; srfi-60.scm --- Integers as Bits
 
-;; Copyright (C) 2005, 2006, 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2005, 2006, 2010, 2020 Free Software Foundation, Inc.
 ;;
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -26,6 +26,7 @@
 	    log2-binary-factors first-set-bit
 	    bit-set?
 	    copy-bit
+            bit-count
 	    bit-field
 	    copy-bit-field
 	    arithmetic-shift
@@ -34,7 +35,6 @@
 	    integer->list
 	    list->integer
 	    booleans->integer)
-  #:replace (bit-count)
   #:re-export (logand
 	       logior
 	       logxor
