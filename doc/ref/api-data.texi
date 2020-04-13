@@ -6640,21 +6640,31 @@ entry between @var{start} and the end of @var{bitvector}, then return
 Modify @var{bitvector} by replacing each element with its negation.
 @end deffn
 
-@deffn {Scheme Procedure} bit-set*! bitvector bits bool
-@deffnx {C Function} scm_bit_set_star_x (bitvector, bits, bool)
-Set entries of @var{bitvector} to @var{bool}, with @var{bits} selecting
-the entries to change.  The return value is unspecified.  Those bits in
-the bitvector @var{bits} which are set to one indicate the bits in
-@var{bitvector} to set to @var{bool}.  @var{bitvector} must be at least
-as long as @var{bits}.  When @var{bool} is @code{#t} it is as if
-@var{bits} is OR'ed into @var{bitvector}, whereas when @var{bool} is
-@code{#f} is like an ANDNOT.
+@deffn {Scheme Procedure} bitvector-set-bits! bitvector bits
+@deffnx {C Function} scm_bit_set_star_x (bitvector, bits)
+Set entries of @var{bitvector} to @code{#t}, with @var{bits} selecting
+the bits to set.  The return value is unspecified.  @var{bitvector} must
+be at least as long as @var{bits}.
 
 @example
-(define bv #*01000010)
-(bit-set*! bv #*10010001 #t)
+(define bv (bitvector-copy #*11000010))
+(bitvector-set-bits! bv #*10010001)
 bv
 @result{} #*11010011
+@end example
+@end deffn
+
+@deffn {Scheme Procedure} bitvector-clear-bits! bitvector bits
+@deffnx {C Function} scm_bitvector_clear_bits_x (bitvector, bits)
+Set entries of @var{bitvector} to @code{#f}, with @var{bits} selecting
+the bits to clear.  The return value is unspecified.  @var{bitvector}
+must be at least as long as @var{bits}.
+
+@example
+(define bv (bitvector-copy #*11000010))
+(bitvector-clear-bits! bv #*10010001)
+bv
+@result{} #*01000010
 @end example
 @end deffn
 

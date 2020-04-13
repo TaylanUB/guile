@@ -61,6 +61,9 @@
 #define VALIDATE_BITVECTOR(_pos, _obj)                                  \
   SCM_ASSERT_TYPE (IS_BITVECTOR (_obj), (_obj), (_pos), FUNC_NAME,      \
                    "bitvector")
+#define VALIDATE_MUTABLE_BITVECTOR(_pos, _obj)                          \
+  SCM_ASSERT_TYPE (IS_MUTABLE_BITVECTOR (_obj), (_obj), (_pos),         \
+                   FUNC_NAME, "mutable bitvector")
 
 uint32_t *
 scm_i_bitvector_bits (SCM vec)
@@ -575,124 +578,86 @@ SCM_DEFINE (scm_bitvector_position, "bitvector-position", 2, 1, 0,
 }
 #undef FUNC_NAME
 
-SCM_DEFINE (scm_bit_set_star_x, "bit-set*!", 3, 0, 0,
-	    (SCM v, SCM kv, SCM obj),
-	    "Set entries of bit vector @var{v} to @var{obj}, with @var{kv}\n"
-	    "selecting the entries to change.  The return value is\n"
-	    "unspecified.\n"
-	    "\n"
-	    "If @var{kv} is a bit vector, then those entries where it has\n"
-	    "@code{#t} are the ones in @var{v} which are set to @var{obj}.\n"
-	    "@var{v} must be at least as long as @var{kv}.  When @var{obj}\n"
-	    "is @code{#t} it's like @var{kv} is OR'ed into @var{v}.  Or when\n"
-	    "@var{obj} is @code{#f} it can be seen as an ANDNOT.\n"
+SCM_DEFINE (scm_bitvector_set_bits_x, "bitvector-set-bits!", 2, 0, 0,
+	    (SCM v, SCM bits),
+	    "Update the bitvector @var{v} in place by performing a logical\n"
+            "OR of its bits with those of @var{bits}.\n"
+            "For example:\n"
 	    "\n"
 	    "@example\n"
-	    "(define bv #*01000010)\n"
-	    "(bit-set*! bv #*10010001 #t)\n"
+	    "(define bv (bitvector-copy #*11000010))\n"
+	    "(bitvector-set-bits! bv #*10010001)\n"
 	    "bv\n"
 	    "@result{} #*11010011\n"
-	    "@end example\n"
-	    "\n"
-	    "If @var{kv} is a u32vector, then its elements are\n"
-	    "indices into @var{v} which are set to @var{obj}.\n"
-	    "\n"
-	    "@example\n"
-	    "(define bv #*01000010)\n"
-	    "(bit-set*! bv #u32(5 2 7) #t)\n"
-	    "bv\n"
-	    "@result{} #*01100111\n"
 	    "@end example")
-#define FUNC_NAME s_scm_bit_set_star_x
+#define FUNC_NAME s_scm_bitvector_set_bits_x
 {
-  /* Validate that OBJ is a boolean so this is done even if we don't
-     need BIT.  */
-  int bit = scm_to_bool (obj);
+  VALIDATE_MUTABLE_BITVECTOR (1, v);
+  VALIDATE_BITVECTOR (2, bits);
+  size_t v_len = BITVECTOR_LENGTH (v);
+  uint32_t *v_bits = BITVECTOR_BITS (v);
+  size_t kv_len = BITVECTOR_LENGTH (bits);
+  const uint32_t *kv_bits = BITVECTOR_BITS (bits);
 
-  if (IS_MUTABLE_BITVECTOR (v) && IS_BITVECTOR (kv))
-    {
-      size_t v_len = BITVECTOR_LENGTH (v);
-      uint32_t *v_bits = BITVECTOR_BITS (v);
-      size_t kv_len = BITVECTOR_LENGTH (kv);
-      const uint32_t *kv_bits = BITVECTOR_BITS (kv);
-
-      if (v_len < kv_len)
-        scm_misc_error (NULL,
-                        "selection bitvector longer than target bitvector",
-                        SCM_EOL);
+  if (v_len < kv_len)
+    scm_misc_error (NULL,
+                    "selection bitvector longer than target bitvector",
+                    SCM_EOL);
       
-      if (kv_len > 0)
-        {
-          size_t word_len = (kv_len + 31) / 32;
-          uint32_t last_mask = ((uint32_t)-1) >> (32*word_len - kv_len);
-          size_t i;
-
-          if (bit == 0)
-            {
-              for (i = 0; i < word_len-1; i++)
-                v_bits[i] &= ~kv_bits[i];
-              v_bits[i] &= ~(kv_bits[i] & last_mask);
-            }
-          else
-            {
-              for (i = 0; i < word_len-1; i++)
-                v_bits[i] |= kv_bits[i];
-              v_bits[i] |= kv_bits[i] & last_mask;
-            }
-        }
-    }
-  else
+  if (kv_len > 0)
     {
-      scm_t_array_handle v_handle;
-      size_t v_off, v_len;
-      ssize_t v_inc;
-      scm_bitvector_writable_elements (v, &v_handle, &v_off, &v_len, &v_inc);
-
-      if (!IS_MUTABLE_BITVECTOR (v))
-        scm_c_issue_deprecation_warning
-          ("Using bit-set*! on arrays is deprecated.  "
-           "Use array-set! in a loop instead.");
-
-      if (IS_BITVECTOR (kv))
-        {
-          size_t kv_len = BITVECTOR_LENGTH (kv);
-
-          if (v_len < kv_len)
-            scm_misc_error (NULL,
-                            "selection bitvector longer than target bitvector",
-                            SCM_EOL);
-
-	  for (size_t i = 0; i < kv_len; i++)
-	    if (scm_is_true (scm_c_bitvector_ref (kv, i)))
-	      scm_array_handle_set (&v_handle, i*v_inc, obj);
-        }
-      else if (scm_is_true (scm_u32vector_p (kv)))
-        {
-          scm_c_issue_deprecation_warning
-            ("Passing a u32vector to bit-set*! is deprecated.  "
-             "Use bitvector-set! in a loop instead.");
-
-          scm_t_array_handle kv_handle;
-          size_t kv_len;
-          ssize_t kv_inc;
-          const uint32_t *kv_elts;
-
-          kv_elts = scm_u32vector_elements (kv, &kv_handle, &kv_len, &kv_inc);
-          for (size_t i = 0; i < kv_len; i++, kv_elts += kv_inc)
-            scm_array_handle_set (&v_handle, (*kv_elts)*v_inc, obj);
-
-          scm_array_handle_release (&kv_handle);
-        }
-      else
-        scm_wrong_type_arg_msg (NULL, 0, kv, "bitvector or u32vector");
-
-      scm_array_handle_release (&v_handle);
+      size_t word_len = (kv_len + 31) / 32;
+      uint32_t last_mask = ((uint32_t)-1) >> (32*word_len - kv_len);
+      size_t i;
+      for (i = 0; i < word_len-1; i++)
+        v_bits[i] |= kv_bits[i];
+      v_bits[i] |= kv_bits[i] & last_mask;
     }
 
   return SCM_UNSPECIFIED;
 }
 #undef FUNC_NAME
 
+SCM_DEFINE (scm_bitvector_clear_bits_x, "bitvector-clear-bits!", 2, 0, 0,
+	    (SCM v, SCM bits),
+	    "Update the bitvector @var{v} in place by performing a logical\n"
+            "AND of its bits with the complement of those of @var{bits}.\n"
+            "For example:\n"
+	    "\n"
+	    "@example\n"
+	    "(define bv (bitvector-copy #*11000010))\n"
+	    "(bitvector-clear-bits! bv #*10010001)\n"
+	    "bv\n"
+	    "@result{} #*01000010\n"
+	    "@end example")
+#define FUNC_NAME s_scm_bitvector_clear_bits_x
+{
+  VALIDATE_MUTABLE_BITVECTOR (1, v);
+  VALIDATE_BITVECTOR (2, bits);
+  size_t v_len = BITVECTOR_LENGTH (v);
+  uint32_t *v_bits = BITVECTOR_BITS (v);
+  size_t kv_len = BITVECTOR_LENGTH (bits);
+  const uint32_t *kv_bits = BITVECTOR_BITS (bits);
+
+  if (v_len < kv_len)
+    scm_misc_error (NULL,
+                    "selection bitvector longer than target bitvector",
+                    SCM_EOL);
+      
+  if (kv_len > 0)
+    {
+      size_t word_len = (kv_len + 31) / 32;
+      uint32_t last_mask = ((uint32_t)-1) >> (32*word_len - kv_len);
+      size_t i;
+
+      for (i = 0; i < word_len-1; i++)
+        v_bits[i] &= ~kv_bits[i];
+      v_bits[i] &= ~(kv_bits[i] & last_mask);
+    }
+
+  return SCM_UNSPECIFIED;
+}
+#undef FUNC_NAME
 
 SCM_DEFINE (scm_bit_count_star, "bit-count*", 3, 0, 0,
            (SCM v, SCM kv, SCM obj),

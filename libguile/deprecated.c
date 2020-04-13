@@ -32,6 +32,7 @@
 #include "deprecation.h"
 #include "gc.h"
 #include "gsubr.h"
+#include "srfi-4.h"
 #include "strings.h"
 
 #include "deprecated.h"
@@ -100,7 +101,7 @@ SCM_DEFINE (scm_bit_count, "bit-count", 2, 0, 0,
     ("bit-count is deprecated.  Use bitvector-count, or a loop over array-ref "
      "if array support is needed.");
 
-  if (scm_is_true (scm_bitvector_p (bitvector)))
+  if (scm_is_bitvector (bitvector))
     {
       len = scm_to_size_t (scm_bitvector_length (bitvector));
       count = scm_to_size_t (scm_bitvector_count (bitvector));
@@ -141,7 +142,7 @@ SCM_DEFINE (scm_bit_position, "bit-position", 3, 0, 0,
     ("bit-position is deprecated.  Use bitvector-position, or "
      "array-ref in a loop if you need generic arrays instead.");
 
-  if (scm_is_true (scm_bitvector_p (v)))
+  if (scm_is_bitvector (v))
     return scm_bitvector_position (v, item, k);
 
   scm_t_array_handle handle;
@@ -163,6 +164,87 @@ SCM_DEFINE (scm_bit_position, "bit-position", 3, 0, 0,
   scm_array_handle_release (&handle);
 
   return res;
+}
+#undef FUNC_NAME
+
+SCM_DEFINE (scm_bit_set_star_x, "bit-set*!", 3, 0, 0,
+	    (SCM v, SCM kv, SCM obj),
+	    "Set entries of bit vector @var{v} to @var{obj}, with @var{kv}\n"
+	    "selecting the entries to change.  The return value is\n"
+	    "unspecified.\n"
+	    "\n"
+	    "If @var{kv} is a bit vector, then those entries where it has\n"
+	    "@code{#t} are the ones in @var{v} which are set to @var{obj}.\n"
+	    "@var{v} must be at least as long as @var{kv}.  When @var{obj}\n"
+	    "is @code{#t} it's like @var{kv} is OR'ed into @var{v}.  Or when\n"
+	    "@var{obj} is @code{#f} it can be seen as an ANDNOT.\n"
+	    "\n"
+	    "@example\n"
+	    "(define bv #*01000010)\n"
+	    "(bit-set*! bv #*10010001 #t)\n"
+	    "bv\n"
+	    "@result{} #*11010011\n"
+	    "@end example\n"
+	    "\n"
+	    "If @var{kv} is a u32vector, then its elements are\n"
+	    "indices into @var{v} which are set to @var{obj}.\n"
+	    "\n"
+	    "@example\n"
+	    "(define bv #*01000010)\n"
+	    "(bit-set*! bv #u32(5 2 7) #t)\n"
+	    "bv\n"
+	    "@result{} #*01100111\n"
+	    "@end example")
+#define FUNC_NAME s_scm_bit_set_star_x
+{
+  scm_c_issue_deprecation_warning
+    ("bit-set*! is deprecated.  Use bitvector-set-bits! or "
+     "bitvector-clear-bits! on bitvectors, or array-set! in a loop "
+     "if you need to work on generic arrays.");
+
+  int bit = scm_to_bool (obj);
+  if (scm_is_bitvector (v) && scm_is_bitvector (kv))
+    return bit
+      ? scm_bitvector_set_bits_x (v, kv)
+      : scm_bitvector_clear_bits_x (v, kv);
+
+  scm_t_array_handle v_handle;
+  size_t v_off, v_len;
+  ssize_t v_inc;
+  scm_bitvector_writable_elements (v, &v_handle, &v_off, &v_len, &v_inc);
+
+  if (scm_is_bitvector (kv))
+    {
+      size_t kv_len = scm_c_bitvector_length (kv);
+
+      if (v_len < kv_len)
+        scm_misc_error (NULL,
+                        "selection bitvector longer than target bitvector",
+                        SCM_EOL);
+
+      for (size_t i = 0; i < kv_len; i++)
+        if (scm_is_true (scm_c_bitvector_ref (kv, i)))
+          scm_array_handle_set (&v_handle, i*v_inc, obj);
+    }
+  else if (scm_is_true (scm_u32vector_p (kv)))
+    {
+      scm_t_array_handle kv_handle;
+      size_t kv_len;
+      ssize_t kv_inc;
+      const uint32_t *kv_elts;
+
+      kv_elts = scm_u32vector_elements (kv, &kv_handle, &kv_len, &kv_inc);
+      for (size_t i = 0; i < kv_len; i++, kv_elts += kv_inc)
+        scm_array_handle_set (&v_handle, (*kv_elts)*v_inc, obj);
+
+      scm_array_handle_release (&kv_handle);
+    }
+  else
+    scm_wrong_type_arg_msg (NULL, 0, kv, "bitvector or u32vector");
+
+  scm_array_handle_release (&v_handle);
+
+  return SCM_UNSPECIFIED;
 }
 #undef FUNC_NAME
 

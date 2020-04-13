@@ -53,22 +53,24 @@
       (array-set! bv #t 0)
       (pass-if (eqv? (array-ref bv 0) #t)))))
 
-(with-test-prefix "bit-set*!"
+(with-test-prefix "bitvector-set-bits!"
   (pass-if "#t"
     (let ((v (bitvector #t #t #f #f)))
-      (bit-set*! v #*1010 #t)
+      (bitvector-set-bits! v #*1010)
       (equal? v #*1110)))
-  (pass-if "#f"
-    (let ((v (bitvector #t #t #f #f)))
-      (bit-set*! v #*1010 #f)
-      (equal? v #*0100)))
   (pass-if "#t, shorter"
     (let ((v (bitvector #t #t #f #f)))
-      (bit-set*! v #*101 #t)
-      (equal? v #*1110)))
+      (bitvector-set-bits! v #*101)
+      (equal? v #*1110))))
+
+(with-test-prefix "bitvector-clear-bits!"
+  (pass-if "#f"
+    (let ((v (bitvector #t #t #f #f)))
+      (bitvector-clear-bits! v #*1010)
+      (equal? v #*0100)))
   (pass-if "#f, shorter"
     (let ((v (bitvector #t #t #f #f)))
-      (bit-set*! v #*101 #f)
+      (bitvector-clear-bits! v #*101)
       (equal? v #*0100))))
 
 (with-test-prefix "bitvector-count"

@@ -14,12 +14,21 @@ Changes in 3.0.3 (since 3.0.2)
 These replace the wonky "bit-count" and "bit-position" procedures.  See
 "Bit Vectors" in the manual, for more.
 
+** New bitvector-set-bits!, bitvector-clear-bits! procedures
+
+These replace the wonky "bit-set*!" procedure.  See "Bit Vectors" in the
+manual, for more.
+
 * New deprecations
 
 ** bit-count, bit-position deprecated
 
 Use bitvector-count or bitvector-position instead.  See "Bit Vectors" in
 the manual.
+
+** 'bit-set*!' deprecated
+
+Use 'bitvector-set-bits!' or 'bitvector-clear-bits!' instead.
 
 ** Passing a u32vector to 'bit-set*!' and 'bit-count*' deprecated
 

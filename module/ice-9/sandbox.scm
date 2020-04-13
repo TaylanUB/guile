@@ -1092,7 +1092,8 @@ allocation limit is exceeded, an exception will be thrown to the
 (define mutating-bitvector-bindings
   '(((guile)
      bit-invert!
-     bit-set*!
+     bitvector-clear-bits!
+     bitvector-set-bits!
      bitvector-fill!
      bitvector-set!)))
 
