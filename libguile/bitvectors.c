@@ -256,15 +256,16 @@ scm_bitvector_writable_elements (SCM vec,
 
 int
 scm_c_bitvector_bit_is_set (SCM vec, size_t idx)
+#define FUNC_NAME "bitvector-bit-set?"
 {
-  if (!IS_BITVECTOR (vec))
-    scm_wrong_type_arg_msg (NULL, 0, vec, "bitvector");
+  VALIDATE_BITVECTOR (1, vec);
   if (idx >= BITVECTOR_LENGTH (vec))
-    scm_out_of_range (NULL, scm_from_size_t (idx));
+    SCM_OUT_OF_RANGE (2, scm_from_size_t (idx));
 
   const uint32_t *bits = BITVECTOR_BITS (vec);
   return (bits[idx/32] & (1L << (idx%32))) ? 1 : 0;
 }
+#undef FUNC_NAME
 
 int
 scm_c_bitvector_bit_is_clear (SCM vec, size_t idx)
@@ -294,48 +295,51 @@ SCM_DEFINE_STATIC (scm_bitvector_bit_clear_p, "bitvector-bit-clear?", 2, 0, 0,
 #undef FUNC_NAME
 
 void
-scm_c_bitvector_set_x (SCM vec, size_t idx, SCM val)
+scm_c_bitvector_set_bit_x (SCM vec, size_t idx)
+#define FUNC_NAME "bitvector-set-bit!"
 {
-  scm_t_array_handle handle;
-  uint32_t *bits, mask;
+  VALIDATE_MUTABLE_BITVECTOR (1, vec);
+  if (idx >= BITVECTOR_LENGTH (vec))
+    SCM_OUT_OF_RANGE (2, scm_from_size_t (idx));
 
-  if (IS_MUTABLE_BITVECTOR (vec))
-    {
-      if (idx >= BITVECTOR_LENGTH (vec))
-	scm_out_of_range (NULL, scm_from_size_t (idx));
-      bits = BITVECTOR_BITS(vec);
-    }
-  else
-    {
-      size_t len, off;
-      ssize_t inc;
-  
-      bits = scm_bitvector_writable_elements (vec, &handle, &off, &len, &inc);
-      scm_c_issue_deprecation_warning
-        ("Using bitvector-set! on arrays is deprecated.  "
-         "Use array-set! instead.");
-      if (idx >= len)
-	scm_out_of_range (NULL, scm_from_size_t (idx));
-      idx = idx*inc + off;
-    }
-
-  mask = 1L << (idx%32);
-  if (scm_is_true (val))
-    bits[idx/32] |= mask;
-  else
-    bits[idx/32] &= ~mask;
-
-  if (!IS_MUTABLE_BITVECTOR (vec))
-      scm_array_handle_release (&handle);
+  uint32_t *bits = BITVECTOR_BITS (vec);
+  uint32_t mask = 1L << (idx%32);
+  bits[idx/32] |= mask;
 }
+#undef FUNC_NAME
 
-SCM_DEFINE (scm_bitvector_set_x, "bitvector-set!", 3, 0, 0,
-	    (SCM vec, SCM idx, SCM val),
-	    "Set the element at index @var{idx} of the bitvector\n"
-	    "@var{vec} when @var{val} is true, else clear it.")
-#define FUNC_NAME s_scm_bitvector_set_x
+void
+scm_c_bitvector_clear_bit_x (SCM vec, size_t idx)
+#define FUNC_NAME "bitvector-clear-bit!"
 {
-  scm_c_bitvector_set_x (vec, scm_to_size_t (idx), val);
+  VALIDATE_MUTABLE_BITVECTOR (1, vec);
+  if (idx >= BITVECTOR_LENGTH (vec))
+    SCM_OUT_OF_RANGE (2, scm_from_size_t (idx));
+
+  uint32_t *bits = BITVECTOR_BITS (vec);
+  uint32_t mask = 1L << (idx%32);
+  bits[idx/32] &= ~mask;
+}
+#undef FUNC_NAME
+
+SCM_DEFINE_STATIC (scm_bitvector_set_bit_x, "bitvector-set-bit!", 2, 0, 0,
+                   (SCM vec, SCM idx),
+                   "Set the element at index @var{idx} of the bitvector\n"
+                   "@var{vec}.")
+#define FUNC_NAME s_scm_bitvector_set_bit_x
+{
+  scm_c_bitvector_set_bit_x (vec, scm_to_size_t (idx));
+  return SCM_UNSPECIFIED;
+}
+#undef FUNC_NAME
+
+SCM_DEFINE_STATIC (scm_bitvector_clear_bit_x, "bitvector-clear-bit!", 2, 0, 0,
+                   (SCM vec, SCM idx),
+                   "Clear the element at index @var{idx} of the bitvector\n"
+                   "@var{vec}.")
+#define FUNC_NAME s_scm_bitvector_set_bit_x
+{
+  scm_c_bitvector_clear_bit_x (vec, scm_to_size_t (idx));
   return SCM_UNSPECIFIED;
 }
 #undef FUNC_NAME

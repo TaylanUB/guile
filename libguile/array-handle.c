@@ -174,6 +174,15 @@ bitvector_ref (SCM bv, size_t idx)
   return scm_from_bool (scm_c_bitvector_bit_is_set (bv, idx));
 }
 
+static void
+bitvector_set_x (SCM bv, size_t idx, SCM val)
+{
+  if (scm_is_true (val))
+    scm_c_bitvector_set_bit_x (bv, idx);
+  else
+    scm_c_bitvector_clear_bit_x (bv, idx);
+}
+
 void
 scm_array_get_handle (SCM array, scm_t_array_handle *h)
 {
@@ -202,7 +211,7 @@ scm_array_get_handle (SCM array, scm_t_array_handle *h)
       initialize_vector_handle (h, scm_c_bitvector_length (array),
                                 SCM_ARRAY_ELEMENT_TYPE_BIT,
                                 bitvector_ref,
-                                scm_c_bitvector_set_x,
+                                bitvector_set_x,
                                 scm_i_bitvector_bits (array),
                                 scm_i_is_mutable_bitvector (array));
       break;

@@ -169,7 +169,7 @@
       (when (< n (vector-length defs))
         (match (vector-ref defs n)
           (#(_ _ slot _)
-           (bitvector-set! (vector-ref by-slot slot) n #t)
+           (bitvector-set-bit! (vector-ref by-slot slot) n)
            (lp (1+ n))))))
     by-slot))
 
@@ -256,7 +256,7 @@
             (bitvector-copy! out in)
             (bitvector-clear-bits! out kill)
             (for-each (lambda (def)
-                        (bitvector-set! out def #t))
+                        (bitvector-set-bit! out def))
                       gen)
             (lp (1+ n) first?
                 (or changed? (not (eqv? out-count (bitvector-count out))))))))

@@ -2137,7 +2137,7 @@ cpu_set_to_bitvector (const cpu_set_t *cs)
     {
       if (CPU_ISSET (cpu, cs))
 	/* XXX: This is inefficient but avoids code duplication.  */
-	scm_c_bitvector_set_x (bv, cpu, SCM_BOOL_T);
+	scm_c_bitvector_set_bit_x (bv, cpu);
     }
 
   return bv;

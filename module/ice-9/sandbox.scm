@@ -1093,10 +1093,11 @@ allocation limit is exceeded, an exception will be thrown to the
 (define mutating-bitvector-bindings
   '(((guile)
      bit-invert!
+     bitvector-clear-bit!
      bitvector-clear-bits!
-     bitvector-set-bits!
      bitvector-fill!
-     bitvector-set!)))
+     bitvector-set-bit!
+     bitvector-set-bits!)))
 
 (define fluid-bindings
   '(((guile)

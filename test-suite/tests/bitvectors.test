@@ -43,8 +43,12 @@
     (let ((bv (list->bitvector '(#f #f #t #f #t))))
       (pass-if (eqv? (bitvector-bit-set? bv 0) #f))
       (pass-if (eqv? (bitvector-bit-set? bv 2) #t))
-      (bitvector-set! bv 0 #t)
-      (pass-if (eqv? (bitvector-bit-set? bv 0) #t))))
+      (bitvector-set-bit! bv 0)
+      (pass-if (eqv? (bitvector-bit-set? bv 0) #t))
+      (pass-if (eqv? (bitvector-bit-clear? bv 0) #f))
+      (bitvector-clear-bit! bv 0)
+      (pass-if (eqv? (bitvector-bit-set? bv 0) #f))
+      (pass-if (eqv? (bitvector-bit-clear? bv 0) #t))))
 
   (with-test-prefix "as array"
     (let ((bv (list->bitvector '(#f #f #t #f #t))))

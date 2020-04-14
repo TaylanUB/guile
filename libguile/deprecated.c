@@ -123,6 +123,53 @@ SCM_DEFINE (scm_bitvector_ref, "bitvector-ref", 2, 0, 0,
 }
 #undef FUNC_NAME
 
+void
+scm_c_bitvector_set_x (SCM vec, size_t idx, SCM val)
+{
+  scm_c_issue_deprecation_warning
+    ("bitvector-set! is deprecated.  Use bitvector-set-bit! or "
+     "bitvector-clear-bit! instead.");
+
+  if (scm_is_bitvector (vec))
+    {
+      if (scm_is_true (val))
+        scm_c_bitvector_set_bit_x (vec, idx);
+      else
+        scm_c_bitvector_clear_bit_x (vec, idx);
+    }
+  else
+    {
+      scm_t_array_handle handle;
+      uint32_t *bits, mask;
+      size_t len, off;
+      ssize_t inc;
+  
+      bits = scm_bitvector_writable_elements (vec, &handle, &off, &len, &inc);
+      if (idx >= len)
+	scm_out_of_range (NULL, scm_from_size_t (idx));
+      idx = idx*inc + off;
+
+      mask = 1L << (idx%32);
+      if (scm_is_true (val))
+        bits[idx/32] |= mask;
+      else
+        bits[idx/32] &= ~mask;
+
+      scm_array_handle_release (&handle);
+    }
+}
+
+SCM_DEFINE (scm_bitvector_set_x, "bitvector-set!", 3, 0, 0,
+	    (SCM vec, SCM idx, SCM val),
+	    "Set the element at index @var{idx} of the bitvector\n"
+	    "@var{vec} when @var{val} is true, else clear it.")
+#define FUNC_NAME s_scm_bitvector_set_x
+{
+  scm_c_bitvector_set_x (vec, scm_to_size_t (idx), val);
+  return SCM_UNSPECIFIED;
+}
+#undef FUNC_NAME
+
 SCM_DEFINE (scm_bit_count, "bit-count", 2, 0, 0,
 	    (SCM b, SCM bitvector),
 	    "Return the number of occurrences of the boolean @var{b} in\n"

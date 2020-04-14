@@ -6586,11 +6586,17 @@ Return 1 if the bit at index @var{idx} of the bitvector @var{vec} is set
 or clear, respectively, or 0 otherwise.
 @end deftypefn
 
-@deffn {Scheme Procedure} bitvector-set! vec idx val
-@deffnx {C Function} scm_bitvector_set_x (vec, idx, val)
-Set the element at index @var{idx} of the bitvector
-@var{vec} when @var{val} is true, else clear it.
+@deffn {Scheme Procedure} bitvector-set-bit! vec idx
+@deffnx {Scheme Procedure} bitvector-clear-bit! vec idx
+Set (for @code{bitvector-set-bit!}) or clear (for
+@code{bitvector-clear-bit!}) the bit at index @var{idx} of the bitvector
+@var{vec}.
 @end deffn
+
+@deftypefn {C Function} void scm_bitvector_set_bit_x (SCM vec, size_t idx)
+@deftypefnx {C Function} void scm_bitvector_clear_bit_x (SCM vec, size_t idx)
+Set or clear the bit at index @var{idx} of the bitvector @var{vec}.
+@end deftypefn
 
 @deftypefn {C Function} SCM scm_c_bitvector_set_x (SCM vec, size_t idx, SCM val)
 Set the element at index @var{idx} of the bitvector

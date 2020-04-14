@@ -496,7 +496,7 @@ address of that offset."
       ((static-opcode-set inst ...)
        (let ((bv (make-bitvector 256 #f)))
          (for-each (lambda (inst)
-                     (bitvector-set! bv (instruction-opcode inst) #t))
+                     (bitvector-set-bit! bv (instruction-opcode inst)))
                    (syntax->datum #'(inst ...)))
          (datum->syntax #'static-opcode-set bv))))))
 
