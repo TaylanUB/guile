@@ -88,6 +88,41 @@ scm_find_executable (const char *name)
 
 
 
+SCM
+scm_c_bitvector_ref (SCM vec, size_t idx)
+{
+  scm_c_issue_deprecation_warning
+    ("bitvector-ref is deprecated.  Use bitvector-bit-set? instead.");
+
+  if (scm_is_bitvector (vec))
+    return scm_from_bool (scm_c_bitvector_bit_is_set (vec, idx));
+
+  SCM res;
+  scm_t_array_handle handle;
+  size_t len, off;
+  ssize_t inc;
+
+  const uint32_t *bits =
+    scm_bitvector_elements (vec, &handle, &off, &len, &inc);
+
+  if (idx >= len)
+    scm_out_of_range (NULL, scm_from_size_t (idx));
+  idx = idx*inc + off;
+  res = scm_from_bool (bits[idx/32] & (1L << (idx%32)));
+  scm_array_handle_release (&handle);
+  return res;
+}
+
+SCM_DEFINE (scm_bitvector_ref, "bitvector-ref", 2, 0, 0,
+	    (SCM vec, SCM idx),
+	    "Return the element at index @var{idx} of the bitvector\n"
+	    "@var{vec}.")
+#define FUNC_NAME s_scm_bitvector_ref
+{
+  return scm_c_bitvector_ref (vec, scm_to_size_t (idx));
+}
+#undef FUNC_NAME
+
 SCM_DEFINE (scm_bit_count, "bit-count", 2, 0, 0,
 	    (SCM b, SCM bitvector),
 	    "Return the number of occurrences of the boolean @var{b} in\n"

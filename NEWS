@@ -19,12 +19,23 @@ These replace the wonky "bit-count" and "bit-position" procedures.  See
 These replace the wonky "bit-set*!" procedure.  See "Bit Vectors" in the
 manual, for more.
 
+** New bitvector-bit-set?, bitvector-bit-clear? procedures
+
+These replace bitvector-ref.  The reason to migrate is that it's an
+opportunity be more efficient in 3.0 (because no generic array support),
+easier to read (no need for 'not' when checking for false bits), and
+more consistent with other bitvector procedures.
+
 * New deprecations
 
 ** bit-count, bit-position deprecated
 
 Use bitvector-count or bitvector-position instead.  See "Bit Vectors" in
 the manual.
+
+** 'bitvector-ref' deprecated
+
+Use 'bitvector-bit-set?' or 'bitvector-bit-clear?' instead.
 
 ** 'bit-set*!' deprecated
 

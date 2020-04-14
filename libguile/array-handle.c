@@ -27,6 +27,7 @@
 #include <string.h>
 
 #include "arrays.h"
+#include "boolean.h"
 #include "bitvectors.h"
 #include "bytevectors.h"
 #include "list.h"
@@ -167,6 +168,12 @@ initialize_vector_handle (scm_t_array_handle *h, size_t len,
   h->vset = vset;
 }
 
+static SCM
+bitvector_ref (SCM bv, size_t idx)
+{
+  return scm_from_bool (scm_c_bitvector_bit_is_set (bv, idx));
+}
+
 void
 scm_array_get_handle (SCM array, scm_t_array_handle *h)
 {
@@ -194,7 +201,8 @@ scm_array_get_handle (SCM array, scm_t_array_handle *h)
     case scm_tc7_bitvector:
       initialize_vector_handle (h, scm_c_bitvector_length (array),
                                 SCM_ARRAY_ELEMENT_TYPE_BIT,
-                                scm_c_bitvector_ref, scm_c_bitvector_set_x,
+                                bitvector_ref,
+                                scm_c_bitvector_set_x,
                                 scm_i_bitvector_bits (array),
                                 scm_i_is_mutable_bitvector (array));
       break;

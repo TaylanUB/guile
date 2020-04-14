@@ -254,45 +254,42 @@ scm_bitvector_writable_elements (SCM vec,
   return (uint32_t *) ret;
 }
 
-SCM
-scm_c_bitvector_ref (SCM vec, size_t idx)
+int
+scm_c_bitvector_bit_is_set (SCM vec, size_t idx)
 {
-  const uint32_t *bits;
+  if (!IS_BITVECTOR (vec))
+    scm_wrong_type_arg_msg (NULL, 0, vec, "bitvector");
+  if (idx >= BITVECTOR_LENGTH (vec))
+    scm_out_of_range (NULL, scm_from_size_t (idx));
 
-  if (IS_BITVECTOR (vec))
-    {
-      if (idx >= BITVECTOR_LENGTH (vec))
-	scm_out_of_range (NULL, scm_from_size_t (idx));
-      bits = BITVECTOR_BITS(vec);
-      return scm_from_bool (bits[idx/32] & (1L << (idx%32)));
-    }
-  else
-    {
-      SCM res;
-      scm_t_array_handle handle;
-      size_t len, off;
-      ssize_t inc;
-  
-      bits = scm_bitvector_elements (vec, &handle, &off, &len, &inc);
-      scm_c_issue_deprecation_warning
-        ("Using bitvector-ref on arrays is deprecated.  "
-         "Use array-ref instead.");
-      if (idx >= len)
-	scm_out_of_range (NULL, scm_from_size_t (idx));
-      idx = idx*inc + off;
-      res = scm_from_bool (bits[idx/32] & (1L << (idx%32)));
-      scm_array_handle_release (&handle);
-      return res;
-    }
+  const uint32_t *bits = BITVECTOR_BITS (vec);
+  return (bits[idx/32] & (1L << (idx%32))) ? 1 : 0;
 }
 
-SCM_DEFINE (scm_bitvector_ref, "bitvector-ref", 2, 0, 0,
-	    (SCM vec, SCM idx),
-	    "Return the element at index @var{idx} of the bitvector\n"
-	    "@var{vec}.")
-#define FUNC_NAME s_scm_bitvector_ref
+int
+scm_c_bitvector_bit_is_clear (SCM vec, size_t idx)
 {
-  return scm_c_bitvector_ref (vec, scm_to_size_t (idx));
+  return !scm_c_bitvector_bit_is_set (vec, idx);
+}
+
+SCM_DEFINE_STATIC (scm_bitvector_bit_set_p, "bitvector-bit-set?", 2, 0, 0,
+                   (SCM vec, SCM idx),
+                   "Return @code{#t} if the bit at index @var{idx} of the \n"
+                   "bitvector @var{vec} is set, or @code{#f} otherwise.")
+#define FUNC_NAME s_scm_bitvector_bit_set_p
+{
+  return scm_from_bool (scm_c_bitvector_bit_is_set (vec, scm_to_size_t (idx)));
+}
+#undef FUNC_NAME
+
+SCM_DEFINE_STATIC (scm_bitvector_bit_clear_p, "bitvector-bit-clear?", 2, 0, 0,
+                   (SCM vec, SCM idx),
+                   "Return @code{#t} if the bit at index @var{idx} of the \n"
+                   "bitvector @var{vec} is clear (unset), or @code{#f} otherwise.")
+#define FUNC_NAME s_scm_bitvector_bit_clear_p
+{
+  return scm_from_bool
+    (scm_c_bitvector_bit_is_clear (vec, scm_to_size_t (idx)));
 }
 #undef FUNC_NAME
 
@@ -724,7 +721,7 @@ SCM_DEFINE (scm_bit_count_star, "bit-count*", 3, 0, 0,
         {
           size_t kv_len = BITVECTOR_LENGTH (kv);
           for (size_t i = 0; i < kv_len; i++)
-            if (scm_is_true (scm_c_bitvector_ref (kv, i)))
+            if (scm_c_bitvector_bit_is_set (kv, i))
               {
                 SCM elt = scm_array_handle_ref (&v_handle, i*v_inc);
                 if ((bit && scm_is_true (elt)) || (!bit && scm_is_false (elt)))

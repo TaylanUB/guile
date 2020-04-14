@@ -41,10 +41,10 @@
 (with-test-prefix "ref and set"
   (with-test-prefix "as bitvector"
     (let ((bv (list->bitvector '(#f #f #t #f #t))))
-      (pass-if (eqv? (bitvector-ref bv 0) #f))
-      (pass-if (eqv? (bitvector-ref bv 2) #t))
+      (pass-if (eqv? (bitvector-bit-set? bv 0) #f))
+      (pass-if (eqv? (bitvector-bit-set? bv 2) #t))
       (bitvector-set! bv 0 #t)
-      (pass-if (eqv? (bitvector-ref bv 0) #t))))
+      (pass-if (eqv? (bitvector-bit-set? bv 0) #t))))
 
   (with-test-prefix "as array"
     (let ((bv (list->bitvector '(#f #f #t #f #t))))

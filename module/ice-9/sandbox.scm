@@ -1082,7 +1082,8 @@ allocation limit is exceeded, an exception will be thrown to the
      bitvector
      bitvector->list
      bitvector-length
-     bitvector-ref
+     bitvector-bit-set?
+     bitvector-bit-clear?
      bitvector?
      list->bitvector
      make-bitvector)))

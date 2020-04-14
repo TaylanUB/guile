@@ -6573,15 +6573,17 @@ Like @code{scm_bitvector_length}, but the length is returned as a
 @code{size_t}.
 @end deftypefn
 
-@deffn {Scheme Procedure} bitvector-ref vec idx
-@deffnx {C Function} scm_bitvector_ref (vec, idx)
-Return the element at index @var{idx} of the bitvector
-@var{vec}.
+@deffn {Scheme Procedure} bitvector-bit-set? vec idx
+@deffnx {Scheme Procedure} bitvector-bit-clear? vec idx
+Return @code{#t} if the bit at index @var{idx} of the bitvector
+@var{vec} is set (for @code{bitvector-bit-set?}) or clear (for
+@code{bitvector-bit-clear?}).
 @end deffn
 
-@deftypefn {C Function} SCM scm_c_bitvector_ref (SCM vec, size_t idx)
-Return the element at index @var{idx} of the bitvector
-@var{vec}.
+@deftypefn {C Function} int scm_bitvector_bit_is_set (SCM vec, size_t idx)
+@deftypefnx {C Function} int scm_bitvector_bit_is_clear (SCM vec, size_t idx)
+Return 1 if the bit at index @var{idx} of the bitvector @var{vec} is set
+or clear, respectively, or 0 otherwise.
 @end deftypefn
 
 @deffn {Scheme Procedure} bitvector-set! vec idx val

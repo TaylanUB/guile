@@ -509,7 +509,7 @@ address of that offset."
                        subr-call foreign-call continuation-call
                        j))
   (let ((opcode (logand (bytevector-u32-native-ref code pos) #xff)))
-    (not (bitvector-ref non-fallthrough-set opcode))))
+    (bitvector-bit-clear? non-fallthrough-set opcode)))
 
 (define-syntax define-jump-parser
   (lambda (x)
