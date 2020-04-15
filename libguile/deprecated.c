@@ -170,6 +170,42 @@ SCM_DEFINE (scm_bitvector_set_x, "bitvector-set!", 3, 0, 0,
 }
 #undef FUNC_NAME
 
+SCM_DEFINE (scm_bitvector_fill_x, "bitvector-fill!", 2, 0, 0,
+	    (SCM vec, SCM val),
+	    "Set all elements of the bitvector\n"
+	    "@var{vec} when @var{val} is true, else clear them.")
+#define FUNC_NAME s_scm_bitvector_fill_x
+{
+  scm_c_issue_deprecation_warning
+    ("bitvector-fill! is deprecated.  Use bitvector-set-all-bits! or "
+     "bitvector-clear-all-bits! instead.");
+
+  if (scm_is_bitvector (vec))
+    {
+      if (scm_is_true (val))
+        scm_c_bitvector_set_all_bits_x (vec);
+      else
+        scm_c_bitvector_clear_all_bits_x (vec);
+
+      return SCM_UNSPECIFIED;
+    }
+
+  scm_t_array_handle handle;
+  size_t off, len;
+  ssize_t inc;
+
+  scm_bitvector_writable_elements (vec, &handle, &off, &len, &inc);
+
+  size_t i;
+  for (i = 0; i < len; i++)
+    scm_array_handle_set (&handle, i*inc, val);
+
+  scm_array_handle_release (&handle);
+
+  return SCM_UNSPECIFIED;
+}
+#undef FUNC_NAME
+
 SCM_DEFINE (scm_bit_count, "bit-count", 2, 0, 0,
 	    (SCM b, SCM bitvector),
 	    "Return the number of occurrences of the boolean @var{b} in\n"

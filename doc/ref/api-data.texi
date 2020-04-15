@@ -6593,21 +6593,20 @@ Set (for @code{bitvector-set-bit!}) or clear (for
 @var{vec}.
 @end deffn
 
-@deftypefn {C Function} void scm_bitvector_set_bit_x (SCM vec, size_t idx)
-@deftypefnx {C Function} void scm_bitvector_clear_bit_x (SCM vec, size_t idx)
+@deftypefn {C Function} void scm_c_bitvector_set_bit_x (SCM vec, size_t idx)
+@deftypefnx {C Function} void scm_c_bitvector_clear_bit_x (SCM vec, size_t idx)
 Set or clear the bit at index @var{idx} of the bitvector @var{vec}.
 @end deftypefn
 
-@deftypefn {C Function} SCM scm_c_bitvector_set_x (SCM vec, size_t idx, SCM val)
-Set the element at index @var{idx} of the bitvector
-@var{vec} when @var{val} is true, else clear it.
-@end deftypefn
-
-@deffn {Scheme Procedure} bitvector-fill! vec val
-@deffnx {C Function} scm_bitvector_fill_x (vec, val)
-Set all elements of the bitvector
-@var{vec} when @var{val} is true, else clear them.
+@deffn {Scheme Procedure} bitvector-set-all-bits! vec
+@deffnx {Scheme Procedure} bitvector-clear-all-bits! vec
+Set or clear all bits of @var{vec}.
 @end deffn
+
+@deftypefn {C Function} void scm_c_bitvector_set_all_bits_x (SCM vec)
+@deftypefnx {C Function} void scm_c_bitvector_clear_all_bits_x (SCM vec)
+Set or clear all bits in the bitvector @var{vec}.
+@end deftypefn
 
 @deffn {Scheme Procedure} list->bitvector list
 @deffnx {C Function} scm_list_to_bitvector (list)

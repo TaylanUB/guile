@@ -26,6 +26,10 @@ more consistent with other bitvector procedures.
 These replace bitvector-set!, for similar reasons as the bitvector-ref
 replacement above.
 
+** New bitvector-set-all-bits!, bitvector-clear-all-bits! procedures
+
+These replace bitvector-fill!.
+
 ** New bitvector-set-bits!, bitvector-clear-bits! procedures
 
 These replace the wonky "bit-set*!" procedure.  See "Bit Vectors" in the
@@ -45,6 +49,10 @@ Use 'bitvector-bit-set?' or 'bitvector-bit-clear?' instead.
 ** 'bitvector-set!' deprecated
 
 Use 'bitvector-set-bit!' or 'bitvector-clear-bit!' instead.
+
+** 'bitvector-fill!' deprecated
+
+Use 'bitvector-set-all-bits!' or 'bitvector-clear-all-bits!' instead.
 
 ** 'bit-set*!' deprecated
 

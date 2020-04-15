@@ -119,6 +119,7 @@ SCM_DEPRECATED SCM scm_c_bitvector_ref (SCM vec, size_t idx);
 SCM_DEPRECATED SCM scm_bitvector_ref (SCM vec, SCM idx);
 SCM_DEPRECATED void scm_c_bitvector_set_x (SCM vec, size_t idx, SCM val);
 SCM_DEPRECATED SCM scm_bitvector_set_x (SCM vec, SCM idx, SCM val);
+SCM_DEPRECATED SCM scm_bitvector_fill_x (SCM vec, SCM val);
 SCM_DEPRECATED SCM scm_bit_count (SCM item, SCM seq);
 SCM_DEPRECATED SCM scm_bit_position (SCM item, SCM v, SCM k);
 SCM_DEPRECATED SCM scm_bit_set_star_x (SCM v, SCM kv, SCM obj);

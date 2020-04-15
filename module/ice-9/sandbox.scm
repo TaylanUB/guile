@@ -1095,7 +1095,8 @@ allocation limit is exceeded, an exception will be thrown to the
      bit-invert!
      bitvector-clear-bit!
      bitvector-clear-bits!
-     bitvector-fill!
+     bitvector-set-all-bits!
+     bitvector-clear-all-bits!
      bitvector-set-bit!
      bitvector-set-bits!)))
 

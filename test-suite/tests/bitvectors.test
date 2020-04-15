@@ -25,7 +25,6 @@
   (pass-if (array? #*1010101010))
   (pass-if (eq? (array-type #*1010101010) 'b)))
 
-
 (with-test-prefix "equality"
   (pass-if (equal? #*1010101 #*1010101))
   (pass-if (array-equal? #*1010101 #*1010101))
@@ -56,6 +55,14 @@
       (pass-if (eqv? (array-ref bv 2) #t))
       (array-set! bv #t 0)
       (pass-if (eqv? (array-ref bv 0) #t)))))
+
+(with-test-prefix "all bits"
+  (let ((bv (make-bitvector 5)))
+    (pass-if-equal #*00000 bv)
+    (bitvector-set-all-bits! bv)
+    (pass-if-equal #*11111 bv)
+    (bitvector-clear-all-bits! bv)
+    (pass-if-equal #*00000 bv)))
 
 (with-test-prefix "bitvector-set-bits!"
   (pass-if "#t"

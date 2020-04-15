@@ -149,10 +149,10 @@ scm_c_make_bitvector (size_t len, SCM fill)
 				    "bitvector");
   res = scm_double_cell (scm_tc7_bitvector, len, (scm_t_bits)bits, 0);
 
-  if (!SCM_UNBNDP (fill))
-    scm_bitvector_fill_x (res, fill);
+  if (SCM_UNBNDP (fill) || !scm_is_true (fill))
+    scm_c_bitvector_clear_all_bits_x (res);
   else
-    memset (bits, 0, sizeof (uint32_t) * word_len);
+    scm_c_bitvector_set_all_bits_x (res);
       
   return res;
 }
@@ -344,56 +344,59 @@ SCM_DEFINE_STATIC (scm_bitvector_clear_bit_x, "bitvector-clear-bit!", 2, 0, 0,
 }
 #undef FUNC_NAME
 
-SCM_DEFINE (scm_bitvector_fill_x, "bitvector-fill!", 2, 0, 0,
-	    (SCM vec, SCM val),
-	    "Set all elements of the bitvector\n"
-	    "@var{vec} when @var{val} is true, else clear them.")
-#define FUNC_NAME s_scm_bitvector_fill_x
+void
+scm_c_bitvector_set_all_bits_x (SCM bv)
+#define FUNC_NAME "bitvector-set-all-bits!"
 {
-  if (IS_MUTABLE_BITVECTOR (vec))
+  VALIDATE_MUTABLE_BITVECTOR (1, bv);
+  size_t len = BITVECTOR_LENGTH (bv);
+
+  if (len > 0)
     {
-      size_t len = BITVECTOR_LENGTH (vec);
+      uint32_t *bits = BITVECTOR_BITS (bv);
+      size_t word_len = (len + 31) / 32;
+      uint32_t last_mask =  ((uint32_t)-1) >> (32*word_len - len);
 
-      if (len > 0)
-        {
-          uint32_t *bits = BITVECTOR_BITS (vec);
-          size_t word_len = (len + 31) / 32;
-          uint32_t last_mask =  ((uint32_t)-1) >> (32*word_len - len);
-
-          if (scm_is_true (val))
-            {
-              memset (bits, 0xFF, sizeof(uint32_t)*(word_len-1));
-              bits[word_len-1] |= last_mask;
-            }
-          else
-            {
-              memset (bits, 0x00, sizeof(uint32_t)*(word_len-1));
-              bits[word_len-1] &= ~last_mask;
-            }
-        }
+      memset (bits, 0xFF, sizeof(uint32_t)*(word_len-1));
+      bits[word_len-1] |= last_mask;
     }
-  else
-    {
-      scm_t_array_handle handle;
-      size_t off, len;
-      ssize_t inc;
-
-      scm_bitvector_writable_elements (vec, &handle, &off, &len, &inc);
-
-      scm_c_issue_deprecation_warning
-        ("Using bitvector-fill! on arrays is deprecated.  "
-         "Use array-set! instead.");
-
-      size_t i;
-      for (i = 0; i < len; i++)
-	scm_array_handle_set (&handle, i*inc, val);
-
-      scm_array_handle_release (&handle);
-    }
-
-  return SCM_UNSPECIFIED;
 }
 #undef FUNC_NAME
+
+void
+scm_c_bitvector_clear_all_bits_x (SCM bv)
+#define FUNC_NAME "bitvector-clear-all-bits!"
+{
+  VALIDATE_MUTABLE_BITVECTOR (1, bv);
+  size_t len = BITVECTOR_LENGTH (bv);
+
+  if (len > 0)
+    {
+      uint32_t *bits = BITVECTOR_BITS (bv);
+      size_t word_len = (len + 31) / 32;
+      uint32_t last_mask =  ((uint32_t)-1) >> (32*word_len - len);
+
+      memset (bits, 0x00, sizeof(uint32_t)*(word_len-1));
+      bits[word_len-1] &= ~last_mask;
+    }
+}
+#undef FUNC_NAME
+
+SCM_DEFINE_STATIC (scm_bitvector_set_all_bits_x,
+                   "bitvector-set-all-bits!", 1, 0, 0, (SCM vec),
+                   "Set all elements of the bitvector @var{vec}.")
+{
+  scm_c_bitvector_set_all_bits_x (vec);
+  return SCM_UNSPECIFIED;
+}
+
+SCM_DEFINE_STATIC (scm_bitvector_clear_all_bits_x,
+                   "bitvector-clear-all-bits!", 1, 0, 0, (SCM vec),
+                   "Clear all elements of the bitvector @var{vec}.")
+{
+  scm_c_bitvector_clear_all_bits_x (vec);
+  return SCM_UNSPECIFIED;
+}
 
 SCM_DEFINE (scm_list_to_bitvector, "list->bitvector", 1, 0, 0,
 	    (SCM list),
