@@ -62,6 +62,10 @@
     (bitvector-set-all-bits! bv)
     (pass-if-equal #*11111 bv)
     (bitvector-clear-all-bits! bv)
+    (pass-if-equal #*00000 bv)
+    (bitvector-flip-all-bits! bv)
+    (pass-if-equal #*11111 bv)
+    (bitvector-flip-all-bits! bv)
     (pass-if-equal #*00000 bv)))
 
 (with-test-prefix "bitvector-set-bits!"

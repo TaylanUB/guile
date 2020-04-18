@@ -206,6 +206,35 @@ SCM_DEFINE (scm_bitvector_fill_x, "bitvector-fill!", 2, 0, 0,
 }
 #undef FUNC_NAME
 
+SCM_DEFINE (scm_bit_invert_x, "bit-invert!", 1, 0, 0,
+           (SCM v),
+	    "Modify the bit vector @var{v} by replacing each element with\n"
+	    "its negation.")
+#define FUNC_NAME s_scm_bit_invert_x
+{
+  scm_c_issue_deprecation_warning
+    ("bit-invert! is deprecated.  Use bitvector-flip-all-bits!, or  "
+     "scalar array accessors in a loop for generic arrays.");
+
+  if (scm_is_bitvector (v))
+    scm_c_bitvector_flip_all_bits_x (v);
+  else
+    {
+      size_t off, len;
+      ssize_t inc;
+      scm_t_array_handle handle;
+
+      scm_bitvector_writable_elements (v, &handle, &off, &len, &inc);
+      for (size_t i = 0; i < len; i++)
+	scm_array_handle_set (&handle, i*inc,
+			      scm_not (scm_array_handle_ref (&handle, i*inc)));
+      scm_array_handle_release (&handle);
+    }
+
+  return SCM_UNSPECIFIED;
+}
+#undef FUNC_NAME
+
 SCM_DEFINE (scm_bit_count, "bit-count", 2, 0, 0,
 	    (SCM b, SCM bitvector),
 	    "Return the number of occurrences of the boolean @var{b} in\n"

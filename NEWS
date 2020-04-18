@@ -30,6 +30,10 @@ replacement above.
 
 These replace bitvector-fill!.
 
+** New bitvector-flip-all-bits! procedure
+
+This replaces bit-invert!.
+
 ** New bitvector-set-bits!, bitvector-clear-bits! procedures
 
 These replace the wonky "bit-set*!" procedure.  See "Bit Vectors" in the
@@ -53,6 +57,10 @@ Use 'bitvector-set-bit!' or 'bitvector-clear-bit!' instead.
 ** 'bitvector-fill!' deprecated
 
 Use 'bitvector-set-all-bits!' or 'bitvector-clear-all-bits!' instead.
+
+** 'bit-invert!' deprecated
+
+Use 'bitvector-flip-all-bits! instead.
 
 ** 'bit-set*!' deprecated
 

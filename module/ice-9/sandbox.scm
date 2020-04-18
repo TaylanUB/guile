@@ -1092,11 +1092,11 @@ allocation limit is exceeded, an exception will be thrown to the
 ;; bitvector is exposed to the sandbox.
 (define mutating-bitvector-bindings
   '(((guile)
-     bit-invert!
      bitvector-clear-bit!
      bitvector-clear-bits!
      bitvector-set-all-bits!
      bitvector-clear-all-bits!
+     bitvector-flip-all-bits!
      bitvector-set-bit!
      bitvector-set-bits!)))
 

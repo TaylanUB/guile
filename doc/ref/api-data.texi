@@ -6600,12 +6600,14 @@ Set or clear the bit at index @var{idx} of the bitvector @var{vec}.
 
 @deffn {Scheme Procedure} bitvector-set-all-bits! vec
 @deffnx {Scheme Procedure} bitvector-clear-all-bits! vec
-Set or clear all bits of @var{vec}.
+@deffnx {Scheme Procedure} bitvector-flip-all-bits! vec
+Set, clear, or flip all bits of @var{vec}.
 @end deffn
 
 @deftypefn {C Function} void scm_c_bitvector_set_all_bits_x (SCM vec)
 @deftypefnx {C Function} void scm_c_bitvector_clear_all_bits_x (SCM vec)
-Set or clear all bits in the bitvector @var{vec}.
+@deftypefnx {C Function} void scm_c_bitvector_flip_all_bits_x (SCM vec)
+Set, clear, or flip all bits in the bitvector @var{vec}.
 @end deftypefn
 
 @deffn {Scheme Procedure} list->bitvector list
@@ -6640,11 +6642,6 @@ entry between @var{start} and the end of @var{bitvector}, then return
 (bitvector-position #*000101 #t 0)  @result{} 3
 (bitvector-position #*0001111 #f 3) @result{} #f
 @end example
-@end deffn
-
-@deffn {Scheme Procedure} bit-invert! bitvector
-@deffnx {C Function} scm_bit_invert_x (bitvector)
-Modify @var{bitvector} by replacing each element with its negation.
 @end deffn
 
 @deffn {Scheme Procedure} bitvector-set-bits! bitvector bits

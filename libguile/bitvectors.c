@@ -767,40 +767,31 @@ SCM_DEFINE (scm_bit_count_star, "bit-count*", 3, 0, 0,
 }
 #undef FUNC_NAME
 
-SCM_DEFINE (scm_bit_invert_x, "bit-invert!", 1, 0, 0, 
-           (SCM v),
-	    "Modify the bit vector @var{v} by replacing each element with\n"
-	    "its negation.")
-#define FUNC_NAME s_scm_bit_invert_x
+void
+scm_c_bitvector_flip_all_bits_x (SCM v)
+#define FUNC_NAME "bitvector-flip-all-bits!"
 {
-  if (IS_MUTABLE_BITVECTOR (v))
-    {
-      size_t len = BITVECTOR_LENGTH (v);
-      uint32_t *bits = BITVECTOR_BITS (v);
-      size_t word_len = (len + 31) / 32;
-      uint32_t last_mask = ((uint32_t)-1) >> (32*word_len - len);
-      size_t i;
+  VALIDATE_MUTABLE_BITVECTOR (1, v);
 
-      for (i = 0; i < word_len-1; i++)
-	bits[i] = ~bits[i];
-      bits[i] = bits[i] ^ last_mask;
-    }
-  else
-    {
-      size_t off, len;
-      ssize_t inc;
-      scm_t_array_handle handle;
+  size_t len = BITVECTOR_LENGTH (v);
+  uint32_t *bits = BITVECTOR_BITS (v);
+  size_t word_len = (len + 31) / 32;
+  uint32_t last_mask = ((uint32_t)-1) >> (32*word_len - len);
+  size_t i;
 
-      scm_bitvector_writable_elements (v, &handle, &off, &len, &inc);
-      scm_c_issue_deprecation_warning
-        ("Using bit-invert! on arrays is deprecated.  "
-         "Use scalar array accessors in a loop instead.");
-      for (size_t i = 0; i < len; i++)
-	scm_array_handle_set (&handle, i*inc,
-			      scm_not (scm_array_handle_ref (&handle, i*inc)));
-      scm_array_handle_release (&handle);
-    }
+  for (i = 0; i < word_len-1; i++)
+    bits[i] = ~bits[i];
+  bits[i] = bits[i] ^ last_mask;
+}
+#undef FUNC_NAME
 
+SCM_DEFINE_STATIC (scm_bitvector_flip_all_bits_x,
+                   "bitvector-flip-all-bits!", 1, 0, 0, (SCM v),
+                   "Modify the bit vector @var{v} in place by setting all\n"
+                   "clear bits and clearing all set bits.")
+#define FUNC_NAME s_scm_bitvector_flip_all_bits_x
+{
+  scm_c_bitvector_flip_all_bits_x (v);
   return SCM_UNSPECIFIED;
 }
 #undef FUNC_NAME

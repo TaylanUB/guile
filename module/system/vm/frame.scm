@@ -228,7 +228,7 @@
       (bitvector-set-bits! dst src))
     (define (bitvector-meet! accum src)
       (bitvector-copy! tmp src)
-      (bit-invert! tmp)
+      (bitvector-flip-all-bits! tmp)
       (bitvector-clear-bits! accum tmp))
 
     (let lp ((n 0))
