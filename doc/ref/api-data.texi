@@ -6564,14 +6564,8 @@ Create a new bitvector with the arguments as elements.
 @end deffn
 
 @deffn {Scheme Procedure} bitvector-length vec
-@deffnx {C Function} scm_bitvector_length (vec)
 Return the length of the bitvector @var{vec}.
 @end deffn
-
-@deftypefn {C Function} size_t scm_c_bitvector_length (SCM vec)
-Like @code{scm_bitvector_length}, but the length is returned as a
-@code{size_t}.
-@end deftypefn
 
 @deffn {Scheme Procedure} bitvector-bit-set? vec idx
 @deffnx {Scheme Procedure} bitvector-bit-clear? vec idx
@@ -6623,7 +6617,6 @@ of the bitvector @var{vec}.
 @end deffn
 
 @deffn {Scheme Procedure} bitvector-count bitvector
-@deffnx {C Function} scm_bitvector_count (bitvector)
 Return a count of how many entries in @var{bitvector} are set.
 
 @example
@@ -6643,9 +6636,11 @@ For example,
 @end example
 @end deffn
 
-@deftypefn {C Function} size_t scm_c_bitvector_count_bits (SCM bitvector, SCM bits)
-Same as @code{bitvector-count-bits}, but returning a @code{size_t} for
-C.
+@deftypefn {C Function} size_t scm_c_bitvector_length (SCM bitvector)
+@deftypefnx {C Function} size_t scm_c_bitvector_count (SCM bitvector)
+@deftypefnx {C Function} size_t scm_c_bitvector_count_bits (SCM bitvector, SCM bits)
+Same as @code{bitvector-length}, @code{bitvector-count}, and
+@code{bitvector-count-bits}, but returning a @code{size_t} result.
 @end deftypefn
 
 @deffn {Scheme Procedure} bitvector-position bitvector bool start

@@ -184,10 +184,10 @@ scm_c_bitvector_length (SCM vec)
   return BITVECTOR_LENGTH (vec);
 }
 
-SCM_DEFINE (scm_bitvector_length, "bitvector-length", 1, 0, 0,
-	    (SCM vec),
-	    "Return the length of the bitvector @var{vec}.")
-#define FUNC_NAME s_scm_bitvector_length
+SCM_DEFINE_STATIC (bitvector_length, "bitvector-length", 1, 0, 0,
+                   (SCM vec),
+                   "Return the length of the bitvector @var{vec}.")
+#define FUNC_NAME s_bitvector_length
 {
   return scm_from_size_t (scm_c_bitvector_length (vec));
 }
@@ -490,17 +490,16 @@ count_ones (uint32_t x)
   return (x+(x>>16)) & 0xff;
 }
 
-SCM_DEFINE (scm_bitvector_count, "bitvector-count", 1, 0, 0,
-	    (SCM bitvector),
-	    "Return the number of set bits in @var{bitvector}.")
-#define FUNC_NAME s_scm_bitvector_count
+size_t
+scm_c_bitvector_count (SCM bitvector)
+#define FUNC_NAME "bitvector-count"
 {
   VALIDATE_BITVECTOR (1, bitvector);
 
   size_t len = BITVECTOR_LENGTH (bitvector);
 
   if (len == 0)
-    return SCM_INUM0;
+    return 0;
 
   const uint32_t *bits = BITVECTOR_BITS (bitvector);
   size_t count = 0;
@@ -513,7 +512,16 @@ SCM_DEFINE (scm_bitvector_count, "bitvector-count", 1, 0, 0,
   uint32_t last_mask =  ((uint32_t)-1) >> (32*word_len - len);
   count += count_ones (bits[i] & last_mask);
 
-  return scm_from_size_t (count);
+  return count;
+}
+#undef FUNC_NAME
+
+SCM_DEFINE_STATIC (scm_bitvector_count, "bitvector-count", 1, 0, 0,
+                   (SCM bitvector),
+                   "Return the number of set bits in @var{bitvector}.")
+#define FUNC_NAME s_scm_bitvector_count
+{
+  return scm_from_size_t (scm_c_bitvector_count (bitvector));
 }
 #undef FUNC_NAME
 

@@ -89,6 +89,16 @@ scm_find_executable (const char *name)
 
 
 SCM
+scm_bitvector_length (SCM vec)
+{
+  scm_c_issue_deprecation_warning
+    ("scm_bitvector_length is deprecated.  Use scm_c_bitvector_length "
+     "instead.");
+
+  return scm_from_size_t (scm_c_bitvector_length (vec));
+}
+
+SCM
 scm_c_bitvector_ref (SCM vec, size_t idx)
 {
   scm_c_issue_deprecation_warning
@@ -251,7 +261,7 @@ SCM_DEFINE (scm_bit_count, "bit-count", 2, 0, 0,
   if (scm_is_bitvector (bitvector))
     {
       len = scm_to_size_t (scm_bitvector_length (bitvector));
-      count = scm_to_size_t (scm_bitvector_count (bitvector));
+      count = scm_c_bitvector_count (bitvector);
     }
   else
     {
@@ -309,7 +319,7 @@ SCM_DEFINE (scm_bit_count_star, "bit-count*", 3, 0, 0,
     {
       count = scm_c_bitvector_count_bits (v, kv);
       if (count == 0)
-        count = scm_to_size_t (scm_bitvector_count (kv)) - count;
+        count = scm_c_bitvector_count (kv) - count;
     }
   else
     {

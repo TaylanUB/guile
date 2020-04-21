@@ -35,11 +35,9 @@
 SCM_API SCM scm_bitvector_p (SCM vec);
 SCM_API SCM scm_bitvector (SCM bits);
 SCM_API SCM scm_make_bitvector (SCM len, SCM fill);
-SCM_API SCM scm_bitvector_length (SCM vec);
 SCM_API SCM scm_list_to_bitvector (SCM list);
 SCM_API SCM scm_bitvector_to_list (SCM vec);
 
-SCM_API SCM scm_bitvector_count (SCM v);
 SCM_API SCM scm_bitvector_position (SCM v, SCM item, SCM start);
 SCM_API SCM scm_bitvector_set_bits_x (SCM v, SCM bits);
 SCM_API SCM scm_bitvector_clear_bits_x (SCM v, SCM bits);
@@ -47,6 +45,7 @@ SCM_API SCM scm_bitvector_clear_bits_x (SCM v, SCM bits);
 SCM_API int scm_is_bitvector (SCM obj);
 SCM_API SCM scm_c_make_bitvector (size_t len, SCM fill);
 SCM_API size_t scm_c_bitvector_length (SCM vec);
+SCM_API size_t scm_c_bitvector_count (SCM v);
 SCM_API int scm_c_bitvector_bit_is_set (SCM vec, size_t idx);
 SCM_API int scm_c_bitvector_bit_is_clear (SCM vec, size_t idx);
 SCM_API void scm_c_bitvector_set_bit_x (SCM vec, size_t idx);
