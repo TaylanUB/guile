@@ -9,10 +9,11 @@ Changes in 3.0.3 (since 3.0.2)
 
 * New interfaces and functionality
 
-** New bitvector-count, bitvector-position procedures
+** New bitvector-count, bitvector-count-bits, bitvector-position
+   procedures
 
-These replace the wonky "bit-count" and "bit-position" procedures.  See
-"Bit Vectors" in the manual, for more.
+These replace the wonky "bit-count", "bit-count*", and "bit-position"
+procedures.  See "Bit Vectors" in the manual, for more.
 
 ** New bitvector-bit-set?, bitvector-bit-clear? procedures
 
@@ -65,6 +66,11 @@ Use 'bitvector-flip-all-bits! instead.
 ** 'bit-set*!' deprecated
 
 Use 'bitvector-set-bits!' or 'bitvector-clear-bits!' instead.
+
+** 'bit-count*' deprecated
+
+Use 'bitvector-count-bits' instead, subtracting from 'bitvector-count'
+on the mask bitvector if you are counting unset bits.
 
 ** Passing a u32vector to 'bit-set*!' and 'bit-count*' deprecated
 

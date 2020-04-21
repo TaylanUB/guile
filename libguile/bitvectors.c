@@ -663,107 +663,47 @@ SCM_DEFINE (scm_bitvector_clear_bits_x, "bitvector-clear-bits!", 2, 0, 0,
 }
 #undef FUNC_NAME
 
-SCM_DEFINE (scm_bit_count_star, "bit-count*", 3, 0, 0,
-           (SCM v, SCM kv, SCM obj),
-	    "Return a count of how many entries in bit vector @var{v} are\n"
-	    "equal to @var{obj}, with @var{kv} selecting the entries to\n"
-	    "consider.\n"
-	    "\n"
-	    "If @var{kv} is a bit vector, then those entries where it has\n"
-	    "@code{#t} are the ones in @var{v} which are considered.\n"
-	    "@var{kv} and @var{v} must be the same length.\n"
-	    "\n"
-	    "If @var{kv} is a u32vector, then it contains\n"
-	    "the indexes in @var{v} to consider.\n"
-	    "\n"
-	    "For example,\n"
-	    "\n"
-	    "@example\n"
-	    "(bit-count* #*01110111 #*11001101 #t) @result{} 3\n"
-	    "(bit-count* #*01110111 #u32(7 0 4) #f)  @result{} 2\n"
-	    "@end example")
-#define FUNC_NAME s_scm_bit_count_star
+size_t
+scm_c_bitvector_count_bits (SCM bv, SCM bits)
+#define FUNC_NAME "bitvector-count-bits"
 {
+  VALIDATE_BITVECTOR (1, bv);
+  VALIDATE_BITVECTOR (2, bits);
+
+  size_t v_len = BITVECTOR_LENGTH (bv);
+  const uint32_t *v_bits = BITVECTOR_BITS (bv);
+  size_t kv_len = BITVECTOR_LENGTH (bits);
+  const uint32_t *kv_bits = BITVECTOR_BITS (bits);
+
+  if (v_len < kv_len)
+    SCM_MISC_ERROR ("selection bitvector longer than target bitvector",
+                    SCM_EOL);
+
+  size_t i, word_len = (kv_len + 31) / 32;
+  uint32_t last_mask = ((uint32_t)-1) >> (32*word_len - kv_len);
+
   size_t count = 0;
+  for (i = 0; i < word_len-1; i++)
+    count += count_ones (v_bits[i] & kv_bits[i]);
+  count += count_ones (v_bits[i] & kv_bits[i] & last_mask);
 
-  /* Validate that OBJ is a boolean so this is done even if we don't
-     need BIT.
-  */
-  int bit = scm_to_bool (obj);
+  return count;
+}
+#undef FUNC_NAME
 
-  if (IS_BITVECTOR (v) && IS_BITVECTOR (kv))
-    {
-      size_t v_len = BITVECTOR_LENGTH (v);
-      const uint32_t *v_bits = BITVECTOR_BITS (v);
-      size_t kv_len = BITVECTOR_LENGTH (kv);
-      const uint32_t *kv_bits = BITVECTOR_BITS (kv);
-
-      if (v_len < kv_len)
-        scm_misc_error (NULL,
-                        "selection bitvector longer than target bitvector",
-                        SCM_EOL);
-      
-      size_t i, word_len = (kv_len + 31) / 32;
-      uint32_t last_mask = ((uint32_t)-1) >> (32*word_len - kv_len);
-      uint32_t xor_mask = bit? 0 : ((uint32_t)-1);
-
-      for (i = 0; i < word_len-1; i++)
-        count += count_ones ((v_bits[i]^xor_mask) & kv_bits[i]);
-      count += count_ones ((v_bits[i]^xor_mask) & kv_bits[i] & last_mask);
-    }
-  else
-    {
-      scm_t_array_handle v_handle;
-      size_t v_off, v_len;
-      ssize_t v_inc;
-
-      scm_bitvector_elements (v, &v_handle, &v_off, &v_len, &v_inc);
-
-      if (!IS_BITVECTOR (v))
-        scm_c_issue_deprecation_warning
-          ("Using bit-count* on arrays is deprecated.  "
-           "Use array-set! in a loop instead.");
-
-      if (IS_BITVECTOR (kv))
-        {
-          size_t kv_len = BITVECTOR_LENGTH (kv);
-          for (size_t i = 0; i < kv_len; i++)
-            if (scm_c_bitvector_bit_is_set (kv, i))
-              {
-                SCM elt = scm_array_handle_ref (&v_handle, i*v_inc);
-                if ((bit && scm_is_true (elt)) || (!bit && scm_is_false (elt)))
-                  count++;
-              }
-        }
-      else if (scm_is_true (scm_u32vector_p (kv)))
-        {
-          scm_t_array_handle kv_handle;
-          size_t i, kv_len;
-          ssize_t kv_inc;
-          const uint32_t *kv_elts;
-
-          scm_c_issue_deprecation_warning
-            ("Passing a u32vector to bit-count* is deprecated.  "
-             "Use bitvector-ref in a loop instead.");
-
-          kv_elts = scm_u32vector_elements (kv, &kv_handle, &kv_len, &kv_inc);
-
-          for (i = 0; i < kv_len; i++, kv_elts += kv_inc)
-            {
-              SCM elt = scm_array_handle_ref (&v_handle, (*kv_elts)*v_inc);
-              if ((bit && scm_is_true (elt)) || (!bit && scm_is_false (elt)))
-                count++;
-            }
-
-          scm_array_handle_release (&kv_handle);
-        }
-      else
-        scm_wrong_type_arg_msg (NULL, 0, kv, "bitvector or u32vector");
-
-      scm_array_handle_release (&v_handle);
-    }
-
-  return scm_from_size_t (count);
+SCM_DEFINE_STATIC (scm_bitvector_count_bits, "bitvector-count-bits", 2, 0, 0,
+                   (SCM v, SCM kv),
+                   "Return a count of how many entries in bit vector @var{v}\n"
+                   "are set, with @var{kv} selecting the entries to consider.\n"
+                   "\n"
+                   "For example,\n"
+                   "\n"
+                   "@example\n"
+                   "(bitvector-count-bits #*01110111 #*11001101) @result{} 3\n"
+                   "@end example")
+#define FUNC_NAME s_scm_bitvector_count_bits
+{
+  return scm_from_size_t (scm_c_bitvector_count_bits (v, kv));
 }
 #undef FUNC_NAME
 

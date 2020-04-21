@@ -122,6 +122,7 @@ SCM_DEPRECATED SCM scm_bitvector_set_x (SCM vec, SCM idx, SCM val);
 SCM_DEPRECATED SCM scm_bitvector_fill_x (SCM vec, SCM val);
 SCM_DEPRECATED SCM scm_bit_invert_x (SCM vec);
 SCM_DEPRECATED SCM scm_bit_count (SCM item, SCM seq);
+SCM_DEPRECATED SCM scm_bit_count_star (SCM v, SCM kv, SCM obj);
 SCM_DEPRECATED SCM scm_bit_position (SCM item, SCM v, SCM k);
 SCM_DEPRECATED SCM scm_bit_set_star_x (SCM v, SCM kv, SCM obj);
 SCM_DEPRECATED SCM scm_istr2bve (SCM str);

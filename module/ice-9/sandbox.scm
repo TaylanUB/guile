@@ -1077,7 +1077,7 @@ allocation limit is exceeded, an exception will be thrown to the
   '(((guile)
      bitvector-count
      bitvector-position
-     bit-count*
+     bitvector-count-bits
      bit-extract
      bitvector
      bitvector->list

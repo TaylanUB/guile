@@ -272,6 +272,92 @@ SCM_DEFINE (scm_bit_count, "bit-count", 2, 0, 0,
 }
 #undef FUNC_NAME
 
+SCM_DEFINE (scm_bit_count_star, "bit-count*", 3, 0, 0,
+           (SCM v, SCM kv, SCM obj),
+	    "Return a count of how many entries in bit vector @var{v} are\n"
+	    "equal to @var{obj}, with @var{kv} selecting the entries to\n"
+	    "consider.\n"
+	    "\n"
+	    "If @var{kv} is a bit vector, then those entries where it has\n"
+	    "@code{#t} are the ones in @var{v} which are considered.\n"
+	    "@var{kv} and @var{v} must be the same length.\n"
+	    "\n"
+	    "If @var{kv} is a u32vector, then it contains\n"
+	    "the indexes in @var{v} to consider.\n"
+	    "\n"
+	    "For example,\n"
+	    "\n"
+	    "@example\n"
+	    "(bit-count* #*01110111 #*11001101 #t) @result{} 3\n"
+	    "(bit-count* #*01110111 #u32(7 0 4) #f)  @result{} 2\n"
+	    "@end example")
+#define FUNC_NAME s_scm_bit_count_star
+{
+  size_t count = 0;
+
+  scm_c_issue_deprecation_warning
+    ("bit-count* is deprecated.  Use bitvector-count-bits instead, and in the "
+     "case of counting false bits, subtract from a bitvector-count on the "
+     "selection bitvector.");
+
+  /* Validate that OBJ is a boolean so this is done even if we don't
+     need BIT.
+  */
+  int bit = scm_to_bool (obj);
+
+  if (scm_is_bitvector (v) && scm_is_bitvector (kv))
+    {
+      count = scm_c_bitvector_count_bits (v, kv);
+      if (count == 0)
+        count = scm_to_size_t (scm_bitvector_count (kv)) - count;
+    }
+  else
+    {
+      scm_t_array_handle v_handle;
+      size_t v_off, v_len;
+      ssize_t v_inc;
+
+      scm_bitvector_elements (v, &v_handle, &v_off, &v_len, &v_inc);
+
+      if (scm_is_bitvector (kv))
+        {
+          size_t kv_len = scm_c_bitvector_length (kv);
+          for (size_t i = 0; i < kv_len; i++)
+            if (scm_c_bitvector_bit_is_set (kv, i))
+              {
+                SCM elt = scm_array_handle_ref (&v_handle, i*v_inc);
+                if ((bit && scm_is_true (elt)) || (!bit && scm_is_false (elt)))
+                  count++;
+              }
+        }
+      else if (scm_is_true (scm_u32vector_p (kv)))
+        {
+          scm_t_array_handle kv_handle;
+          size_t i, kv_len;
+          ssize_t kv_inc;
+          const uint32_t *kv_elts;
+
+          kv_elts = scm_u32vector_elements (kv, &kv_handle, &kv_len, &kv_inc);
+
+          for (i = 0; i < kv_len; i++, kv_elts += kv_inc)
+            {
+              SCM elt = scm_array_handle_ref (&v_handle, (*kv_elts)*v_inc);
+              if ((bit && scm_is_true (elt)) || (!bit && scm_is_false (elt)))
+                count++;
+            }
+
+          scm_array_handle_release (&kv_handle);
+        }
+      else
+        scm_wrong_type_arg_msg (NULL, 0, kv, "bitvector or u32vector");
+
+      scm_array_handle_release (&v_handle);
+    }
+
+  return scm_from_size_t (count);
+}
+#undef FUNC_NAME
+
 SCM_DEFINE (scm_bit_position, "bit-position", 3, 0, 0,
            (SCM item, SCM v, SCM k),
 	    "Return the index of the first occurrence of @var{item} in bit\n"

@@ -101,5 +101,5 @@
   (pass-if-equal 5 (bitvector-position #*01110111 #t 5))
   (pass-if-equal #f (bitvector-position #*01110111 #f 5)))
 
-(with-test-prefix "bit-count*"
-  (pass-if-equal 3 (bit-count* #*01110111 #*11001101 #t)))
+(with-test-prefix "bitvector-count-bits"
+  (pass-if-equal 3 (bitvector-count-bits #*01110111 #*11001101)))
