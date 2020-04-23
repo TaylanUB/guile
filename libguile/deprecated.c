@@ -447,9 +447,14 @@ SCM_DEFINE (scm_bit_set_star_x, "bit-set*!", 3, 0, 0,
 
   int bit = scm_to_bool (obj);
   if (scm_is_bitvector (v) && scm_is_bitvector (kv))
-    return bit
-      ? scm_bitvector_set_bits_x (v, kv)
-      : scm_bitvector_clear_bits_x (v, kv);
+    {
+      if (bit)
+        scm_c_bitvector_set_bits_x (v, kv);
+      else
+        scm_c_bitvector_clear_bits_x (v, kv);
+
+      return SCM_UNSPECIFIED;
+    }
 
   scm_t_array_handle v_handle;
   size_t v_off, v_len;

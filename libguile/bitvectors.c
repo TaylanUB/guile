@@ -590,19 +590,9 @@ SCM_DEFINE (scm_bitvector_position, "bitvector-position", 2, 1, 0,
 }
 #undef FUNC_NAME
 
-SCM_DEFINE (scm_bitvector_set_bits_x, "bitvector-set-bits!", 2, 0, 0,
-	    (SCM v, SCM bits),
-	    "Update the bitvector @var{v} in place by performing a logical\n"
-            "OR of its bits with those of @var{bits}.\n"
-            "For example:\n"
-	    "\n"
-	    "@example\n"
-	    "(define bv (bitvector-copy #*11000010))\n"
-	    "(bitvector-set-bits! bv #*10010001)\n"
-	    "bv\n"
-	    "@result{} #*11010011\n"
-	    "@end example")
-#define FUNC_NAME s_scm_bitvector_set_bits_x
+void
+scm_c_bitvector_set_bits_x (SCM v, SCM bits)
+#define FUNC_NAME "bitvector-set-bits!"
 {
   VALIDATE_MUTABLE_BITVECTOR (1, v);
   VALIDATE_BITVECTOR (2, bits);
@@ -625,24 +615,12 @@ SCM_DEFINE (scm_bitvector_set_bits_x, "bitvector-set-bits!", 2, 0, 0,
         v_bits[i] |= kv_bits[i];
       v_bits[i] |= kv_bits[i] & last_mask;
     }
-
-  return SCM_UNSPECIFIED;
 }
 #undef FUNC_NAME
 
-SCM_DEFINE (scm_bitvector_clear_bits_x, "bitvector-clear-bits!", 2, 0, 0,
-	    (SCM v, SCM bits),
-	    "Update the bitvector @var{v} in place by performing a logical\n"
-            "AND of its bits with the complement of those of @var{bits}.\n"
-            "For example:\n"
-	    "\n"
-	    "@example\n"
-	    "(define bv (bitvector-copy #*11000010))\n"
-	    "(bitvector-clear-bits! bv #*10010001)\n"
-	    "bv\n"
-	    "@result{} #*01000010\n"
-	    "@end example")
-#define FUNC_NAME s_scm_bitvector_clear_bits_x
+void
+scm_c_bitvector_clear_bits_x (SCM v, SCM bits)
+#define FUNC_NAME "bitvector-clear-bits!"
 {
   VALIDATE_MUTABLE_BITVECTOR (1, v);
   VALIDATE_BITVECTOR (2, bits);
@@ -666,7 +644,43 @@ SCM_DEFINE (scm_bitvector_clear_bits_x, "bitvector-clear-bits!", 2, 0, 0,
         v_bits[i] &= ~kv_bits[i];
       v_bits[i] &= ~(kv_bits[i] & last_mask);
     }
+}
+#undef FUNC_NAME
 
+SCM_DEFINE_STATIC (scm_bitvector_set_bits_x, "bitvector-set-bits!", 2, 0, 0,
+                   (SCM v, SCM bits),
+                   "Update the bitvector @var{v} in place by performing a\n"
+                   "logical OR of its bits with those of @var{bits}.\n"
+                   "For example:\n"
+                   "\n"
+                   "@example\n"
+                   "(define bv (bitvector-copy #*11000010))\n"
+                   "(bitvector-set-bits! bv #*10010001)\n"
+                   "bv\n"
+                   "@result{} #*11010011\n"
+                   "@end example")
+#define FUNC_NAME s_scm_bitvector_set_bits_x
+{
+  scm_c_bitvector_set_bits_x (v, bits);
+  return SCM_UNSPECIFIED;
+}
+#undef FUNC_NAME
+
+SCM_DEFINE_STATIC (scm_bitvector_clear_bits_x, "bitvector-clear-bits!", 2, 0, 0,
+                   (SCM v, SCM bits),
+                   "Update the bitvector @var{v} in place by performing a\n"
+                   "logical AND of its bits with the complement of those of\n"
+                   "@var{bits}.  For example:\n"
+                   "\n"
+                   "@example\n"
+                   "(define bv (bitvector-copy #*11000010))\n"
+                   "(bitvector-clear-bits! bv #*10010001)\n"
+                   "bv\n"
+                   "@result{} #*01000010\n"
+                   "@end example")
+#define FUNC_NAME s_scm_bitvector_clear_bits_x
+{
+  scm_c_bitvector_clear_bits_x (v, bits);
   return SCM_UNSPECIFIED;
 }
 #undef FUNC_NAME
