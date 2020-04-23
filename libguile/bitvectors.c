@@ -128,11 +128,11 @@ scm_is_bitvector (SCM vec)
   return IS_BITVECTOR (vec);
 }
 
-SCM_DEFINE (scm_bitvector_p, "bitvector?", 1, 0, 0,
-	    (SCM obj),
-	    "Return @code{#t} when @var{obj} is a bitvector, else\n"
-	    "return @code{#f}.")
-#define FUNC_NAME s_scm_bitvector_p
+SCM_DEFINE_STATIC (bitvector_p, "bitvector?", 1, 0, 0,
+                   (SCM obj),
+                   "Return @code{#t} when @var{obj} is a bitvector, else\n"
+                   "return @code{#f}.")
+#define FUNC_NAME s_bitvector_p
 {
   return scm_from_bool (scm_is_bitvector (obj));
 }
@@ -157,20 +157,20 @@ scm_c_make_bitvector (size_t len, SCM fill)
   return res;
 }
 
-SCM_DEFINE (scm_make_bitvector, "make-bitvector", 1, 1, 0,
-	    (SCM len, SCM fill),
-	    "Create a new bitvector of length @var{len} and\n"
-	    "optionally initialize all elements to @var{fill}.")
-#define FUNC_NAME s_scm_make_bitvector
+SCM_DEFINE_STATIC (make_bitvector, "make-bitvector", 1, 1, 0,
+                   (SCM len, SCM fill),
+                   "Create a new bitvector of length @var{len} and\n"
+                   "optionally initialize all elements to @var{fill}.")
+#define FUNC_NAME s_make_bitvector
 {
   return scm_c_make_bitvector (scm_to_size_t (len), fill);
 }
 #undef FUNC_NAME
 
-SCM_DEFINE (scm_bitvector, "bitvector", 0, 0, 1,
-	    (SCM bits),
-	    "Create a new bitvector with the arguments as elements.")
-#define FUNC_NAME s_scm_bitvector
+SCM_DEFINE_STATIC (bitvector, "bitvector", 0, 0, 1,
+                   (SCM bits),
+                   "Create a new bitvector with the arguments as elements.")
+#define FUNC_NAME s_bitvector
 {
   return scm_list_to_bitvector (bits);
 }
@@ -758,7 +758,7 @@ SCM_DEFINE_STATIC (scm_bitvector_flip_all_bits_x,
 }
 #undef FUNC_NAME
 
-SCM_VECTOR_IMPLEMENTATION (SCM_ARRAY_ELEMENT_TYPE_BIT, scm_make_bitvector)
+SCM_VECTOR_IMPLEMENTATION (SCM_ARRAY_ELEMENT_TYPE_BIT, make_bitvector)
 
 void
 scm_init_bitvectors ()

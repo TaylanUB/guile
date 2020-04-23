@@ -1,4 +1,4 @@
-/* Copyright 1995-1997,1999-2001,2003-2004,2006-2012,2014-2019
+/* Copyright 1995-1997,1999-2001,2003-2004,2006-2012,2014-2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -1404,7 +1404,7 @@ scm_read_guile_bit_vector (scm_t_wchar chr, SCM port, scm_t_read_opts *opts,
     scm_ungetc (chr, port);
 
   return maybe_annotate_source
-    (scm_bitvector (scm_reverse_x (s_bits, SCM_EOL)),
+    (scm_list_to_bitvector (scm_reverse_x (s_bits, SCM_EOL)),
      port, opts, line, column);
 }
 

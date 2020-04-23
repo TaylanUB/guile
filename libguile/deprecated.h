@@ -115,6 +115,9 @@ typedef struct scm_thread scm_i_thread SCM_DEPRECATED_TYPE;
 
 SCM_DEPRECATED char* scm_find_executable (const char *name);
 
+SCM_DEPRECATED SCM scm_bitvector_p (SCM vec);
+SCM_DEPRECATED SCM scm_bitvector (SCM bits);
+SCM_DEPRECATED SCM scm_make_bitvector (SCM len, SCM fill);
 SCM_DEPRECATED SCM scm_bitvector_length (SCM vec);
 SCM_DEPRECATED SCM scm_c_bitvector_ref (SCM vec, size_t idx);
 SCM_DEPRECATED SCM scm_bitvector_ref (SCM vec, SCM idx);

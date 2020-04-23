@@ -89,6 +89,33 @@ scm_find_executable (const char *name)
 
 
 SCM
+scm_bitvector_p (SCM vec)
+{
+  scm_c_issue_deprecation_warning
+    ("scm_bitvector_p is deprecated.  Use scm_is_bitvector instead.");
+
+  return scm_from_bool (scm_is_bitvector (vec));
+}
+
+SCM
+scm_bitvector (SCM list)
+{
+  scm_c_issue_deprecation_warning
+    ("scm_bitvector is deprecated.  Use scm_list_to_bitvector instead.");
+
+  return scm_list_to_bitvector (list);
+}
+
+SCM
+scm_make_bitvector (SCM len, SCM fill)
+{
+  scm_c_issue_deprecation_warning
+    ("scm_make_bitvector is deprecated.  Use scm_c_make_bitvector instead.");
+
+  return scm_c_make_bitvector (scm_to_size_t (len), fill);
+}
+
+SCM
 scm_bitvector_length (SCM vec)
 {
   scm_c_issue_deprecation_warning

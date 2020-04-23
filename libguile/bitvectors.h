@@ -32,9 +32,6 @@
 
 /** Bit vectors */
 
-SCM_API SCM scm_bitvector_p (SCM vec);
-SCM_API SCM scm_bitvector (SCM bits);
-SCM_API SCM scm_make_bitvector (SCM len, SCM fill);
 SCM_API SCM scm_list_to_bitvector (SCM list);
 SCM_API SCM scm_bitvector_to_list (SCM vec);
 
@@ -54,6 +51,7 @@ SCM_API void scm_c_bitvector_set_all_bits_x (SCM vec);
 SCM_API void scm_c_bitvector_clear_all_bits_x (SCM vec);
 SCM_API void scm_c_bitvector_flip_all_bits_x (SCM vec);
 SCM_API size_t scm_c_bitvector_count_bits (SCM v, SCM bits);
+
 SCM_API const uint32_t *scm_array_handle_bit_elements (scm_t_array_handle *h);
 SCM_API uint32_t *scm_array_handle_bit_writable_elements (scm_t_array_handle *h);
 SCM_API size_t scm_array_handle_bit_elements_offset (scm_t_array_handle *h);

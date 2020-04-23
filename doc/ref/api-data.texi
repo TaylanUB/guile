@@ -6538,24 +6538,16 @@ Bit vectors are the special case of one dimensional bit arrays, and can
 thus be used with the array procedures, @xref{Arrays}.
 
 @deffn {Scheme Procedure} bitvector? obj
-@deffnx {C Function} scm_bitvector_p (obj)
 Return @code{#t} when @var{obj} is a bitvector, else
 return @code{#f}.
 @end deffn
 
 @deffn {Scheme Procedure} make-bitvector len [fill]
-@deffnx {C Function} scm_make_bitvector (len, fill)
 Create a new bitvector of length @var{len} and
 optionally initialize all elements to @var{fill}.
 @end deffn
 
-@deftypefn {C Function} SCM scm_c_make_bitvector (size_t len, SCM fill)
-Like @code{scm_make_bitvector}, but the length is given as a
-@code{size_t}.
-@end deftypefn
-
 @deffn {Scheme Procedure} bitvector bit @dots{}
-@deffnx {C Function} scm_bitvector (bits)
 Create a new bitvector with the arguments as elements.
 @end deffn
 
@@ -6655,6 +6647,7 @@ bv
 @end deffn
 
 @deftypefn {C Function} int scm_is_bitvector (SCM obj)
+@deftypefnx {C Function} SCM scm_c_make_bitvector (size_t len, SCM fill)
 @deftypefnx {C Function} int scm_bitvector_bit_is_set (SCM vec, size_t idx)
 @deftypefnx {C Function} int scm_bitvector_bit_is_clear (SCM vec, size_t idx)
 @deftypefnx {C Function} void scm_c_bitvector_set_bit_x (SCM vec, size_t idx)
