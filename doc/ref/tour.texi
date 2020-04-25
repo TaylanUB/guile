@@ -372,7 +372,7 @@ $ ./config.status --config
 A complete description of how to reproduce the bug.
 
 If you have a Scheme program that produces the bug, please include it in
-the bug report. If your program is too big to include. please try to
+the bug report. If your program is too big to include, please try to
 reduce your code to a minimal test case.
 
 If you can reproduce your problem at the REPL, that is best. Give a
