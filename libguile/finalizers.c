@@ -1,4 +1,4 @@
-/* Copyright 2012-2014,2018-2019
+/* Copyright 2012-2014,2018-2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -221,6 +221,7 @@ finalization_thread_proc (void *unused)
         {
           if (data.err != EINTR)
             {
+              errno = data.err;
               perror ("error in finalization thread");
               return NULL;
             }
