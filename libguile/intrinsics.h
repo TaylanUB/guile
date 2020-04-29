@@ -1,4 +1,4 @@
-/* Copyright 2018-2019
+/* Copyright 2018-2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -97,6 +97,9 @@ typedef SCM (*scm_t_scm_from_ptr_scm_scm_intrinsic) (SCM*, SCM, SCM);
 typedef double (*scm_t_f64_from_f64_intrinsic) (double);
 typedef double (*scm_t_f64_from_f64_f64_intrinsic) (double, double);
 typedef uint32_t* scm_t_vcode_intrinsic;
+typedef void (*scm_t_scm_scm_intrinsic) (SCM, SCM);
+typedef void (*scm_t_scm_scm_scm_intrinsic) (SCM, SCM, SCM);
+typedef void (*scm_t_scm_uimm_scm_intrinsic) (SCM, uint8_t, SCM);
 
 #define SCM_FOR_ALL_VM_INTRINSICS(M) \
   M(scm_from_scm_scm, add, "add", ADD) \
@@ -192,7 +195,27 @@ typedef uint32_t* scm_t_vcode_intrinsic;
   M(scm_from_thread_sz, allocate_pointerless_words_with_freelist, "allocate-pointerless-words/freelist", ALLOCATE_POINTERLESS_WORDS_WITH_FREELIST) \
   M(scm_from_scm, inexact, "inexact", INEXACT) \
   M(f64_from_s64, s64_to_f64, "s64->f64", S64_TO_F64) \
+  M(scm_from_scm, car, "$car", CAR) \
+  M(scm_from_scm, cdr, "$cdr", CDR) \
+  M(scm_scm, set_car_x, "$set-car!", SET_CAR_X) \
+  M(scm_scm, set_cdr_x, "$set-cdr!", SET_CDR_X) \
+  M(scm_from_scm, variable_ref, "$variable-ref", VARIABLE_REF) \
+  M(scm_scm, variable_set_x, "$variable-set!", VARIABLE_SET_X) \
+  M(scm_from_scm, vector_length, "$vector-length", VECTOR_LENGTH) \
+  M(scm_from_scm_scm, vector_ref, "$vector-ref", VECTOR_REF) \
+  M(scm_scm_scm, vector_set_x, "$vector-set!", VECTOR_SET_X) \
+  M(scm_from_scm_uimm, vector_ref_immediate, "$vector-ref/immediate", VECTOR_REF_IMMEDIATE) \
+  M(scm_uimm_scm, vector_set_x_immediate, "$vector-set!/immediate", VECTOR_SET_X_IMMEDIATE) \
+  M(scm_from_scm_scm, allocate_struct, "$allocate-struct", ALLOCATE_STRUCT) \
+  M(scm_from_scm, struct_vtable, "$struct-vtable", STRUCT_VTABLE) \
+  M(scm_from_scm_scm, struct_ref, "$struct-ref", STRUCT_REF) \
+  M(scm_scm_scm, struct_set_x, "$struct-set!", STRUCT_SET_X) \
+  M(scm_from_scm_uimm, struct_ref_immediate, "$struct-ref/immediate", STRUCT_REF_IMMEDIATE) \
+  M(scm_uimm_scm, struct_set_x_immediate, "$struct-set!/immediate", STRUCT_SET_X_IMMEDIATE) \
   /* Add new intrinsics here; also update scm_bootstrap_intrinsics.  */
+
+/* Intrinsics prefixed with $ are meant to reduce bytecode size,
+   notably for the baseline compiler.  */
 
 enum scm_vm_intrinsic
   {

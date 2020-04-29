@@ -3319,9 +3319,63 @@ VM_NAME (scm_thread *thread)
       NEXT (1);
     }
 
-  VM_DEFINE_OP (160, unused_160, NULL, NOP)
-  VM_DEFINE_OP (161, unused_161, NULL, NOP)
-  VM_DEFINE_OP (162, unused_162, NULL, NOP)
+  /* call-scm-scm a:12 b:12 IDX:32
+   *
+   * Call the void-returning instrinsic with index IDX, passing SCM
+   * locals A and B as arguments.
+   */
+  VM_DEFINE_OP (160, call_scm_scm, "call-scm-scm", OP2 (X8_S12_S12, C32))
+    {
+      uint16_t a, b;
+      scm_t_scm_scm_intrinsic intrinsic;
+
+      UNPACK_12_12 (op, a, b);
+      intrinsic = intrinsics[ip[1]];
+
+      SYNC_IP ();
+      intrinsic (SP_REF (a), SP_REF (b));
+
+      NEXT (2);
+    }
+
+  /* call-scm-scm-scm a:8 b:8 c:8 IDX:32
+   *
+   * Call the void-returning instrinsic with index IDX, passing SCM
+   * locals A, B, and C as arguments.
+   */
+  VM_DEFINE_OP (161, call_scm_scm_scm, "call-scm-scm-scm", OP2 (X8_S8_S8_S8, C32))
+    {
+      uint8_t a, b, c;
+      scm_t_scm_scm_scm_intrinsic intrinsic;
+
+      UNPACK_8_8_8 (op, a, b, c);
+      intrinsic = intrinsics[ip[1]];
+
+      SYNC_IP ();
+      intrinsic (SP_REF (a), SP_REF (b), SP_REF (c));
+
+      NEXT (2);
+    }
+
+  /* call-scm-uimm-scm a:8 b:8 c:8 IDX:32
+   *
+   * Call the void-returning instrinsic with index IDX, passing SCM
+   * local A, uint8 B, and SCM local C as arguments.
+   */
+  VM_DEFINE_OP (162, call_scm_uimm_scm, "call-scm-uimm-scm", OP2 (X8_S8_C8_S8, C32))
+    {
+      uint8_t a, b, c;
+      scm_t_scm_uimm_scm_intrinsic intrinsic;
+
+      UNPACK_8_8_8 (op, a, b, c);
+      intrinsic = intrinsics[ip[1]];
+
+      SYNC_IP ();
+      intrinsic (SP_REF (a), b, SP_REF (c));
+
+      NEXT (2);
+    }
+
   VM_DEFINE_OP (163, unused_163, NULL, NOP)
   VM_DEFINE_OP (164, unused_164, NULL, NOP)
   VM_DEFINE_OP (165, unused_165, NULL, NOP)

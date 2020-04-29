@@ -101,6 +101,10 @@
             emit-undefined?
             emit-eof-object?
 
+            emit-null?
+            emit-false?
+            emit-nil?
+
             emit-untag-fixnum
             emit-tag-fixnum
             emit-untag-char
@@ -255,6 +259,25 @@
             emit-lookup
             emit-define!
             emit-current-module
+
+            ;; Intrinsics for use by the baseline compiler.
+            emit-$car
+            emit-$cdr
+            emit-$set-car!
+            emit-$set-cdr!
+            emit-$variable-ref
+            emit-$variable-set!
+            emit-$vector-length
+            emit-$vector-ref
+            emit-$vector-set!
+            emit-$vector-ref/immediate
+            emit-$vector-set!/immediate
+            emit-$allocate-struct
+            emit-$struct-vtable
+            emit-$struct-ref
+            emit-$struct-set!
+            emit-$struct-ref/immediate
+            emit-$struct-set!/immediate
 
             emit-cache-ref
             emit-cache-set!
@@ -1399,6 +1422,15 @@ returned instead."
 (define-syntax-rule (define-scm<-thread-intrinsic name)
   (define-macro-assembler (name asm dst)
     (emit-call-scm<-thread asm dst (intrinsic-name->index 'name))))
+(define-syntax-rule (define-scm-scm-intrinsic name)
+  (define-macro-assembler (name asm a b)
+    (emit-call-scm-scm asm a b (intrinsic-name->index 'name))))
+(define-syntax-rule (define-scm-uimm-scm-intrinsic name)
+  (define-macro-assembler (name asm a b c)
+    (emit-call-scm-uimm-scm asm a b c (intrinsic-name->index 'name))))
+(define-syntax-rule (define-scm-scm-scm-intrinsic name)
+  (define-macro-assembler (name asm a b c)
+    (emit-call-scm-scm-scm asm a b c (intrinsic-name->index 'name))))
 
 (define-scm<-scm-scm-intrinsic add)
 (define-scm<-scm-uimm-intrinsic add/immediate)
@@ -1463,6 +1495,24 @@ returned instead."
 (define-scm<-scm-scm-intrinsic lookup)
 (define-scm<-scm-scm-intrinsic define!)
 (define-scm<-thread-intrinsic current-module)
+
+(define-scm<-scm-intrinsic $car)
+(define-scm<-scm-intrinsic $cdr)
+(define-scm-scm-intrinsic $set-car!)
+(define-scm-scm-intrinsic $set-cdr!)
+(define-scm<-scm-intrinsic $variable-ref)
+(define-scm-scm-intrinsic $variable-set!)
+(define-scm<-scm-intrinsic $vector-length)
+(define-scm<-scm-scm-intrinsic $vector-ref)
+(define-scm-scm-scm-intrinsic $vector-set!)
+(define-scm<-scm-uimm-intrinsic $vector-ref/immediate)
+(define-scm-uimm-scm-intrinsic $vector-set!/immediate)
+(define-scm<-scm-scm-intrinsic $allocate-struct)
+(define-scm<-scm-intrinsic $struct-vtable)
+(define-scm<-scm-scm-intrinsic $struct-ref)
+(define-scm-scm-scm-intrinsic $struct-set!)
+(define-scm<-scm-uimm-intrinsic $struct-ref/immediate)
+(define-scm-uimm-scm-intrinsic $struct-set!/immediate)
 
 (define-macro-assembler (begin-program asm label properties)
   (emit-label asm label)

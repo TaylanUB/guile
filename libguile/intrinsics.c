@@ -1,4 +1,4 @@
-/* Copyright 2018-2019
+/* Copyright 2018-2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -36,8 +36,10 @@
 #include "keywords.h"
 #include "modules.h"
 #include "numbers.h"
+#include "struct.h"
 #include "symbols.h"
 #include "threads.h"
+#include "variable.h"
 #include "version.h"
 
 #include "intrinsics.h"
@@ -470,6 +472,52 @@ scm_atan1 (SCM x)
   return scm_atan (x, SCM_UNDEFINED);
 }
 
+static void
+set_car_x (SCM x, SCM y)
+{
+  scm_set_car_x (x, y);
+}
+static void
+set_cdr_x (SCM x, SCM y)
+{
+  scm_set_cdr_x (x, y);
+}
+static void
+variable_set_x (SCM x, SCM y)
+{
+  scm_variable_set_x (x, y);
+}
+static void
+vector_set_x (SCM x, SCM y, SCM z)
+{
+  scm_vector_set_x (x, y, z);
+}
+static SCM
+vector_ref_immediate (SCM x, uint8_t idx)
+{
+  return scm_c_vector_ref (x, idx);
+}
+static void
+vector_set_x_immediate (SCM x, uint8_t idx, SCM z)
+{
+  scm_c_vector_set_x (x, idx, z);
+}
+static void
+struct_set_x (SCM x, SCM y, SCM z)
+{
+  scm_struct_set_x (x, y, z);
+}
+static SCM
+struct_ref_immediate (SCM x, uint8_t idx)
+{
+  return scm_struct_ref (x, scm_from_uint8 (idx));
+}
+static void
+struct_set_x_immediate (SCM x, uint8_t idx, SCM z)
+{
+  scm_struct_set_x (x, scm_from_uint8 (idx), z);
+}
+
 void
 scm_bootstrap_intrinsics (void)
 {
@@ -566,6 +614,25 @@ scm_bootstrap_intrinsics (void)
     allocate_pointerless_words_with_freelist;
   scm_vm_intrinsics.inexact = scm_exact_to_inexact;
 
+  /* Intrinsics for the baseline compiler. */
+  scm_vm_intrinsics.car = scm_car;
+  scm_vm_intrinsics.cdr = scm_cdr;
+  scm_vm_intrinsics.set_car_x = set_car_x;
+  scm_vm_intrinsics.set_cdr_x = set_cdr_x;
+  scm_vm_intrinsics.variable_ref = scm_variable_ref;
+  scm_vm_intrinsics.variable_set_x = variable_set_x;
+  scm_vm_intrinsics.vector_length = scm_vector_length;
+  scm_vm_intrinsics.vector_ref = scm_vector_ref;
+  scm_vm_intrinsics.vector_set_x = vector_set_x;
+  scm_vm_intrinsics.vector_ref_immediate = vector_ref_immediate;
+  scm_vm_intrinsics.vector_set_x_immediate = vector_set_x_immediate;
+  scm_vm_intrinsics.allocate_struct = scm_allocate_struct;
+  scm_vm_intrinsics.struct_vtable = scm_struct_vtable;
+  scm_vm_intrinsics.struct_ref = scm_struct_ref;
+  scm_vm_intrinsics.struct_set_x = struct_set_x;
+  scm_vm_intrinsics.struct_ref_immediate = struct_ref_immediate;
+  scm_vm_intrinsics.struct_set_x_immediate = struct_set_x_immediate;
+  
   scm_c_register_extension ("libguile-" SCM_EFFECTIVE_VERSION,
                             "scm_init_intrinsics",
                             (scm_t_extension_init_func)scm_init_intrinsics,

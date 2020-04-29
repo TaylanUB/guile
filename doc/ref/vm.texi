@@ -1144,6 +1144,22 @@ Call the @code{SCM}-returning instrinsic with index @var{idx}, passing
 Place the @code{scm} result in @var{dst}.
 @end deftypefn
 
+@deftypefn Instruction {} call-scm-scm s12:@var{a} s12:@var{b} c32:@var{idx}
+Call the @code{void}-returning instrinsic with index @var{idx}, passing
+@code{scm} locals @var{a} and @var{b} as arguments.
+@end deftypefn
+
+@deftypefn Instruction {} call-scm-scm-scm s8:@var{a} s8:@var{b} s8:@var{c} c32:@var{idx}
+Call the @code{void}-returning instrinsic with index @var{idx}, passing
+@code{scm} locals @var{a}, @var{b}, and @var{c} as arguments.
+@end deftypefn
+
+@deftypefn Instruction {} call-scm-uimm-scm s8:@var{a} c8:@var{b} s8:@var{c} c32:@var{idx}
+Call the @code{void}-returning instrinsic with index @var{idx}, passing
+@code{scm} local @var{a}, @code{uint8_t} immediate @var{b}, and
+@code{scm} local @var{c} as arguments.
+@end deftypefn
+
 There are corresponding macro-instructions for specific intrinsics.
 These are equivalent to @code{call-@var{instrinsic-kind}} instructions
 with the appropriate intrinsic @var{idx} arguments.
@@ -1301,6 +1317,29 @@ Look up @var{sym} in module @var{mod}, placing the resulting variable in
 @end deffn
 @deffn {Macro Instruction} current-module dst
 Set @var{dst} to the current module.
+@end deffn
+@deffn {Macro Instruction} $car dst src
+@deffnx {Macro Instruction} $cdr dst src
+@deffnx {Macro Instruction} $set-car! x val
+@deffnx {Macro Instruction} $set-cdr! x val
+@deffnx {Macro Instruction} $variable-ref dst src
+@deffnx {Macro Instruction} $variable-set! x val
+@deffnx {Macro Instruction} $vector-length dst x
+@deffnx {Macro Instruction} $vector-ref dst x idx
+@deffnx {Macro Instruction} $vector-ref/immediate dst x idx/imm
+@deffnx {Macro Instruction} $vector-set! x idx v
+@deffnx {Macro Instruction} $vector-set!/immediate x idx/imm v
+@deffnx {Macro Instruction} $allocate-struct dst vtable nwords
+@deffnx {Macro Instruction} $struct-vtable dst src
+@deffnx {Macro Instruction} $struct-ref dst src idx
+@deffnx {Macro Instruction} $struct-ref/immediate dst src idx/imm
+@deffnx {Macro Instruction} $struct-set! x idx v
+@deffnx {Macro Instruction} $struct-set!/immediate x idx/imm v
+Intrinsics for use by the baseline compiler.  The usual strategy for CPS
+compilation is to expose the component parts of e.g. @code{vector-ref}
+so that the compiler can learn from them and eliminate needless bits.
+However in the non-optimizing baseline compiler, that's just overhead,
+so we have some intrinsics that encapsulate all the usual type checks.
 @end deffn
 
 

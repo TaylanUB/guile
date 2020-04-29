@@ -3147,6 +3147,56 @@ compile_call_scm_from_thread_slow (scm_jit_state *j, uint32_t dst, uint32_t idx)
 }
 
 static void
+compile_call_scm_scm (scm_jit_state *j, uint16_t a, uint16_t b, uint32_t idx)
+{
+  void *intrinsic = ((void **) &scm_vm_intrinsics)[idx];
+
+  emit_store_current_ip (j, T0);
+  emit_call_2 (j, intrinsic, sp_scm_operand (j, a), sp_scm_operand (j, b));
+  emit_reload_sp (j);
+}
+static void
+compile_call_scm_scm_slow (scm_jit_state *j, uint16_t a, uint16_t b,
+                           uint32_t idx)
+{
+}
+
+static void
+compile_call_scm_scm_scm (scm_jit_state *j, uint8_t a, uint8_t b, uint8_t c,
+                          uint32_t idx)
+{
+  void *intrinsic = ((void **) &scm_vm_intrinsics)[idx];
+
+  emit_store_current_ip (j, T0);
+  emit_call_3 (j, intrinsic, sp_scm_operand (j, a), sp_scm_operand (j, b),
+               sp_scm_operand (j, c));
+  emit_reload_sp (j);
+}
+static void
+compile_call_scm_scm_scm_slow (scm_jit_state *j, uint8_t a, uint8_t b,
+                               uint8_t c, uint32_t idx)
+{
+}
+
+static void
+compile_call_scm_uimm_scm (scm_jit_state *j, uint8_t a, uint8_t b, uint8_t c,
+                           uint32_t idx)
+{
+  void *intrinsic = ((void **) &scm_vm_intrinsics)[idx];
+
+  emit_store_current_ip (j, T0);
+  emit_call_3 (j, intrinsic, sp_scm_operand (j, a),
+               jit_operand_imm (JIT_OPERAND_ABI_UINT8, b),
+               sp_scm_operand (j, c));
+  emit_reload_sp (j);
+}
+static void
+compile_call_scm_uimm_scm_slow (scm_jit_state *j, uint8_t a, uint8_t b,
+                                uint8_t c, uint32_t idx)
+{
+}
+
+static void
 compile_fadd (scm_jit_state *j, uint8_t dst, uint8_t a, uint8_t b)
 {
   emit_sp_ref_f64 (j, JIT_F0, a);
@@ -5261,6 +5311,8 @@ compile_s64_to_f64_slow (scm_jit_state *j, uint16_t dst, uint16_t src)
     comp (j, a, b, c, d);                                               \
   }
 #define COMPILE_X8_S8_S8_S8__C32(j, comp)                               \
+  COMPILE_X8_S8_S8_C8__C32(j, comp)
+#define COMPILE_X8_S8_C8_S8__C32(j, comp)                               \
   COMPILE_X8_S8_S8_C8__C32(j, comp)
 
 #define COMPILE_X32__LO32__L32(j, comp)                                 \
