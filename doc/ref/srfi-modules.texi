@@ -5764,7 +5764,7 @@ and SRFI-158-styled generators respectively.
 @deffnx {Scheme Procedure} port-transduce xform f identity reader port
 
 Same as @code{list-reduce} but for ports.  Called without a port, it
-reduces over the results of applying @var{(reader)} until the
+reduces over the results of applying @var{reader} until the
 EOF-object is returned, presumably to read from
 @code{current-input-port}.  With a port @var{reader} is applied to
 @var{port} instead of without any arguments.  If @var{identity} is
@@ -6010,7 +6010,7 @@ be used to generalize something like @code{tsegment}:
 @example
 ;; This behaves exactly like (tsegment 4).
 (list-transduce (tbatch (ttake 4) rcons) rcons (iota 10))
-@result {} ((0 1 2 3) (4 5 6 7) (8 9))
+@result{} ((0 1 2 3) (4 5 6 7) (8 9))
 @end example
 @end deffn
 
