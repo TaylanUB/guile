@@ -1223,13 +1223,21 @@
       (call-with-prompt tag
                         (lambda () 1)
                         handler)
-    (prompt #f
-            (toplevel tag)
-            (lambda _
-              (lambda-case
-               ((() #f #f #f () ())
-                (const 1))))
-            (toplevel handler)))
+    (let (handler) (_) ((toplevel handler))
+         (if (primcall procedure? (lexical handler _))
+             (prompt #f
+                     (toplevel tag)
+                     (lambda _
+                       (lambda-case
+                        ((() #f #f #f () ())
+                         (const 1))))
+                     (lambda _
+                       (lambda-case
+                        ((() #f args #f () (_))
+                         (primcall apply
+                                   (lexical handler _)
+                                   (lexical args _))))))
+             (primcall throw . _))))
 
   (pass-if-peval
    ;; `while' without `break' or `continue' has no prompts and gets its

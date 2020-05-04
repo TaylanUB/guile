@@ -651,7 +651,37 @@
 (define-primitive-expander! 'call-with-prompt
   (case-lambda
    ((src tag thunk handler)
-    (make-prompt src #f tag thunk handler))
+    (match handler
+      (($ <lambda> _ _ ($ <lambda-case> _ _ #f _ #f () _ _ #f))
+       (make-prompt src #f tag thunk handler))
+      (_
+       ;; Eta-convert prompts without inline handlers.
+       (let ((h (gensym "h "))
+             (args (gensym "args ")))
+         (define-syntax-rule (primcall name . args)
+           (make-primcall src 'name (list . args)))
+         (define-syntax-rule (const val)
+           (make-const src val))
+         (make-let
+          src (list 'handler) (list h) (list handler)
+          (let ((handler (make-lexical-ref src 'handler h)))
+            (make-conditional
+             src
+             (primcall procedure? handler)
+             (make-prompt
+              src #f tag thunk
+              (make-lambda
+               src '()
+               (make-lambda-case
+                src '() #f 'args #f '() (list args)
+                (primcall apply handler (make-lexical-ref #f 'args args))
+                #f)))
+             (primcall throw
+                       (const 'wrong-type-arg)
+                       (const "call-with-prompt")
+                       (const "Wrong type (expecting procedure): ~S")
+                       (primcall list handler)
+                       (primcall list handler)))))))))
    (else #f)))
 
 (define-primitive-expander! 'abort-to-prompt*

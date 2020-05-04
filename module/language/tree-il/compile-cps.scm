@@ -2556,32 +2556,6 @@ integer."
                 (make-primcall src 'rsh (list a n)))
               (make-primcall src 'lsh (list a b)))))))
 
-       ;; Eta-convert prompts without inline handlers.
-       (($ <prompt> src escape-only? tag body handler)
-        (let ((h (gensym "h "))
-              (args (gensym "args ")))
-          (define-syntax-rule (primcall name . args)
-            (make-primcall src 'name (list . args)))
-          (define-syntax-rule (const val)
-            (make-const src val))
-          (with-lexicals src (handler)
-            (make-conditional
-             src
-             (primcall procedure? handler)
-             (make-prompt
-              src escape-only? tag body
-              (make-lambda
-               src '()
-               (make-lambda-case
-                src '() #f 'args #f '() (list args)
-                (primcall apply handler (make-lexical-ref #f 'args args))
-                #f)))
-             (primcall throw
-                       (const 'wrong-type-arg)
-                       (const "call-with-prompt")
-                       (const "Wrong type (expecting procedure): ~S")
-                       (primcall cons handler (const '()))
-                       (primcall cons handler (const '())))))))
        (_ exp)))
    exp))
 
