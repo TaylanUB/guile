@@ -38,8 +38,6 @@
 
 ;; FIXME: Add debugging source-location info.
 
-;; FIXME: Add debugging variable name info.
-
 (define-module (language tree-il compile-bytecode)
   #:use-module (ice-9 match)
   #:use-module (language bytecode)
@@ -753,41 +751,42 @@ in the frame with for the lambda-case clause @var{clause}."
       (($ <env> prev)
        (frame-base prev))))
 
-  (define (push-free-var sym idx env)
-    (make-env env sym sym idx #t (assigned? sym) #f))
-
-  (define (push-closure frame-size env)
-    (push-local 'closure #f
-                (make-env env 'frame-base #f #f #f #f (- frame-size 1))))
-
-  (define (push-local name sym env)
-    (let ((idx (env-next-local env)))
-      (make-env env name sym idx #f (assigned? sym) (1- idx))))
-
-  (define (push-local-alias name sym idx env)
-    (make-env env name sym idx #f #f (env-next-local env)))
-
-  (define (push-temp env)
-    (let ((idx (env-next-local env)))
-      (make-env env #f #f idx #f #f (1- idx))))
-
-  (define (push-frame env)
-    (let lp ((i 0) (env env))
-      (if (< i call-frame-size)
-          (lp (1+ i) (push-temp env))
-          env)))
-
-  (define (create-initial-env names syms free-syms frame-size)
-    (define (push-free-vars env)
-      (let lp ((idx 0) (free free-syms) (env env))
-        (match free
-          (() env)
-          ((sym . free)
-           (lp (1+ idx) free
-               (push-free-var sym idx env))))))
-    (fold push-local (push-closure frame-size (push-free-vars #f)) names syms))
-
   (define (compile-body clause module-scope free-vars frame-size)
+    (define (push-free-var sym idx env)
+      (make-env env sym sym idx #t (assigned? sym) #f))
+
+    (define (push-closure env)
+      (push-local 'closure #f
+                  (make-env env 'frame-base #f #f #f #f (- frame-size 1))))
+
+    (define (push-local name sym env)
+      (let ((idx (env-next-local env)))
+        (emit-definition asm name (- frame-size idx 1) 'scm)
+        (make-env env name sym idx #f (assigned? sym) (1- idx))))
+
+    (define (push-local-alias name sym idx env)
+      (make-env env name sym idx #f #f (env-next-local env)))
+
+    (define (push-temp env)
+      (let ((idx (env-next-local env)))
+        (make-env env #f #f idx #f #f (1- idx))))
+
+    (define (push-frame env)
+      (let lp ((i 0) (env env))
+        (if (< i call-frame-size)
+            (lp (1+ i) (push-temp env))
+            env)))
+
+    (define (create-initial-env names syms free-syms)
+      (define (push-free-vars env)
+        (let lp ((idx 0) (free free-syms) (env env))
+          (match free
+            (() env)
+            ((sym . free)
+             (lp (1+ idx) free
+                 (push-free-var sym idx env))))))
+      (fold push-local (push-closure (push-free-vars #f)) names syms))
+
     (define (stack-height env)
       (- frame-size (env-next-local env) 1))
 
@@ -988,7 +987,8 @@ in the frame with for the lambda-case clause @var{clause}."
         (($ <primcall> src name args)
          (let ((prim (lookup-primitive name)))
            (define (emit/immediate? val)
-             (and=> (primitive-immediate-in-range-predicate prim) val))
+             (and=> (primitive-immediate-in-range-predicate prim)
+                    (lambda (pred) (pred val))))
            (cond
             ((primitive-has-result? prim)
              (for-value exp env))
@@ -1144,7 +1144,8 @@ in the frame with for the lambda-case clause @var{clause}."
         (($ <primcall> src name args)
          (let ((prim (lookup-primitive name)))
            (define (emit/immediate? val)
-             (and=> (primitive-immediate-in-range-predicate prim) val))
+             (and=> (primitive-immediate-in-range-predicate prim)
+                    (lambda (pred) (pred val))))
            (cond
             ((not (primitive-has-result? prim))
              (for-effect exp env)
@@ -1274,7 +1275,7 @@ in the frame with for the lambda-case clause @var{clause}."
                             (list-tail inits (if opt (length opt) 0)))))
          (unless (= (length names) (length syms) (length inits))
            (error "unexpected args" names syms inits))
-         (let ((env (create-initial-env names syms free-vars frame-size)))
+         (let ((env (create-initial-env names syms free-vars)))
            (for-each (lambda (sym init) (for-init sym init env)) syms inits)
            (for-tail body env))))))
 
