@@ -1246,10 +1246,13 @@ in the frame with for the lambda-case clause @var{clause}."
          (emit-return-values asm))
 
         (($ <call> src proc args)
-         (let ((from (stack-height env)))
-           (fold for-push (for-push proc env) args)
-           (emit-reset-frame asm (+ from 1 (length args)))
-           (emit-shuffle-down asm from 0)
+         (let* ((base (stack-height env))
+                (env (fold for-push (for-push proc env) args)))
+           (let lp ((i (length args)) (env env))
+             (when (<= 0 i)
+               (lp (1- i) (env-prev env))
+               (emit-mov asm (+ (env-idx env) base) (env-idx env))))
+           (emit-reset-frame asm (+ 1 (length args)))
            (emit-tail-call asm)))
 
         (($ <prompt>)       (visit-prompt exp env 'tail))
