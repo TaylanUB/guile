@@ -185,7 +185,6 @@ SOURCES =					\
 						\
   language/tree-il.scm				\
   language/tree-il/analyze.scm			\
-  language/tree-il/canonicalize.scm		\
   language/tree-il/compile-cps.scm		\
   language/tree-il/cps-primitives.scm		\
   language/tree-il/debug.scm			\
