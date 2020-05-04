@@ -399,6 +399,7 @@
   (define (finish-conditional exp)
     (define (true? x) (match x (($ <const> _ val) val) (_ #f)))
     (define (false? x) (match x (($ <const> _ val) (not val)) (_ #f)))
+    (define (predicate? name) (primitive-predicate? (lookup-primitive name)))
     (match exp
       (($ <conditional> src ($ <conditional> _ test (? true?) (? false?))
           consequent alternate)
@@ -406,6 +407,8 @@
       (($ <conditional> src ($ <conditional> _ test (? false?) (? true?))
           consequent alternate)
        (finish-conditional (make-conditional src test alternate consequent)))
+      (($ <conditional> src ($ <primcall> _ (? predicate?)))
+       exp)
       (($ <conditional> src test consequent alternate)
        (make-conditional src (make-primcall src 'false? (list test))
                          alternate consequent))))
@@ -864,8 +867,8 @@ in the frame with for the lambda-case clause @var{clause}."
                (kf (gensym "false"))
                (kdone (gensym "done")))
            (match args
-             ((a) (emit asm args a kf))
-             ((a b) (emit asm args a b kf)))
+             ((a) (emit asm a kf))
+             ((a b) (emit asm a b kf)))
            (for-context consequent env ctx)
            (unless (eq? ctx 'tail)
              (emit-j asm kdone))
