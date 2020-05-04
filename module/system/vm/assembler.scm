@@ -290,6 +290,7 @@
             (emit-instrument-loop* . emit-instrument-loop)
             emit-receive-values
             emit-return-values
+            emit-shuffle-down
             emit-call/cc
             emit-abort
             emit-builtin-ref
