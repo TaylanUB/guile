@@ -819,7 +819,7 @@ in the frame with for the lambda-case clause @var{clause}."
                   (when (env-boxed? env)
                     (emit-box asm (env-idx env) (env-idx env)))
                   env))
-              names syms env))
+              env names syms))
       (let ((proc-slot (stack-height env))
             (nreq (length req)))
         (unless (and rest (zero? nreq))
