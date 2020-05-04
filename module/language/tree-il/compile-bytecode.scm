@@ -840,7 +840,7 @@ in the frame with for the lambda-case clause @var{clause}."
                (khandler (gensym "handler"))
                (done (gensym "done")))
 
-           (emit-prompt src tag escape-only? proc-slot khandler)
+           (emit-prompt asm tag escape-only? proc-slot khandler)
            (match ctx
              ('tail
               ;; Would be nice if we could invoke the body in true tail
