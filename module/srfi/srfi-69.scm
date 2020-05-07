@@ -330,7 +330,7 @@ Answer the final F result."
   "Add all key/value pairs from OTHER-HT to HT, overriding HT's
 mappings where present.  Return HT."
   (hash-table-fold
-   ht (lambda (k v ign) (hash-table-set! ht k v)) #f)
+   other-ht (lambda (k v ign) (hash-table-set! ht k v)) #f)
   ht)
 
 ;;; srfi-69.scm ends here
