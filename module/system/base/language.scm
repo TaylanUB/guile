@@ -29,9 +29,7 @@
             language-make-default-environment
 
             lookup-compilation-order lookup-decompilation-order
-            invalidate-compilation-cache! default-environment
-
-            *current-language*)
+            default-environment)
 
   #:re-export (current-language))
 
@@ -53,10 +51,8 @@
   (for-humans? #t)
   (make-default-environment make-fresh-user-module))
 
-(define-macro (define-language name . spec)
-  `(begin
-     (invalidate-compilation-cache!)
-     (define ,name (make-language #:name ',name ,@spec))))
+(define-syntax-rule (define-language name . spec)
+  (define name (make-language #:name 'name . spec)))
 
 (define (lookup-language name)
   (let ((m (resolve-module `(language ,name spec))))
@@ -64,12 +60,11 @@
 	(module-ref m name)
 	(error "no such language" name))))
 
-(define *compilation-cache* '())
-(define *decompilation-cache* '())
-
-(define (invalidate-compilation-cache!)
-  (set! *decompilation-cache* '())
-  (set! *compilation-cache* '()))
+(begin-deprecated
+ (define-public (invalidate-compilation-cache!)
+   (issue-deprecation-warning
+    "invalidate-compilation-cache is deprecated; recompile your modules")
+   (values)))
 
 (define (compute-translation-order from to language-translators)
   (cond
@@ -87,22 +82,11 @@
                      (language-translators from))))))))
 
 (define (lookup-compilation-order from to)
-  (let ((key (cons from to)))
-    (or (assoc-ref *compilation-cache* key)
-        (let ((order (compute-translation-order from to language-compilers)))
-          (set! *compilation-cache*
-                (acons key order *compilation-cache*))
-          order))))
+  (compute-translation-order from to language-compilers))
 
 (define (lookup-decompilation-order from to)
-  (let ((key (cons from to)))
-    (or (assoc-ref *decompilation-cache* key)
-        ;; trickery!
-        (let ((order (and=>
-                      (compute-translation-order to from language-decompilers)
-                      reverse!)))
-          (set! *decompilation-cache* (acons key order *decompilation-cache*))
-          order))))
+  (and=> (compute-translation-order to from language-decompilers)
+         reverse!))
 
 (define (default-environment lang)
   "Return the default compilation environment for source language LANG."
@@ -116,4 +100,5 @@
 ;;;
 
 ;; Deprecated; use current-language instead.
-(define *current-language* (parameter-fluid current-language))
+(begin-deprecated
+ (define-public *current-language* (parameter-fluid current-language)))
