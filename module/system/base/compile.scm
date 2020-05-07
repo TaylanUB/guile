@@ -37,8 +37,8 @@
   (let ((entered #f))
     (dynamic-wind
         (lambda ()
-          (if entered
-              (error "thunk may only be entered once: ~a" thunk))
+          (when entered
+            (error "thunk may only be entered once: ~a" thunk))
           (set! entered #t))
         thunk
         (lambda () #t))))
