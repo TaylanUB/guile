@@ -10,6 +10,7 @@
      (eval . (put 'pass-if-exception   'scheme-indent-function 2))
      (eval . (put 'pass-if-equal       'scheme-indent-function 2))
      (eval . (put 'with-test-prefix    'scheme-indent-function 1))
+     (eval . (put 'with-test-prefix/c&e 'scheme-indent-function 1))
      (eval . (put 'with-code-coverage  'scheme-indent-function 1))
      (eval . (put 'with-statprof       'scheme-indent-function 1))
      (eval . (put 'let-gensyms         'scheme-indent-function 1))

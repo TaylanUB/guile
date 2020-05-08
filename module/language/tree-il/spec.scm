@@ -23,6 +23,7 @@
   #:use-module (system base pmatch)
   #:use-module (language tree-il)
   #:use-module (language tree-il compile-cps)
+  #:use-module ((language tree-il analyze) #:select (make-analyzer))
   #:export (tree-il))
 
 (define (write-tree-il exp . port)
@@ -43,4 +44,5 @@
   #:parser      parse-tree-il
   #:joiner      join
   #:compilers   `((cps . ,compile-cps))
+  #:analyzer    make-analyzer
   #:for-humans? #f)

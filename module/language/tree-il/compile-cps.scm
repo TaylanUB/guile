@@ -60,7 +60,6 @@
   #:use-module (language cps utils)
   #:use-module (language cps with-cps)
   #:use-module (language tree-il cps-primitives)
-  #:use-module (language tree-il analyze)
   #:use-module (language tree-il optimize)
   #:use-module (language tree-il)
   #:use-module (language cps intmap)
@@ -2324,28 +2323,6 @@ integer."
 
 (define *comp-module* (make-fluid))
 
-(define %warning-passes
-  `((unused-variable             . ,unused-variable-analysis)
-    (unused-toplevel             . ,unused-toplevel-analysis)
-    (shadowed-toplevel           . ,shadowed-toplevel-analysis)
-    (unbound-variable            . ,unbound-variable-analysis)
-    (macro-use-before-definition . ,macro-use-before-definition-analysis)
-    (arity-mismatch              . ,arity-analysis)
-    (format                      . ,format-analysis)))
-
-(define (optimize-tree-il x e opts)
-  (define warnings
-    (or (and=> (memq #:warnings opts) cadr)
-        '()))
-
-  ;; Go through the warning passes.
-  (let ((analyses (filter-map (lambda (kind)
-                                (assoc-ref %warning-passes kind))
-                              warnings)))
-    (analyze-tree analyses x e))
-
-  (optimize x e opts))
-
 (define (canonicalize exp)
   (define-syntax-rule (with-lexical src id . body)
     (let ((k (lambda (id) . body)))
@@ -2560,8 +2537,7 @@ integer."
    exp))
 
 (define (compile-cps exp env opts)
-  (values (cps-convert/thunk
-           (canonicalize (optimize-tree-il exp env opts)))
+  (values (cps-convert/thunk (canonicalize (optimize exp env opts)))
           env
           env))
 

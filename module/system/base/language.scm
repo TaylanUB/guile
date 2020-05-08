@@ -27,6 +27,8 @@
             language-compilers language-decompilers language-evaluator
             language-joiner language-for-humans?
             language-make-default-environment
+            language-optimizations-for-level
+            language-analyzer
 
             lookup-compilation-order lookup-decompilation-order
             default-environment)
@@ -49,7 +51,9 @@
   (evaluator #f)
   (joiner #f)
   (for-humans? #t)
-  (make-default-environment make-fresh-user-module))
+  (make-default-environment make-fresh-user-module)
+  (optimizations-for-level #f)
+  (analyzer #f))
 
 (define-syntax-rule (define-language name . spec)
   (define name (make-language #:name 'name . spec)))

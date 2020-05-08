@@ -2,19 +2,18 @@
 
 ;; Copyright (C) 2020 Free Software Foundation, Inc.
 
-;;;; This library is free software; you can redistribute it and/or
-;;;; modify it under the terms of the GNU Lesser General Public
-;;;; License as published by the Free Software Foundation; either
-;;;; version 3 of the License, or (at your option) any later version.
-;;;;
-;;;; This library is distributed in the hope that it will be useful,
-;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-;;;; Lesser General Public License for more details.
-;;;;
-;;;; You should have received a copy of the GNU Lesser General Public
-;;;; License along with this library; if not, write to the Free Software
-;;;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+;;; This library is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU Lesser General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; This library is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+;;; General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU Lesser General Public License
+;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;;
@@ -42,7 +41,6 @@
   #:use-module (ice-9 match)
   #:use-module (language bytecode)
   #:use-module (language tree-il)
-  #:use-module (language tree-il analyze)
   #:use-module (language tree-il optimize)
   #:use-module ((srfi srfi-1) #:select (filter-map
                                         fold
@@ -1316,35 +1314,13 @@ in the frame with for the lambda-case clause @var{clause}."
      (emit-clause #f body module-scope free)
      (emit-end-program asm))))
 
-(define %warning-passes
-  `((unused-variable             . ,unused-variable-analysis)
-    (unused-toplevel             . ,unused-toplevel-analysis)
-    (shadowed-toplevel           . ,shadowed-toplevel-analysis)
-    (unbound-variable            . ,unbound-variable-analysis)
-    (macro-use-before-definition . ,macro-use-before-definition-analysis)
-    (arity-mismatch              . ,arity-analysis)
-    (format                      . ,format-analysis)))
-
-(define (optimize-tree-il x e opts)
-  (define warnings
-    (or (and=> (memq #:warnings opts) cadr)
-        '()))
-
-  ;; Go through the warning passes.
-  (let ((analyses (filter-map (lambda (kind)
-                                (assoc-ref %warning-passes kind))
-                              warnings)))
-    (analyze-tree analyses x e))
-
-  (optimize x e opts))
-
 (define (kw-arg-ref args kw default)
   (match (memq kw args)
     ((_ val . _) val)
     (_ default)))
 
 (define (compile-bytecode exp env opts)
-  (let* ((exp (canonicalize (optimize-tree-il exp env opts)))
+  (let* ((exp (canonicalize (optimize exp env opts)))
          (asm (make-assembler)))
     (call-with-values (lambda () (split-closures exp))
       (lambda (closures assigned)

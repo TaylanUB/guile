@@ -47,87 +47,76 @@
 ;;; let-keywords
 ;;;
 
-(with-test-prefix/c&e "let-keywords"
+(define-syntax-rule (without-compiler-warnings exp ...)
+  (parameterize ((default-warning-level #f)) exp ...))
 
-  ;; in guile 1.6.4 and earlier, an empty binding list only used `begin',
-  ;; which caused apparently internal defines to "leak" out into the
-  ;; encompasing environment
-  (pass-if-exception "empty bindings internal defines leaking out"
-      exception:unbound-var
-    (let ((rest '()))
-      (let-keywords rest #f ()
-	(define localvar #f)
-	#f)
-      localvar))
+(without-compiler-warnings
+ (with-test-prefix/c&e "let-keywords"
+   ;; in guile 1.6.4 and earlier, an empty binding list only used `begin',
+   ;; which caused apparently internal defines to "leak" out into the
+   ;; encompasing environment
+   (pass-if-exception "empty bindings internal defines leaking out"
+       exception:unbound-var
+     (let ((rest '()))
+       (let-keywords rest #f ()
+                     (define localvar #f)
+                     #f)
+       localvar))
 
-  (pass-if "one key"
-    (let-keywords '(#:foo 123) #f (foo)
-      (= foo 123))))
+   (pass-if "one key"
+     (let-keywords '(#:foo 123) #f (foo)
+                   (= foo 123))))
 
-;;;
-;;; let-keywords*
-;;;
 
-(with-test-prefix/c&e "let-keywords*"
+ (with-test-prefix/c&e "let-keywords*"
+   ;; in guile 1.6.4 and earlier, an empty binding list only used `begin',
+   ;; which caused apparently internal defines to "leak" out into the
+   ;; encompasing environment
+   (pass-if-exception "empty bindings internal defines leaking out"
+       exception:unbound-var
+     (let ((rest '()))
+       (let-keywords* rest #f ()
+                      (define localvar #f)
+                      #f)
+       localvar))
 
-  ;; in guile 1.6.4 and earlier, an empty binding list only used `begin',
-  ;; which caused apparently internal defines to "leak" out into the
-  ;; encompasing environment
-  (pass-if-exception "empty bindings internal defines leaking out"
-      exception:unbound-var
-    (let ((rest '()))
-      (let-keywords* rest #f ()
-	(define localvar #f)
-	#f)
-      localvar))
+   (pass-if "one key"
+     (let-keywords* '(#:foo 123) #f (foo)
+                    (= foo 123))))
 
-  (pass-if "one key"
-    (let-keywords* '(#:foo 123) #f (foo)
-      (= foo 123))))
+ (with-test-prefix/c&e "let-optional"
+   ;; in guile 1.6.4 and earlier, an empty binding list only used `begin',
+   ;; which caused apparently internal defines to "leak" out into the
+   ;; encompasing environment
+   (pass-if-exception "empty bindings internal defines leaking out"
+       exception:unbound-var
+     (let ((rest '()))
+       (let-optional rest ()
+                     (define localvar #f)
+                     #f)
+       localvar))
 
-;;;
-;;; let-optional
-;;;
+   (pass-if "one var"
+     (let ((rest '(123)))
+       (let-optional rest ((foo 999))
+                     (= foo 123)))))
 
-(with-test-prefix/c&e "let-optional"
+ (with-test-prefix/c&e "let-optional*"
+   ;; in guile 1.6.4 and earlier, an empty binding list only used `begin',
+   ;; which caused apparently internal defines to "leak" out into the
+   ;; encompasing environment
+   (pass-if-exception "empty bindings internal defines leaking out"
+       exception:unbound-var
+     (let ((rest '()))
+       (let-optional* rest ()
+                      (define localvar #f)
+                      #f)
+       localvar))
 
-  ;; in guile 1.6.4 and earlier, an empty binding list only used `begin',
-  ;; which caused apparently internal defines to "leak" out into the
-  ;; encompasing environment
-  (pass-if-exception "empty bindings internal defines leaking out"
-      exception:unbound-var
-    (let ((rest '()))
-      (let-optional rest ()
-	(define localvar #f)
-	#f)
-      localvar))
-
-  (pass-if "one var"
-    (let ((rest '(123)))
-      (let-optional rest ((foo 999))
-	(= foo 123)))))
-
-;;;
-;;; let-optional*
-;;;
-
-(with-test-prefix/c&e "let-optional*"
-
-  ;; in guile 1.6.4 and earlier, an empty binding list only used `begin',
-  ;; which caused apparently internal defines to "leak" out into the
-  ;; encompasing environment
-  (pass-if-exception "empty bindings internal defines leaking out"
-      exception:unbound-var
-    (let ((rest '()))
-      (let-optional* rest ()
-	(define localvar #f)
-	#f)
-      localvar))
-
-  (pass-if "one var"
-    (let ((rest '(123)))
-      (let-optional* rest ((foo 999))
-	(= foo 123)))))
+   (pass-if "one var"
+     (let ((rest '(123)))
+       (let-optional* rest ((foo 999))
+                      (= foo 123))))))
 
 (define* (foo a b #:optional c (d 1) (e c) f #:key g (h a) (i r) #:rest r)
   (list a b c d e f g h i r))
@@ -136,46 +125,47 @@
 ;; the compiler, and the compiler compiles itself, using the evaluator
 ;; (when bootstrapping) and compiled code (when doing a partial rebuild)
 ;; makes me a bit complacent.
-(with-test-prefix/c&e "define*"
-  (pass-if "the whole enchilada"
-    (equal? (foo 1 2)
-            '(1 2 #f 1 #f #f #f 1 () ())))
+(without-compiler-warnings
+ (with-test-prefix/c&e "define*"
+   (pass-if "the whole enchilada"
+     (equal? (foo 1 2)
+             '(1 2 #f 1 #f #f #f 1 () ())))
 
-  (pass-if-exception "extraneous arguments"
-    exception:extraneous-arguments
-    (let ((f (lambda* (#:key x) x)))
-      (f 1 2 #:x 'x)))
+   (pass-if-exception "extraneous arguments"
+       exception:extraneous-arguments
+     (let ((f (lambda* (#:key x) x)))
+       (f 1 2 #:x 'x)))
 
-  (pass-if-equal "unrecognized keyword" '(#:y)
-    (catch 'keyword-argument-error
-      (lambda ()
-        (let ((f (lambda* (#:key x) x)))
-          (f #:y 'not-recognized)))
-      (lambda (key proc fmt args data)
-        data)))
+   (pass-if-equal "unrecognized keyword" '(#:y)
+     (catch 'keyword-argument-error
+            (lambda ()
+              (let ((f (lambda* (#:key x) x)))
+                (f #:y 'not-recognized)))
+            (lambda (key proc fmt args data)
+              data)))
 
-  (pass-if-equal "missing argument" '("Keyword argument has no value" #:x)
-    (catch 'keyword-argument-error
-      (lambda ()
-        (let ((f (lambda* (#:key x) x)))
-          (f #:x)))
-      (lambda (key proc fmt args data)
-        (cons fmt data))))
+   (pass-if-equal "missing argument" '("Keyword argument has no value" #:x)
+     (catch 'keyword-argument-error
+            (lambda ()
+              (let ((f (lambda* (#:key x) x)))
+                (f #:x)))
+            (lambda (key proc fmt args data)
+              (cons fmt data))))
 
-  (pass-if-equal "invalid keyword" '(not-a-keyword)
-    (catch 'keyword-argument-error
-      (lambda ()
-        (let ((f (lambda* (#:key x) x)))
-          (f 'not-a-keyword 'something)))
-      (lambda (key proc fmt args data)
-        data)))
+   (pass-if-equal "invalid keyword" '(not-a-keyword)
+     (catch 'keyword-argument-error
+            (lambda ()
+              (let ((f (lambda* (#:key x) x)))
+                (f 'not-a-keyword 'something)))
+            (lambda (key proc fmt args data)
+              data)))
 
-  (pass-if "rest given before keywords"
-    ;; Passing the rest argument before the keyword arguments should not
-    ;; prevent keyword argument binding.
-    (let ((f (lambda* (#:key x y z #:rest r) (list x y z r))))
-      (equal? (f 1 2 3 #:x 'x #:z 'z)
-              '(x #f z (1 2 3 #:x x #:z z))))))
+   (pass-if "rest given before keywords"
+     ;; Passing the rest argument before the keyword arguments should not
+     ;; prevent keyword argument binding.
+     (let ((f (lambda* (#:key x y z #:rest r) (list x y z r))))
+       (equal? (f 1 2 3 #:x 'x #:z 'z)
+               '(x #f z (1 2 3 #:x x #:z z)))))))
 
 (with-test-prefix "scm_c_bind_keyword_arguments"
 
@@ -245,98 +235,100 @@
     (equal? (transmogrify quote)
             10)))
 
-(with-test-prefix/c&e "case-lambda"
-  (pass-if-exception "no clauses, no args" exception:wrong-num-args
-    ((case-lambda)))
+(without-compiler-warnings
+ (with-test-prefix/c&e "case-lambda"
+   (pass-if-exception "no clauses, no args" exception:wrong-num-args
+     ((case-lambda)))
 
-  (pass-if-exception "no clauses, args" exception:wrong-num-args
-    ((case-lambda) 1))
+   (pass-if-exception "no clauses, args" exception:wrong-num-args
+     ((case-lambda) 1))
 
-  (pass-if "docstring"
-    (equal? "docstring test"
-            (procedure-documentation
-             (case-lambda
-              "docstring test"
-              (() 0)
-              ((x) 1))))))
+   (pass-if "docstring"
+     (equal? "docstring test"
+             (procedure-documentation
+              (case-lambda
+               "docstring test"
+               (() 0)
+               ((x) 1)))))))
 
-(with-test-prefix/c&e "case-lambda*"
-  (pass-if-exception "no clauses, no args" exception:wrong-num-args
-    ((case-lambda*)))
+(without-compiler-warnings
+ (with-test-prefix/c&e "case-lambda*"
+   (pass-if-exception "no clauses, no args" exception:wrong-num-args
+     ((case-lambda*)))
 
-  (pass-if-exception "no clauses, args" exception:wrong-num-args
-    ((case-lambda*) 1))
+   (pass-if-exception "no clauses, args" exception:wrong-num-args
+     ((case-lambda*) 1))
 
-  (pass-if "docstring"
-    (equal? "docstring test"
-            (procedure-documentation
-             (case-lambda*
-              "docstring test"
-              (() 0)
-              ((x) 1)))))
+   (pass-if "docstring"
+     (equal? "docstring test"
+             (procedure-documentation
+              (case-lambda*
+               "docstring test"
+               (() 0)
+               ((x) 1)))))
 
-  (pass-if "unambiguous"
-    ((case-lambda*
-      ((a b) #t)
-      ((a) #f))
-     1 2))
+   (pass-if "unambiguous"
+     ((case-lambda*
+       ((a b) #t)
+       ((a) #f))
+      1 2))
 
-  (pass-if "unambiguous (reversed)"
-    ((case-lambda*
-      ((a) #f)
-      ((a b) #t))
-     1 2))
+   (pass-if "unambiguous (reversed)"
+     ((case-lambda*
+       ((a) #f)
+       ((a b) #t))
+      1 2))
 
-  (pass-if "optionals (order disambiguates)"
-    ((case-lambda*
-      ((a #:optional b) #t)
-      ((a b) #f))
-     1 2))
+   (pass-if "optionals (order disambiguates)"
+     ((case-lambda*
+       ((a #:optional b) #t)
+       ((a b) #f))
+      1 2))
 
-  (pass-if "optionals (order disambiguates (2))"
-    ((case-lambda*
-      ((a b) #t)
-      ((a #:optional b) #f))
-     1 2))
+   (pass-if "optionals (order disambiguates (2))"
+     ((case-lambda*
+       ((a b) #t)
+       ((a #:optional b) #f))
+      1 2))
 
-  (pass-if "optionals (one arg)"
-    ((case-lambda*
-      ((a b) #f)
-      ((a #:optional b) #t))
-     1))
+   (pass-if "optionals (one arg)"
+     ((case-lambda*
+       ((a b) #f)
+       ((a #:optional b) #t))
+      1))
 
-  (pass-if "optionals (one arg (2))"
-    ((case-lambda*
-      ((a #:optional b) #t)
-      ((a b) #f))
-     1))
+   (pass-if "optionals (one arg (2))"
+     ((case-lambda*
+       ((a #:optional b) #t)
+       ((a b) #f))
+      1))
 
-  (pass-if "keywords without keyword"
-    ((case-lambda*
-      ((a #:key c) #t)
-      ((a b) #f))
-     1))
+   (pass-if "keywords without keyword"
+     ((case-lambda*
+       ((a #:key c) #t)
+       ((a b) #f))
+      1))
 
-  (pass-if "keywords with keyword"
-    ((case-lambda*
-      ((a #:key c) #t)
-      ((a b) #f))
-     1 #:c 2))
+   (pass-if "keywords with keyword"
+     ((case-lambda*
+       ((a #:key c) #t)
+       ((a b) #f))
+      1 #:c 2))
 
-  (pass-if "keywords (too many positionals)"
-    ((case-lambda*
-      ((a #:key c) #f)
-      ((a b) #t))
-     1 2))
+   (pass-if "keywords (too many positionals)"
+     ((case-lambda*
+       ((a #:key c) #f)
+       ((a b) #t))
+      1 2))
 
-  (pass-if "keywords (order disambiguates)"
-    ((case-lambda*
-      ((a #:key c) #t)
-      ((a b c) #f))
-     1 #:c 2))
+   (pass-if "keywords (order disambiguates)"
+     ((case-lambda*
+       ((a #:key c) #t)
+       ((a b c) #f))
+      1 #:c 2))
 
-  (pass-if "keywords (order disambiguates (2))"
-    ((case-lambda*
-      ((a b c) #t)
-      ((a #:key c) #f))
-     1 #:c 2)))
+   (pass-if "keywords (order disambiguates (2))"
+     ((case-lambda*
+       ((a b c) #t)
+       ((a #:key c) #f))
+      1 #:c 2))))

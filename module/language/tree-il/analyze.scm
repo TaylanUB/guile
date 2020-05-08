@@ -1,6 +1,6 @@
 ;;; TREE-IL -> GLIL compiler
 
-;; Copyright (C) 2001,2008-2014,2016,2018-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2001,2008-2014,2016,2018-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -37,7 +37,8 @@
             unbound-variable-analysis
             macro-use-before-definition-analysis
             arity-analysis
-            format-analysis))
+            format-analysis
+            make-analyzer))
 
 ;;;
 ;;; Tree analyses for warnings.
@@ -1086,3 +1087,26 @@ resort, return #t when EXP refers to the global variable SPECIAL-NAME."
      #t)
 
    #t))
+
+(define %warning-passes
+  `(#(unused-variable             3 ,unused-variable-analysis)
+    #(unused-toplevel             2 ,unused-toplevel-analysis)
+    #(shadowed-toplevel           2 ,shadowed-toplevel-analysis)
+    #(unbound-variable            1 ,unbound-variable-analysis)
+    #(macro-use-before-definition 1 ,macro-use-before-definition-analysis)
+    #(arity-mismatch              1 ,arity-analysis)
+    #(format                      1 ,format-analysis)))
+
+(define (make-analyzer warning-level warnings)
+  (define (enabled-for-level? level)
+    (match warning-level
+      ((? boolean?) warning-level)
+      ((? exact-integer?) (>= warning-level level))))
+  (let ((analyses (filter-map (match-lambda
+                               (#(kind level analysis)
+                                (and (or (enabled-for-level? level)
+                                         (memq kind warnings))
+                                     analysis)))
+                              %warning-passes)))
+    (lambda (exp env)
+      (analyze-tree analyses exp env))))

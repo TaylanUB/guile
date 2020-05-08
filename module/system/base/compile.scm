@@ -28,8 +28,21 @@
             compile-and-load
             read-and-compile
             compile
-            decompile))
+            decompile
+            default-warning-level
+            default-optimization-level))
 
+
+(define (level-validator x)
+  (match x
+    ((? boolean?) x)
+    ((and (? exact-integer?) (not (? negative?))) x)
+    (_ (error
+        "bad warning or optimization level: expected #f, #t, or integer >= 0"
+        x))))
+
+(define default-warning-level (make-parameter 1 level-validator))
+(define default-optimization-level (make-parameter 2 level-validator))
 
 ;;;
 ;;; Compiler
@@ -156,8 +169,8 @@
                        (from (current-language))
                        (to 'bytecode)
                        (env (default-environment from))
-                       (optimization-level #f)
-                       (warning-level #f)
+                       (optimization-level (default-optimization-level))
+                       (warning-level (default-warning-level))
                        (opts '())
                        (canonicalization 'relative))
   (validate-options opts)
@@ -183,8 +196,10 @@
       comp)))
 
 (define* (compile-and-load file #:key (from (current-language)) (to 'value)
-                           (env (current-module)) (optimization-level #f)
-                           (warning-level #f) (opts '())
+                           (env (current-module))
+                           (optimization-level (default-optimization-level))
+                           (warning-level (default-warning-level))
+                           (opts '())
                            (canonicalization 'relative))
   (validate-options opts)
   (with-fluids ((%file-port-name-canonicalization canonicalization))
@@ -200,10 +215,19 @@
 ;;;
 
 (define (compute-analyzer lang warning-level opts)
-  (lambda (exp env) #t))
+  (match (language-analyzer lang)
+    (#f (lambda (exp env) (values)))
+    (proc (proc warning-level
+                (let lp ((opts opts))
+                  (match opts
+                    (() '())
+                    ((#:warnings warnings . _) warnings)
+                    ((_ _ . opts) (lp opts))))))))
 
 (define (add-default-optimizations lang optimization-level opts)
-  opts)
+  (match (language-optimizations-for-level lang)
+    (#f opts)
+    (get-opts (append opts (get-opts optimization-level)))))
 
 (define (compute-compiler from to optimization-level warning-level opts)
   (let lp ((order (or (lookup-compilation-order from to)
@@ -258,8 +282,8 @@
                            (from (current-language))
                            (to 'bytecode)
                            (env (default-environment from))
-                           (optimization-level #f)
-                           (warning-level #f)
+                           (optimization-level (default-optimization-level))
+                           (warning-level (default-warning-level))
                            (opts '()))
   (let* ((from (ensure-language from))
          (to (ensure-language to))
@@ -298,8 +322,8 @@
                   (from (current-language))
                   (to 'value)
                   (env (default-environment from))
-                  (optimization-level #f)
-                  (warning-level #f)
+                  (optimization-level (default-optimization-level))
+                  (warning-level (default-warning-level))
                   (opts '()))
   (validate-options opts)
   (let ((compile1 (compute-compiler from to optimization-level

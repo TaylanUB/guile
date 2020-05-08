@@ -241,9 +241,11 @@
 
 (define (call-with-warnings thunk)
   (let ((port (open-output-string)))
-    (with-fluids ((*current-warning-port*   port)
-                  (*current-warning-prefix* ""))
-      (thunk))
+    ;; Disable any warnings added by default.
+    (parameterize ((default-warning-level #f))
+      (with-fluids ((*current-warning-port*   port)
+                    (*current-warning-prefix* ""))
+        (thunk)))
     (let ((warnings (get-output-string port)))
       (string-tokenize warnings
                        (char-set-complement (char-set #\newline))))))
