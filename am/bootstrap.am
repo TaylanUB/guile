@@ -18,7 +18,7 @@
 ##   Fifth Floor, Boston, MA 02110-1301 USA
 
 # These variables can be set before you include bootstrap.am.
-GUILE_WARNINGS ?= -Wunbound-variable -Warity-mismatch -Wformat
+GUILE_WARNINGS ?= -W1
 GUILE_OPTIMIZATIONS ?= -O2
 GUILE_TARGET ?= $(host)
 GUILE_BUILD_TAG ?= BOOTSTRAP

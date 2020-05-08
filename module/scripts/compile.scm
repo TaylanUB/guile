@@ -30,7 +30,9 @@
 
 (define-module (scripts compile)
   #:use-module ((system base language) #:select (lookup-language))
-  #:use-module ((system base compile) #:select (compile-file))
+  #:use-module ((system base compile) #:select (compile-file
+                                                default-warning-level
+                                                default-optimization-level))
   #:use-module (system base target)
   #:use-module (system base message)
   #:use-module (system base optimize)
@@ -81,14 +83,27 @@
 
         (option '(#\W "warn") #t #f
                 (lambda (opt name arg result)
-                  (if (string=? arg "help")
-                      (begin
-                        (show-warning-help)
-                        (exit 0))
-                      (let ((warnings (assoc-ref result 'warnings)))
-                        (alist-cons 'warnings
-                                    (cons (string->symbol arg) warnings)
-                                    (alist-delete 'warnings result))))))
+                  (match arg
+                    ("help"
+                     (show-warning-help)
+                     (exit 0))
+                    ("all"
+                     (alist-cons 'warning-level #t
+                                 (alist-delete 'warning-level result)))
+                    ("none"
+                     (alist-cons 'warning-level #f
+                                 (alist-delete 'warning-level result)))
+                    ((? string->number)
+                     (let ((n (string->number arg)))
+                       (unless (and (exact-integer? n) (<= 0 n))
+                         (fail "Bad warning level `~a'" n))
+                       (alist-cons 'warning-level n
+                                   (alist-delete 'warning-level result))))
+                    (_
+                     (let ((warnings (assoc-ref result 'warnings)))
+                       (alist-cons 'warnings
+                                   (cons (string->symbol arg) warnings)
+                                   (alist-delete 'warnings result)))))))
 
 	(option '(#\O "optimize") #t #f
 		(lambda (opt name arg result)
@@ -141,8 +156,9 @@ options."
 			     result)))
 
 	     ;; default option values
-             '((input-files)
+             `((input-files)
 	       (load-path)
+               (warning-level . ,(default-warning-level))
                (warnings unsupported-warning))))
 
 (define (show-version)
@@ -159,7 +175,9 @@ There is NO WARRANTY, to the extent permitted by law.~%"))
                       (format #f "`~A'" (warning-type-name wt))
                       (warning-type-description wt)))
             %warning-types)
-  (format #t "~%"))
+  (format #t "~%")
+  (format #t "You may also specify warning levels as `-Wnone', `-W0`, `-W1',~%")
+  (format #t "`-W2', `-W3', or `-Wall`.  The default is `-W1'.~%"))
 
 (define (show-optimization-help)
   (format #t "The available optimizations are:~%~%")
@@ -184,6 +202,7 @@ There is NO WARRANTY, to the extent permitted by law.~%"))
 (define (compile . args)
   (let* ((options         (parse-args args))
          (help?           (assoc-ref options 'help?))
+         (warning-level   (assoc-ref options 'warning-level))
          (compile-opts    `(#:warnings
                             ,(assoc-ref options 'warnings)
                             ,@(append-map
@@ -266,6 +285,7 @@ Report bugs to <~A>.~%"
                                             #:output-file output-file
                                             #:from from
                                             #:to to
+                                            #:warning-level warning-level
                                             #:opts compile-opts))))))
               input-files)))
 
