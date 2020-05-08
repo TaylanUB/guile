@@ -22,6 +22,7 @@
   #:use-module (system base message)
   #:use-module (ice-9 receive)
   #:use-module (ice-9 match)
+  #:use-module (srfi srfi-11)
   #:export (compiled-file-name
             compile-file
             compile-and-load
@@ -191,18 +192,22 @@
 ;;; Compiler interface
 ;;;
 
-(define (compile-passes from to opts)
-  (match (lookup-compilation-order from to)
-    (((langs . passes) ...) passes)
-    (_ (error "no way to compile" from "to" to))))
-
-(define (compile-fold passes exp env opts)
-  (let lp ((passes passes) (x exp) (e env) (cenv env) (first? #t))
-    (match passes
-      (() (values x e cenv))
-      ((pass . passes)
-       (receive (x e new-cenv) (pass x e opts)
-         (lp passes x e (if first? new-cenv cenv) #f))))))
+(define (compute-compiler from to opts)
+  (let lp ((order (or (lookup-compilation-order from to)
+                      (error "no way to compile" from "to" to))))
+    (match order
+      (() (lambda (exp env) (values exp env env)))
+      (((lang . pass) . order)
+       (let ((head (lambda (exp env)
+                     (pass exp env opts)))
+             (tail (lp order)))
+         (lambda (exp env)
+           (let*-values (((exp env cenv) (head exp env))
+                         ((exp env cenv*) (tail exp env)))
+             ;; Return continuation environment from first pass, to
+             ;; compile an additional expression in the same compilation
+             ;; unit.
+             (values exp env cenv))))))))
 
 (define (find-language-joint from to)
   (match (lookup-compilation-order from to)
@@ -238,29 +243,35 @@
                            (to 'bytecode)
                            (env (default-environment from))
                            (opts '()))
-  (let ((from (ensure-language from))
-        (to (ensure-language to)))
-    (let ((joint (find-language-joint from to)))
-      (parameterize ((current-language from))
-        (let lp ((exps '()) (env #f) (cenv env))
-          (let ((x (read-and-parse (current-language) port cenv)))
-            (cond
-             ((eof-object? x)
-              (close-port port)
-              (compile ((or (language-joiner joint)
-                            (default-language-joiner joint))
-                        (reverse exps)
-                        env)
-                       #:from joint #:to to
-                       ;; env can be false if no expressions were read.
-                       #:env (or env (default-environment joint))
-                       #:opts opts))
-             (else
-              ;; compile-fold instead of compile so we get the env too
-              (receive (jexp jenv jcenv)
-                  (compile-fold (compile-passes (current-language) joint opts)
-                                x cenv opts)
-                (lp (cons jexp exps) jenv jcenv))))))))))
+  (let* ((from (ensure-language from))
+         (to (ensure-language to))
+         (joint (find-language-joint from to)))
+    (parameterize ((current-language from))
+      (let lp ((exps '()) (env #f) (cenv env) (from #f) (compile1 #f))
+        (match (read-and-parse (current-language) port cenv)
+          ((? eof-object?)
+           (close-port port)
+           (compile ((or (language-joiner joint)
+                         (default-language-joiner joint))
+                     (reverse exps)
+                     env)
+                    #:from joint #:to to
+                    ;; env can be false if no expressions were read.
+                    #:env (or env (default-environment joint))
+                    #:opts opts))
+          (exp
+           (let with-compiler ((from from) (compile1 compile1))
+             (cond
+              ((eq? from (current-language))
+               (receive (exp env cenv) (compile1 exp cenv)
+                 (lp (cons exp exps) env cenv from compile1)))
+              (else
+               ;; compute-compiler instead of compile so we get the
+               ;; env too.
+               (let ((from (current-language)))
+                 (with-compiler
+                  from
+                  (compute-compiler from joint opts))))))))))))
 
 (define* (compile x #:key
                   (from (current-language))
@@ -268,9 +279,9 @@
                   (env (default-environment from))
                   (opts '()))
   (validate-options opts)
-  (receive (exp env cenv)
-      (compile-fold (compile-passes from to opts) x env opts)
-    exp))
+  (let ((compile1 (compute-compiler from to opts)))
+    (receive (exp env cenv) (compile1 x env)
+      exp)))
 
 
 ;;;
