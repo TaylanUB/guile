@@ -60,7 +60,10 @@
 # @code{AC_SUBST}.
 #
 AC_DEFUN([GUILE_PKG],
- [PKG_PROG_PKG_CONFIG
+ [AC_REQUIRE([PKG_PROG_PKG_CONFIG])
+  if test "x$PKG_CONFIG" = x; then
+    AC_MSG_ERROR([pkg-config is missing, please install it])
+  fi
   _guile_versions_to_search="m4_default([$1], [3.0 2.2 2.0])"
   if test -n "$GUILE_EFFECTIVE_VERSION"; then
     _guile_tmp=""
