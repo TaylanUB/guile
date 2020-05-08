@@ -1,6 +1,6 @@
 ;;; Brainfuck for GNU Guile.
 
-;; Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2010,2020 Free Software Foundation, Inc.
 
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -34,10 +34,14 @@
 ; in #:compilers.  This is the basic set of fields needed to specify a new
 ; language.
 
+(define (choose-compiler compilers optimization-level opts)
+  (cons 'tree-il compile-tree-il))
+
 (define-language brainfuck
   #:title	"Brainfuck"
   #:reader	(lambda (port env) (read-brainfuck port))
   #:compilers	`((tree-il . ,compile-tree-il)
                   (scheme . ,compile-scheme))
+  #:compiler-chooser choose-compiler
   #:printer	write
   )

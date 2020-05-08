@@ -236,29 +236,36 @@
       (match (language-compilers lang)
         (((name . pass))
          (cons (lookup-language name) pass))
-        ((_ _)
-         (error "multiple compilers; language should supply chooser"))
-        (_
-         (error "no way to compile" from "to" to)))))
+        (compilers
+         (let ((chooser (language-compiler-chooser lang)))
+           (unless chooser
+             (if (null? compilers)
+                 (error "no way to compile" from "to" to)
+                 (error "multiple compilers; language should supply chooser")))
+           (match (chooser to optimization-level opts)
+             ((name . pass)
+              (cons (lookup-language name) pass))))))))
 
 (define (compute-compiler from to optimization-level warning-level opts)
-  (let lp ((lang from))
-    (match (next-pass from lang to optimization-level opts)
-      (#f (lambda (exp env) (values exp env env)))
-      ((next . pass)
-       (let* ((analyze (compute-analyzer lang warning-level opts))
-              (lower (compute-lowerer lang optimization-level opts))
-              (compile (lambda (exp env)
-                         (analyze exp env)
-                         (pass (lower exp env) env opts)))
-              (tail (lp next)))
-         (lambda (exp env)
-           (let*-values (((exp env cenv) (compile exp env))
-                         ((exp env cenv*) (tail exp env)))
-             ;; Return continuation environment from first pass, to
-             ;; compile an additional expression in the same compilation
-             ;; unit.
-             (values exp env cenv))))))))
+  (let ((from (ensure-language from))
+        (to (ensure-language to)))
+    (let lp ((lang from))
+      (match (next-pass from lang to optimization-level opts)
+        (#f (lambda (exp env) (values exp env env)))
+        ((next . pass)
+         (let* ((analyze (compute-analyzer lang warning-level opts))
+                (lower (compute-lowerer lang optimization-level opts))
+                (compile (lambda (exp env)
+                           (analyze exp env)
+                           (pass (lower exp env) env opts)))
+                (tail (lp next)))
+           (lambda (exp env)
+             (let*-values (((exp env cenv) (compile exp env))
+                           ((exp env cenv*) (tail exp env)))
+               ;; Return continuation environment from first pass, to
+               ;; compile an additional expression in the same compilation
+               ;; unit.
+               (values exp env cenv)))))))))
 
 (define (find-language-joint from to)
   (match (lookup-compilation-order from to)

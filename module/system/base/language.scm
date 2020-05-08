@@ -1,6 +1,6 @@
 ;;; Multi-language support
 
-;; Copyright (C) 2001, 2009, 2010, 2011, 2013 Free Software Foundation, Inc.
+;; Copyright (C) 2001,2005,2008-2011,2013,2020 Free Software Foundation, Inc.
 
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -27,8 +27,8 @@
             language-compilers language-decompilers language-evaluator
             language-joiner language-for-humans?
             language-make-default-environment
-            language-lowerer
-            language-analyzer
+            language-lowerer language-analyzer
+            language-compiler-chooser
 
             lookup-compilation-order lookup-decompilation-order
             default-environment)
@@ -53,7 +53,8 @@
   (for-humans? #t)
   (make-default-environment make-fresh-user-module)
   (lowerer #f)
-  (analyzer #f))
+  (analyzer #f)
+  (compiler-chooser #f))
 
 (define-syntax-rule (define-language name . spec)
   (define name (make-language #:name 'name . spec)))
