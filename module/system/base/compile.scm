@@ -34,12 +34,11 @@
 
 
 (define (level-validator x)
-  (match x
-    ((? boolean?) x)
-    ((and (? exact-integer?) (not (? negative?))) x)
-    (_ (error
-        "bad warning or optimization level: expected #f, #t, or integer >= 0"
-        x))))
+  (unless (and (exact-integer? x) (<= 0 x 9))
+    (error
+     "bad warning or optimization level: expected integer between 0 and 9"
+     x))
+  x)
 
 (define default-warning-level (make-parameter 1 level-validator))
 (define default-optimization-level (make-parameter 2 level-validator))
@@ -215,6 +214,7 @@
 ;;;
 
 (define (compute-analyzer lang warning-level opts)
+  (level-validator warning-level)
   (match (language-analyzer lang)
     (#f (lambda (exp env) (values)))
     (proc (proc warning-level
@@ -225,6 +225,7 @@
                     ((_ _ . opts) (lp opts))))))))
 
 (define (add-default-optimizations lang optimization-level opts)
+  (level-validator optimization-level)
   (match (language-optimizations-for-level lang)
     (#f opts)
     (get-opts (append opts (get-opts optimization-level)))))

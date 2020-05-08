@@ -87,12 +87,6 @@
                     ("help"
                      (show-warning-help)
                      (exit 0))
-                    ("all"
-                     (alist-cons 'warning-level #t
-                                 (alist-delete 'warning-level result)))
-                    ("none"
-                     (alist-cons 'warning-level #f
-                                 (alist-delete 'warning-level result)))
                     ((? string->number)
                      (let ((n (string->number arg)))
                        (unless (and (exact-integer? n) (<= 0 n))
@@ -176,8 +170,8 @@ There is NO WARRANTY, to the extent permitted by law.~%"))
                       (warning-type-description wt)))
             %warning-types)
   (format #t "~%")
-  (format #t "You may also specify warning levels as `-Wnone', `-W0`, `-W1',~%")
-  (format #t "`-W2', `-W3', or `-Wall`.  The default is `-W1'.~%"))
+  (format #t "You may also specify warning levels as `-W0`, `-W1',~%")
+  (format #t "`-W2', or `-W3'.  The default is `-W1'.~%"))
 
 (define (show-optimization-help)
   (format #t "The available optimizations are:~%~%")

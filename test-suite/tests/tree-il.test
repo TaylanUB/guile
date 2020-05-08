@@ -242,7 +242,7 @@
 (define (call-with-warnings thunk)
   (let ((port (open-output-string)))
     ;; Disable any warnings added by default.
-    (parameterize ((default-warning-level #f))
+    (parameterize ((default-warning-level 0))
       (with-fluids ((*current-warning-port*   port)
                     (*current-warning-prefix* ""))
         (thunk)))

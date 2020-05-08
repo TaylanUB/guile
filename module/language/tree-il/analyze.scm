@@ -1098,10 +1098,7 @@ resort, return #t when EXP refers to the global variable SPECIAL-NAME."
     #(format                      1 ,format-analysis)))
 
 (define (make-analyzer warning-level warnings)
-  (define (enabled-for-level? level)
-    (match warning-level
-      ((? boolean?) warning-level)
-      ((? exact-integer?) (>= warning-level level))))
+  (define (enabled-for-level? level) (<= level warning-level))
   (let ((analyses (filter-map (match-lambda
                                (#(kind level analysis)
                                 (and (or (enabled-for-level? level)

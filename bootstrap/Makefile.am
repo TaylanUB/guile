@@ -21,7 +21,7 @@
 ##   Fifth Floor, Boston, MA 02110-1301 USA
 
 
-GUILE_WARNINGS = -Wnone
+GUILE_WARNINGS = -W0
 # Loading eval.go happens before boot and therefore before modules are
 # resolved.  For some reason if compiled without resolve-primitives,
 # attempts to resolve primitives at boot fail; weird.  Should fix this

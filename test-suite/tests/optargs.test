@@ -48,7 +48,7 @@
 ;;;
 
 (define-syntax-rule (without-compiler-warnings exp ...)
-  (parameterize ((default-warning-level #f)) exp ...))
+  (parameterize ((default-warning-level 0)) exp ...))
 
 (without-compiler-warnings
  (with-test-prefix/c&e "let-keywords"
