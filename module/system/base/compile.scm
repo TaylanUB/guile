@@ -21,6 +21,7 @@
   #:use-module (system base language)
   #:use-module (system base message)
   #:use-module (ice-9 receive)
+  #:use-module (ice-9 match)
   #:export (compiled-file-name
             compile-file
             compile-and-load
@@ -127,6 +128,28 @@
          (and (false-if-exception (ensure-directory (dirname f)))
               f))))
 
+(define (validate-options opts)
+  (define (validate-warnings warnings)
+    (match warnings
+      (() (values))
+      ((w . warnings)
+       (unless (lookup-warning-type w)
+         (warning 'unsupported-warning #f w))
+       (validate-warnings warnings))))
+  (match opts
+    (() (values))
+    ((kw arg . opts)
+     (match kw
+       (#:warnings (validate-warnings arg))
+       ((? keyword?) (values))
+       (_
+        ;; Programming error.
+        (warn "malformed options list: not a keyword" kw)))
+     (validate-options opts))
+    (_
+     ;; Programming error.
+     (warn "malformed options list: expected keyword and arg pair" opts))))
+
 (define* (compile-file file #:key
                        (output-file #f)
                        (from (current-language))
@@ -134,6 +157,7 @@
                        (env (default-environment from))
                        (opts '())
                        (canonicalization 'relative))
+  (validate-options opts)
   (with-fluids ((%file-port-name-canonicalization canonicalization))
     (let* ((comp (or output-file (compiled-file-name file)
                      (error "failed to create path for auto-compiled file"
@@ -156,6 +180,7 @@
 (define* (compile-and-load file #:key (from (current-language)) (to 'value)
                            (env (current-module)) (opts '())
                            (canonicalization 'relative))
+  (validate-options opts)
   (with-fluids ((%file-port-name-canonicalization canonicalization))
     (read-and-compile (open-input-file file)
                       #:from from #:to to #:opts opts
@@ -167,33 +192,39 @@
 ;;;
 
 (define (compile-passes from to opts)
-  (map cdr
-       (or (lookup-compilation-order from to)
-           (error "no way to compile" from "to" to))))
+  (match (lookup-compilation-order from to)
+    (((langs . passes) ...) passes)
+    (_ (error "no way to compile" from "to" to))))
 
 (define (compile-fold passes exp env opts)
   (let lp ((passes passes) (x exp) (e env) (cenv env) (first? #t))
-    (if (null? passes)
-        (values x e cenv)
-        (receive (x e new-cenv) ((car passes) x e opts)
-          (lp (cdr passes) x e (if first? new-cenv cenv) #f)))))
+    (match passes
+      (() (values x e cenv))
+      ((pass . passes)
+       (receive (x e new-cenv) (pass x e opts)
+         (lp passes x e (if first? new-cenv cenv) #f))))))
 
 (define (find-language-joint from to)
-  (let lp ((in (reverse (or (lookup-compilation-order from to)
-                            (error "no way to compile" from "to" to))))
-           (lang to))
-    (cond ((null? in) to)
-          ((language-joiner lang) lang)
-          (else
-           (lp (cdr in) (caar in))))))
+  (match (lookup-compilation-order from to)
+    (((langs . passes) ...)
+     (or (let lp ((langs langs))
+           (match langs
+             (() #f)
+             ((lang . langs)
+              (or (lp langs)
+                  (and (language-joiner lang)
+                       lang)))))
+         to))
+    (_ (error "no way to compile" from "to" to))))
 
 (define (default-language-joiner lang)
   (lambda (exps env)
-    (if (and (pair? exps) (null? (cdr exps)))
-        (car exps)
-        (error
-         "Multiple expressions read and compiled, but language has no joiner"
-         lang))))
+    (match exps
+      ((exp) exp)
+      (_
+       (error
+        "Multiple expressions read and compiled, but language has no joiner"
+        lang)))))
 
 (define (read-and-parse lang port cenv)
   (let ((exp ((language-reader lang) port cenv)))
@@ -236,16 +267,7 @@
                   (to 'value)
                   (env (default-environment from))
                   (opts '()))
-
-  (let ((warnings (memq #:warnings opts)))
-    (if (pair? warnings)
-        (let ((warnings (cadr warnings)))
-          ;; Sanity-check the requested warnings.
-          (for-each (lambda (w)
-                      (or (lookup-warning-type w)
-                          (warning 'unsupported-warning #f w)))
-                    warnings))))
-
+  (validate-options opts)
   (receive (exp env cenv)
       (compile-fold (compile-passes from to opts) x env opts)
     exp))
@@ -256,15 +278,16 @@
 ;;;
 
 (define (decompile-passes from to opts)
-  (map cdr
-       (or (lookup-decompilation-order from to)
-           (error "no way to decompile" from "to" to))))
+  (match (lookup-decompilation-order from to)
+    (((langs . passes) ...) passes)
+    (_ (error "no way to decompile" from "to" to))))
 
 (define (decompile-fold passes exp env opts)
-  (if (null? passes)
-      (values exp env)
-      (receive (exp env) ((car passes) exp env opts)
-        (decompile-fold (cdr passes) exp env opts))))
+  (match passes
+    (() (values exp env))
+    ((pass . passes)
+     (receive (exp env) (pass exp env opts)
+       (decompile-fold passes exp env opts)))))
 
 (define* (decompile x #:key
                     (env #f)
