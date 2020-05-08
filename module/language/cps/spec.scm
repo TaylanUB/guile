@@ -23,6 +23,7 @@
   #:use-module (system base language)
   #:use-module (language cps)
   #:use-module (language cps intmap)
+  #:use-module (language cps optimize)
   #:use-module (language cps compile-bytecode)
   #:export (cps))
 
@@ -48,4 +49,4 @@
   #:printer	write-cps
   #:compilers   `((bytecode . ,compile-bytecode))
   #:for-humans? #f
-  )
+  #:lowerer     make-cps-lowerer)

@@ -60,7 +60,6 @@
   #:use-module (language cps utils)
   #:use-module (language cps with-cps)
   #:use-module (language tree-il cps-primitives)
-  #:use-module (language tree-il optimize)
   #:use-module (language tree-il)
   #:use-module (language cps intmap)
   #:export (compile-cps))
@@ -2537,9 +2536,7 @@ integer."
    exp))
 
 (define (compile-cps exp env opts)
-  (values (cps-convert/thunk (canonicalize (optimize exp env opts)))
-          env
-          env))
+  (values (cps-convert/thunk (canonicalize exp)) env env))
 
 ;;; Local Variables:
 ;;; eval: (put 'convert-arg 'scheme-indent-function 2)

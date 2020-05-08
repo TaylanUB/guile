@@ -41,7 +41,6 @@
   #:use-module (ice-9 match)
   #:use-module (language bytecode)
   #:use-module (language tree-il)
-  #:use-module (language tree-il optimize)
   #:use-module ((srfi srfi-1) #:select (filter-map
                                         fold
                                         lset-union lset-difference))
@@ -1320,7 +1319,7 @@ in the frame with for the lambda-case clause @var{clause}."
     (_ default)))
 
 (define (compile-bytecode exp env opts)
-  (let* ((exp (canonicalize (optimize exp env opts)))
+  (let* ((exp (canonicalize exp))
          (asm (make-assembler)))
     (call-with-values (lambda () (split-closures exp))
       (lambda (closures assigned)

@@ -113,10 +113,12 @@
                    ((string=? arg "help")
                     (show-optimization-help)
                     (exit 0))
-                   ((equal? arg "0") (return (optimizations-for-level 0)))
-                   ((equal? arg "1") (return (optimizations-for-level 1)))
-                   ((equal? arg "2") (return (optimizations-for-level 2)))
-                   ((equal? arg "3") (return (optimizations-for-level 3)))
+                   ((string->number arg)
+                    => (lambda (level)
+                         (unless (and (exact-integer? level) (<= 0 level 9))
+                           (fail "Bad optimization level `~a'" level))
+                         (alist-cons 'optimization-level level
+                                     (alist-delete 'optimization-level result))))
                    ((string-prefix? "no-" arg)
                     (return-option (substring arg 3) #f))
                    (else
@@ -153,6 +155,7 @@ options."
              `((input-files)
 	       (load-path)
                (warning-level . ,(default-warning-level))
+               (optimization-level . ,(default-optimization-level))
                (warnings unsupported-warning))))
 
 (define (show-version)
@@ -197,6 +200,7 @@ There is NO WARRANTY, to the extent permitted by law.~%"))
   (let* ((options         (parse-args args))
          (help?           (assoc-ref options 'help?))
          (warning-level   (assoc-ref options 'warning-level))
+         (optimization-level (assoc-ref options 'optimization-level))
          (compile-opts    `(#:warnings
                             ,(assoc-ref options 'warnings)
                             ,@(append-map
@@ -275,12 +279,14 @@ Report bugs to <~A>.~%"
                         (with-fluids ((*current-warning-prefix* ""))
                           (with-target target
                             (lambda ()
-                              (compile-file file
-                                            #:output-file output-file
-                                            #:from from
-                                            #:to to
-                                            #:warning-level warning-level
-                                            #:opts compile-opts))))))
+                              (compile-file
+                               file
+                               #:output-file output-file
+                               #:from from
+                               #:to to
+                               #:warning-level warning-level
+                               #:optimization-level optimization-level
+                               #:opts compile-opts))))))
               input-files)))
 
 (define main compile)

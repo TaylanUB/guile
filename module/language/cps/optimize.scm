@@ -1,20 +1,19 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013, 2014, 2015, 2017, 2018 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2018,2020 Free Software Foundation, Inc.
 
-;;;; This library is free software; you can redistribute it and/or
-;;;; modify it under the terms of the GNU Lesser General Public
-;;;; License as published by the Free Software Foundation; either
-;;;; version 3 of the License, or (at your option) any later version.
-;;;;
-;;;; This library is distributed in the hope that it will be useful,
-;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-;;;; Lesser General Public License for more details.
-;;;;
-;;;; You should have received a copy of the GNU Lesser General Public
-;;;; License along with this library; if not, write to the Free Software
-;;;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+;;; This library is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU Lesser General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; This library is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+;;; General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU Lesser General Public License
+;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;;
@@ -24,23 +23,29 @@
 
 (define-module (language cps optimize)
   #:use-module (ice-9 match)
+  #:use-module (language cps closure-conversion)
   #:use-module (language cps contification)
   #:use-module (language cps cse)
-  #:use-module (language cps devirtualize-integers)
   #:use-module (language cps dce)
+  #:use-module (language cps devirtualize-integers)
   #:use-module (language cps licm)
+  #:use-module (language cps loop-instrumentation)
   #:use-module (language cps peel-loops)
   #:use-module (language cps prune-top-level-scopes)
+  #:use-module (language cps reify-primitives)
+  #:use-module (language cps renumber)
   #:use-module (language cps rotate-loops)
   #:use-module (language cps self-references)
   #:use-module (language cps simplify)
-  #:use-module (language cps specialize-primcalls)
   #:use-module (language cps specialize-numbers)
+  #:use-module (language cps specialize-primcalls)
+  #:use-module (language cps split-rec)
   #:use-module (language cps type-fold)
   #:use-module (language cps verify)
   #:export (optimize-higher-order-cps
             optimize-first-order-cps
-            cps-optimizations))
+            cps-optimizations
+            make-cps-lowerer))
 
 (define (kw-arg-ref args kw default)
   (match (memq kw args)
@@ -128,3 +133,27 @@
     (#:rotate-loops? 2)
     ;; This one is used by the slot allocator.
     (#:precolor-calls? 2)))
+
+(define (lower-cps exp opts)
+  ;; FIXME: For now the closure conversion pass relies on $rec instances
+  ;; being separated into SCCs.  We should fix this to not be the case,
+  ;; and instead move the split-rec pass back to
+  ;; optimize-higher-order-cps.
+  (set! exp (split-rec exp))
+  (set! exp (optimize-higher-order-cps exp opts))
+  (set! exp (convert-closures exp))
+  (set! exp (optimize-first-order-cps exp opts))
+  (set! exp (reify-primitives exp))
+  (set! exp (add-loop-instrumentation exp))
+  (renumber exp))
+
+(define (make-cps-lowerer optimization-level opts)
+  (define (enabled-for-level? level) (<= level optimization-level))
+  (let ((opts (let lp ((all-opts (cps-optimizations)))
+                (match all-opts
+                  (() '())
+                  (((kw level) . all-opts)
+                   (acons kw (kw-arg-ref opts kw (enabled-for-level? level))
+                          (lp all-opts)))))))
+    (lambda (exp env)
+      (lower-cps exp opts))))

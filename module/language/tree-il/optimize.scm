@@ -28,6 +28,7 @@
   #:use-module (language tree-il primitives)
   #:use-module (ice-9 match)
   #:export (optimize
+            make-lowerer
             tree-il-optimizations))
 
 (define (kw-arg-ref args kw default)
@@ -75,3 +76,14 @@
     (#:seal-private-bindings? 3)
     (#:partial-eval? 1)
     (#:eta-expand? 2)))
+
+(define (make-lowerer optimization-level opts)
+  (define (enabled-for-level? level) (<= level optimization-level))
+  (let ((opts (let lp ((all-opts (tree-il-optimizations)))
+                (match all-opts
+                  (() '())
+                  (((kw level) . all-opts)
+                   (acons kw (kw-arg-ref opts kw (enabled-for-level? level))
+                          (lp all-opts)))))))
+    (lambda (exp env)
+      (optimize exp env opts))))

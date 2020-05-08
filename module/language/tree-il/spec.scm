@@ -24,6 +24,7 @@
   #:use-module (language tree-il)
   #:use-module (language tree-il compile-cps)
   #:use-module ((language tree-il analyze) #:select (make-analyzer))
+  #:use-module ((language tree-il optimize) #:select (make-lowerer))
   #:export (tree-il))
 
 (define (write-tree-il exp . port)
@@ -45,4 +46,5 @@
   #:joiner      join
   #:compilers   `((cps . ,compile-cps))
   #:analyzer    make-analyzer
+  #:lowerer     make-lowerer
   #:for-humans? #f)
