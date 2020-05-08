@@ -156,6 +156,8 @@
                        (from (current-language))
                        (to 'bytecode)
                        (env (default-environment from))
+                       (optimization-level #f)
+                       (warning-level #f)
                        (opts '())
                        (canonicalization 'relative))
   (validate-options opts)
@@ -172,19 +174,24 @@
       (call-with-output-file/atomic comp
         (lambda (port)
           ((language-printer (ensure-language to))
-           (read-and-compile in #:env env #:from from #:to to #:opts
-                             (cons* #:to-file? #t opts))
+           (read-and-compile in #:env env #:from from #:to to
+                             #:optimization-level optimization-level
+                             #:warning-level warning-level
+                             #:opts (cons* #:to-file? #t opts))
            port))
         file)
       comp)))
 
 (define* (compile-and-load file #:key (from (current-language)) (to 'value)
-                           (env (current-module)) (opts '())
+                           (env (current-module)) (optimization-level #f)
+                           (warning-level #f) (opts '())
                            (canonicalization 'relative))
   (validate-options opts)
   (with-fluids ((%file-port-name-canonicalization canonicalization))
     (read-and-compile (open-input-file file)
                       #:from from #:to to #:opts opts
+                      #:optimization-level optimization-level
+                      #:warning-level warning-level
                       #:env env)))
 
 
@@ -192,17 +199,26 @@
 ;;; Compiler interface
 ;;;
 
-(define (compute-compiler from to opts)
+(define (compute-analyzer lang warning-level opts)
+  (lambda (exp env) #t))
+
+(define (add-default-optimizations lang optimization-level opts)
+  opts)
+
+(define (compute-compiler from to optimization-level warning-level opts)
   (let lp ((order (or (lookup-compilation-order from to)
                       (error "no way to compile" from "to" to))))
     (match order
       (() (lambda (exp env) (values exp env env)))
       (((lang . pass) . order)
-       (let ((head (lambda (exp env)
-                     (pass exp env opts)))
-             (tail (lp order)))
+       (let* ((analyze (compute-analyzer lang warning-level opts))
+              (opts (add-default-optimizations lang optimization-level opts))
+              (compile (lambda (exp env)
+                         (analyze exp env)
+                         (pass exp env opts)))
+              (tail (lp order)))
          (lambda (exp env)
-           (let*-values (((exp env cenv) (head exp env))
+           (let*-values (((exp env cenv) (compile exp env))
                          ((exp env cenv*) (tail exp env)))
              ;; Return continuation environment from first pass, to
              ;; compile an additional expression in the same compilation
@@ -242,6 +258,8 @@
                            (from (current-language))
                            (to 'bytecode)
                            (env (default-environment from))
+                           (optimization-level #f)
+                           (warning-level #f)
                            (opts '()))
   (let* ((from (ensure-language from))
          (to (ensure-language to))
@@ -258,6 +276,8 @@
                     #:from joint #:to to
                     ;; env can be false if no expressions were read.
                     #:env (or env (default-environment joint))
+                    #:optimization-level optimization-level
+                    #:warning-level warning-level
                     #:opts opts))
           (exp
            (let with-compiler ((from from) (compile1 compile1))
@@ -271,15 +291,19 @@
                (let ((from (current-language)))
                  (with-compiler
                   from
-                  (compute-compiler from joint opts))))))))))))
+                  (compute-compiler from joint optimization-level
+                                    warning-level opts))))))))))))
 
 (define* (compile x #:key
                   (from (current-language))
                   (to 'value)
                   (env (default-environment from))
+                  (optimization-level #f)
+                  (warning-level #f)
                   (opts '()))
   (validate-options opts)
-  (let ((compile1 (compute-compiler from to opts)))
+  (let ((compile1 (compute-compiler from to optimization-level
+                                    warning-level opts)))
     (receive (exp env cenv) (compile1 x env)
       exp)))
 
