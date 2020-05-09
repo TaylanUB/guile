@@ -1111,8 +1111,8 @@ in the frame with for the lambda-case clause @var{clause}."
          (let ((proc-slot (let ((env (push-frame env)))
                             (fold for-push (for-push proc env) args)
                             (stack-height env))))
-           (emit-call asm proc-slot (length args))
-           (emit-receive src dst proc-slot frame-size)))
+           (emit-call asm proc-slot (1+ (length args)))
+           (emit-receive asm (stack-height base) proc-slot frame-size)))
 
         (($ <primcall> src (? variadic-constructor? name) args)
          ;; Stage result in 0 to avoid stompling args.
@@ -1164,7 +1164,7 @@ in the frame with for the lambda-case clause @var{clause}."
                   (apply emit asm dst (for-args args env)))))))))
 
         (($ <prompt>)       (visit-prompt exp env `(value-at . ,base)))
-        (($ <conditional>)  (visit-conditional exp env `(value-at. ,base)))
+        (($ <conditional>)  (visit-conditional exp env `(value-at . ,base)))
         (($ <seq>)          (visit-seq exp env `(value-at . ,base)))
         (($ <let>)          (visit-let exp env `(value-at . ,base)))
         (($ <fix>)          (visit-fix exp env `(value-at . ,base)))
