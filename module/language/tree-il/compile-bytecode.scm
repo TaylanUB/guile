@@ -1142,12 +1142,14 @@ in the frame with for the lambda-case clause @var{clause}."
              ('make-struct/simple
               (match args
                 ((vtable . args)
-                 (let ((len (length args)))
-                   (emit-$allocate-struct asm 0 vtable len)
-                   (let lp ((i 0) (args args))
-                     (when (< i len)
-                       (emit-struct-init! asm 0 i (car args) 1)
-                       (lp (1+ i) (cdr args)))))))))
+                 (emit-load-constant asm 0 (length args))
+                 (emit-$allocate-struct asm 0 vtable 0)
+                 (let lp ((i 0) (args args))
+                   (match args
+                     (() #t)
+                     ((arg . args)
+                      (emit-struct-init! asm 0 i arg 1)
+                      (lp (1+ i) args))))))))
            (emit-mov asm dst 0)))
 
         (($ <primcall> src name args)
