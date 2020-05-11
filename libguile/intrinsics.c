@@ -334,7 +334,7 @@ resolve_module (SCM name, uint8_t public_p)
 }
 
 static SCM
-lookup (SCM module, SCM name)
+module_variable (SCM module, SCM name)
 {
   /* If MODULE was captured before modules were booted, use the root
      module.  Not so nice, but hey...  */
@@ -574,7 +574,7 @@ scm_bootstrap_intrinsics (void)
   scm_vm_intrinsics.less_p = less_p;
   scm_vm_intrinsics.numerically_equal_p = numerically_equal_p;
   scm_vm_intrinsics.resolve_module = resolve_module;
-  scm_vm_intrinsics.lookup = lookup;
+  scm_vm_intrinsics.module_variable = module_variable;
   scm_vm_intrinsics.define_x = scm_module_ensure_local_variable;
   scm_vm_intrinsics.throw_ = throw_;
   scm_vm_intrinsics.throw_with_value = throw_with_value;

@@ -142,7 +142,7 @@ typedef void (*scm_t_scm_uimm_scm_intrinsic) (SCM, uint8_t, SCM);
   M(compare_from_scm_scm, less_p, "<?", LESS_P) \
   M(bool_from_scm_scm, numerically_equal_p, "=?", NUMERICALLY_EQUAL_P) \
   M(scm_from_scm_uimm, resolve_module, "resolve-module", RESOLVE_MODULE) \
-  M(scm_from_scm_scm, lookup, "lookup", LOOKUP) \
+  M(scm_from_scm_scm, module_variable, "module-variable", MODULE_VARIABLE) \
   M(scm_from_scm_scm, define_x, "define!", DEFINE_X) \
   M(thread_sp, expand_stack, "expand-stack", EXPAND_STACK) \
   M(scm_from_thread_u32, cons_rest, "cons-rest", CONS_REST) \

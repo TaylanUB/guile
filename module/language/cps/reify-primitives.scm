@@ -219,7 +219,7 @@
                   ($branch kbad k src 'heap-object? #f (var))))
           (build-term
             ($continue kres src
-              ($primcall 'lookup #f (mod-var name-var)))))))
+              ($primcall 'module-variable #f (mod-var name-var)))))))
   (define %unbound
     #(unbound-variable #f "Unbound variable: ~S"))
   (with-cps cps
@@ -354,7 +354,7 @@
       push-dynamic-state pop-dynamic-state
       lsh rsh lsh/immediate rsh/immediate
       cache-ref cache-set!
-      resolve-module lookup define! current-module))
+      resolve-module module-variable define! current-module))
   (let ((table (make-hash-table)))
     (for-each
      (match-lambda ((inst . _) (hashq-set! table inst #t)))

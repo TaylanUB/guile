@@ -1,6 +1,6 @@
 ;;; Effects analysis on CPS
 
-;; Copyright (C) 2011-2015,2017-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2015,2017-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -485,7 +485,7 @@ the LABELS that are clobbered by the effects of LABEL."
   ((cache-current-module! m)       (&write-object &cache))
   ((resolve name)                  (&read-object &module)      &type-check)
   ((resolve-module mod)            (&read-object &module)      &type-check)
-  ((lookup mod name)               (&read-object &module)      &type-check)
+  ((module-variable mod name)      (&read-object &module)      &type-check)
   ((cached-toplevel-box)                                       &type-check)
   ((cached-module-box)                                         &type-check)
   ((define! mod name)              (&read-object &module)))

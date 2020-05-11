@@ -1430,7 +1430,7 @@
                     ($branch kbad ktest src 'heap-object? #f (box))))
        (letk kname ($kargs ('name) (name-var)
                      ($continue kbox src
-                       ($primcall 'lookup #f (mod name-var)))))
+                       ($primcall 'module-variable #f (mod name-var)))))
        (letk kmod ($kargs ('mod) (mod)
                     ($continue kname src ($const name))))
        (build-term
