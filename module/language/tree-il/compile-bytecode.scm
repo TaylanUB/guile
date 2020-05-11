@@ -43,7 +43,7 @@
   #:use-module (language tree-il)
   #:use-module ((srfi srfi-1) #:select (filter-map
                                         fold
-                                        lset-union lset-difference))
+                                        lset-adjoin lset-union lset-difference))
   #:use-module (srfi srfi-9)
   #:use-module (system base types internal)
   #:use-module (system vm assembler)
@@ -549,6 +549,7 @@
   ;; lambdas are seen, and adding set! vars to `assigned'.
   (define (visit-closure exp module-scope)
     (define (visit exp)
+      (define (adjoin sym f) (lset-adjoin eq? f sym))
       (define (union f1 f2) (lset-union eq? f1 f2))
       (define (union3 f1 f2 f3) (union f1 (union f2 f3)))
       (define (difference f1 f2) (lset-difference eq? f1 f2))
@@ -605,7 +606,7 @@
 
         (($ <lexical-set> src name gensym exp)
          (hashq-set! assigned gensym #t)
-         (visit exp))
+         (adjoin gensym (visit exp)))
 
         (($ <seq> src head tail)
          (union (visit head) (visit tail)))
