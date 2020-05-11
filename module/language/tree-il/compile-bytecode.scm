@@ -910,6 +910,8 @@ in the frame with for the lambda-case clause @var{clause}."
                        (let ((env (push-local name sym env)))
                          (match closure
                            (($ <closure> label code scope free-vars)
+                            ;; FIXME: Allocate one scope per fix.
+                            (maybe-cache-module! scope 0)
                             (emit-maybe-allocate-closure
                              asm (env-idx env) (length free-vars) label 0)
                             env))))
