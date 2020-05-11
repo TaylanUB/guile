@@ -261,8 +261,9 @@ static const jit_gpr_t T1_PRESERVED = JIT_V2;
 
 static const uint32_t SP_IN_REGISTER = 0x1;
 static const uint32_t FP_IN_REGISTER = 0x2;
-static const uint32_t SP_CACHE_GPR = 0x4;
-static const uint32_t SP_CACHE_FPR = 0x8;
+static const uint32_t UNREACHABLE = 0x4;
+static const uint32_t SP_CACHE_GPR = 0x8;
+static const uint32_t SP_CACHE_FPR = 0x10;
 
 static const uint8_t OP_ATTR_BLOCK = 0x1;
 static const uint8_t OP_ATTR_ENTRY = 0x2;
@@ -355,12 +356,19 @@ set_register_state (scm_jit_state *j, uint32_t state)
 }
 
 static uint32_t
+unreachable (scm_jit_state *j)
+{
+  return j->register_state & UNREACHABLE;
+}
+
+static uint32_t
 has_register_state (scm_jit_state *j, uint32_t state)
 {
   return (j->register_state & state) == state;
 }
 
-#define ASSERT_HAS_REGISTER_STATE(state) ASSERT (has_register_state (j, state))
+#define ASSERT_HAS_REGISTER_STATE(state) \
+  ASSERT (unreachable (j) || has_register_state (j, state));
 
 static void
 record_gpr_clobber (scm_jit_state *j, jit_gpr_t r)
@@ -1622,6 +1630,12 @@ compile_receive_values (scm_jit_state *j, uint32_t proc, uint8_t allow_extra,
 {
   jit_gpr_t t = T0;
 
+  /* Although most uses of receive-values are after a call returns, the
+     baseline compiler will sometimes emit it elsewhere.  In that case
+     ensure that FP is in a register for the frame-locals-count
+     branches.  */
+  restore_reloadable_register_state (j, FP_IN_REGISTER);
+
   if (allow_extra)
     add_slow_path_patch
       (j, emit_branch_if_frame_locals_count_less_than (j, t, proc + nvalues));
@@ -1873,6 +1887,7 @@ compile_throw (scm_jit_state *j, uint16_t key, uint16_t args)
   emit_call_2 (j, scm_vm_intrinsics.throw_, sp_scm_operand (j, key),
                sp_scm_operand (j, args));
   /* throw_ does not return.  */
+  set_register_state (j, UNREACHABLE);
 }
 static void
 compile_throw_slow (scm_jit_state *j, uint16_t key, uint16_t args)
@@ -1887,7 +1902,8 @@ compile_throw_value (scm_jit_state *j, uint32_t val,
   emit_call_2 (j, scm_vm_intrinsics.throw_with_value, sp_scm_operand (j, val),
                jit_operand_imm (JIT_OPERAND_ABI_POINTER,
                                 (intptr_t) key_subr_and_message));
-  /* throw_with_value does not return.  */
+  /* Like throw_, throw_with_value does not return.  */
+  set_register_state (j, UNREACHABLE);
 }
 static void
 compile_throw_value_slow (scm_jit_state *j, uint32_t val,
@@ -1904,7 +1920,8 @@ compile_throw_value_and_data (scm_jit_state *j, uint32_t val,
                sp_scm_operand (j, val),
                jit_operand_imm (JIT_OPERAND_ABI_POINTER,
                                 (intptr_t) key_subr_and_message));
-  /* throw_with_value_and_data does not return.  */
+  /* Like throw_, throw_with_value_and_data does not return.  */
+  set_register_state (j, UNREACHABLE);
 }
 static void
 compile_throw_value_and_data_slow (scm_jit_state *j, uint32_t val,
