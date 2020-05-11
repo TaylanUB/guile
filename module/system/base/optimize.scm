@@ -1,6 +1,6 @@
 ;;; Optimization flags
 
-;; Copyright (C) 2018 Free Software Foundation, Inc.
+;; Copyright (C) 2018, 2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -19,15 +19,49 @@
 ;;; Code:
 
 (define-module (system base optimize)
-  #:use-module (language tree-il optimize)
-  #:use-module (language cps optimize)
   #:use-module (ice-9 match)
   #:export (available-optimizations
             pass-optimization-level
             optimizations-for-level))
 
-(define (available-optimizations)
-  (append (tree-il-optimizations) (cps-optimizations)))
+(define* (available-optimizations #:optional lang-name)
+  (match lang-name
+    ('tree-il
+     ;; Avoid resolve-primitives until -O2, when CPS optimizations kick in.
+     ;; Otherwise, inlining the primcalls during Tree-IL->CPS compilation
+     ;; will result in a lot of code that will never get optimized nicely.
+     ;; Similarly letrectification is great for generated code quality, but
+     ;; as it gives the compiler more to work with, it increases compile
+     ;; time enough that we reserve it for -O2.  Also, this makes -O1 avoid
+     ;; assumptions about top-level values, in the same way that avoiding
+     ;; resolve-primitives does.
+     '((#:cps? 1)
+       (#:resolve-primitives? 2)
+       (#:expand-primitives? 1)
+       (#:letrectify? 2)
+       (#:seal-private-bindings? 3)
+       (#:partial-eval? 1)
+       (#:eta-expand? 2)))
+    ('cps
+     '( ;; (#:split-rec? #t)
+       (#:simplify? 2)
+       (#:eliminate-dead-code? 2)
+       (#:prune-top-level-scopes? 2)
+       (#:contify? 2)
+       (#:specialize-primcalls? 2)
+       (#:peel-loops? 2)
+       (#:cse? 2)
+       (#:type-fold? 2)
+       (#:resolve-self-references? 2)
+       (#:devirtualize-integers? 2)
+       (#:specialize-numbers? 2)
+       (#:licm? 2)
+       (#:rotate-loops? 2)
+       ;; This one is used by the slot allocator.
+       (#:precolor-calls? 2)))
+    (#f
+     (append (available-optimizations 'tree-il)
+             (available-optimizations 'cps)))))
 
 (define (pass-optimization-level kw)
   (match (assq kw (available-optimizations))

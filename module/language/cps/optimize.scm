@@ -42,6 +42,7 @@
   #:use-module (language cps split-rec)
   #:use-module (language cps type-fold)
   #:use-module (language cps verify)
+  #:use-module (system base optimize)
   #:export (optimize-higher-order-cps
             optimize-first-order-cps
             cps-optimizations
@@ -117,22 +118,7 @@
   (simplify #:simplify? #t))
 
 (define (cps-optimizations)
-  '( ;; (#:split-rec? #t)
-    (#:simplify? 2)
-    (#:eliminate-dead-code? 2)
-    (#:prune-top-level-scopes? 2)
-    (#:contify? 2)
-    (#:specialize-primcalls? 2)
-    (#:peel-loops? 2)
-    (#:cse? 2)
-    (#:type-fold? 2)
-    (#:resolve-self-references? 2)
-    (#:devirtualize-integers? 2)
-    (#:specialize-numbers? 2)
-    (#:licm? 2)
-    (#:rotate-loops? 2)
-    ;; This one is used by the slot allocator.
-    (#:precolor-calls? 2)))
+  (available-optimizations 'cps))
 
 (define (lower-cps exp opts)
   ;; FIXME: For now the closure conversion pass relies on $rec instances
