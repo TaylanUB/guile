@@ -752,25 +752,20 @@ in the frame with for the lambda-case clause @var{clause}."
            (lookup-lexical sym prev)))
       (_ (error "sym not found!" sym))))
 
-  (define (frame-base env)
-    (match env
-      (($ <env> _ 'frame-base #f)
-       env)
-      (($ <env> prev)
-       (frame-base prev))))
-
   (define (compile-body clause module-scope free-vars frame-size)
-    (define (push-free-var sym idx env)
-      (make-env env sym sym idx #t (assigned? sym) #f))
+    (define frame-base
+      (make-env #f 'frame-base #f #f #f #f (- frame-size 1)))
 
-    (define (push-closure env)
-      (push-local 'closure #f
-                  (make-env env 'frame-base #f #f #f #f (- frame-size 1))))
+    (define (push-free-var sym idx env)
+      (make-env env sym sym idx #t (assigned? sym) (env-next-local env)))
 
     (define (push-local name sym env)
       (let ((idx (env-next-local env)))
         (emit-definition asm name (- frame-size idx 1) 'scm)
         (make-env env name sym idx #f (assigned? sym) (1- idx))))
+
+    (define (push-closure env)
+      (push-local 'closure #f env))
 
     (define (push-local-alias name sym idx env)
       (make-env env name sym idx #f #f (env-next-local env)))
@@ -793,7 +788,7 @@ in the frame with for the lambda-case clause @var{clause}."
             ((sym . free)
              (lp (1+ idx) free
                  (push-free-var sym idx env))))))
-      (fold push-local (push-closure (push-free-vars #f)) names syms))
+      (fold push-local (push-closure (push-free-vars frame-base)) names syms))
 
     (define (stack-height env)
       (- frame-size (env-next-local env) 1))
@@ -850,7 +845,7 @@ in the frame with for the lambda-case clause @var{clause}."
              ('tail
               ;; Would be nice if we could invoke the body in true tail
               ;; context, but that's not how it currently is.
-              (for-values-at body env (frame-base env))
+              (for-values-at body env frame-base)
               (emit-unwind asm)
               (emit-handle-interrupts asm)
               (emit-return-values asm))
@@ -1254,7 +1249,7 @@ in the frame with for the lambda-case clause @var{clause}."
              ($ <module-set>)
              ($ <lambda>)
              ($ <primcall>))
-         (for-values-at exp env (frame-base env))
+         (for-values-at exp env frame-base)
          (emit-handle-interrupts asm)
          (emit-return-values asm))
 
