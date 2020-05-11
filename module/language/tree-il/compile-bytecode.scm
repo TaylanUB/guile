@@ -1023,9 +1023,7 @@ in the frame with for the lambda-case clause @var{clause}."
         (($ <seq>)          (visit-seq exp env 'effect))
         (($ <let>)          (visit-let exp env 'effect))
         (($ <fix>)          (visit-fix exp env 'effect))
-        (($ <let-values>)   (visit-let-values exp env 'effect)))
-
-      (values))
+        (($ <let-values>)   (visit-let-values exp env 'effect))))
 
     (define (for-value-at exp env base)
       ;; The baseline compiler follows a stack discipline: compiling
@@ -1182,8 +1180,7 @@ in the frame with for the lambda-case clause @var{clause}."
         (($ <seq>)          (visit-seq exp env `(value-at . ,base)))
         (($ <let>)          (visit-let exp env `(value-at . ,base)))
         (($ <fix>)          (visit-fix exp env `(value-at . ,base)))
-        (($ <let-values>)   (visit-let-values exp env `(value-at . ,base))))
-      dst-env)
+        (($ <let-values>)   (visit-let-values exp env `(value-at . ,base)))))
 
     (define (for-value exp env)
       (match (and (lexical-ref? exp)
@@ -1194,7 +1191,8 @@ in the frame with for the lambda-case clause @var{clause}."
          (for-push exp env))))
 
     (define (for-push exp env)
-      (for-value-at exp env env))
+      (for-value-at exp env env)
+      (push-temp env))
 
     (define (for-init sym init env)
       (match (lookup-lexical sym env)
@@ -1237,9 +1235,7 @@ in the frame with for the lambda-case clause @var{clause}."
         (($ <seq>)          (visit-seq exp env `(values-at . ,base)))
         (($ <let>)          (visit-let exp env `(values-at . ,base)))
         (($ <fix>)          (visit-fix exp env `(values-at . ,base)))
-        (($ <let-values>)   (visit-let-values exp env `(values-at . ,base))))
-
-      (values))
+        (($ <let-values>)   (visit-let-values exp env `(values-at . ,base)))))
 
     (define (for-values exp env)
       (for-values-at exp env env))
@@ -1274,9 +1270,7 @@ in the frame with for the lambda-case clause @var{clause}."
         (($ <seq>)          (visit-seq exp env 'tail))
         (($ <let>)          (visit-let exp env 'tail))
         (($ <fix>)          (visit-fix exp env 'tail))
-        (($ <let-values>)   (visit-let-values exp env 'tail)))
-
-      (values))
+        (($ <let-values>)   (visit-let-values exp env 'tail))))
 
     (match clause
       (($ <lambda-case> src req opt rest kw inits syms body alt)
