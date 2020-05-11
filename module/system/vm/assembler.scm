@@ -257,6 +257,8 @@
             emit-rsh/immediate
             emit-resolve-module
             emit-module-variable
+            emit-lookup
+            emit-lookup-bound
             emit-define!
             emit-current-module
 
@@ -1494,6 +1496,8 @@ returned instead."
 (define-scm<-scm-uimm-intrinsic rsh/immediate)
 (define-scm<-scm-bool-intrinsic resolve-module)
 (define-scm<-scm-scm-intrinsic module-variable)
+(define-scm<-scm-scm-intrinsic lookup)
+(define-scm<-scm-scm-intrinsic lookup-bound)
 (define-scm<-scm-scm-intrinsic define!)
 (define-scm<-thread-intrinsic current-module)
 

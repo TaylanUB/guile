@@ -486,6 +486,8 @@ the LABELS that are clobbered by the effects of LABEL."
   ((resolve name)                  (&read-object &module)      &type-check)
   ((resolve-module mod)            (&read-object &module)      &type-check)
   ((module-variable mod name)      (&read-object &module)      &type-check)
+  ((lookup mod name)               (&read-object &module)      &type-check)
+  ((lookup-bound mod name)         (&read-object &module)      &type-check)
   ((cached-toplevel-box)                                       &type-check)
   ((cached-module-box)                                         &type-check)
   ((define! mod name)              (&read-object &module)))

@@ -344,6 +344,30 @@ module_variable (SCM module, SCM name)
   return scm_module_variable (module, name);
 }
 
+static SCM
+lookup (SCM module, SCM name)
+{
+  SCM var = module_variable (module, name);
+
+  if (!SCM_VARIABLEP (var))
+    scm_error (scm_from_latin1_symbol ("unbound-variable"), NULL,
+               "Unbound variable: ~S", scm_list_1 (name), SCM_BOOL_F);
+
+  return var;
+}
+
+static SCM
+lookup_bound (SCM module, SCM name)
+{
+  SCM var = lookup (module, name);
+
+  if (SCM_UNBNDP (SCM_VARIABLE_REF (var)))
+    scm_error (scm_from_latin1_symbol ("unbound-variable"), NULL,
+               "Unbound variable: ~S", scm_list_1 (name), SCM_BOOL_F);
+
+  return var;
+}
+
 static void throw_ (SCM key, SCM args) SCM_NORETURN;
 static void throw_with_value (SCM val, SCM key_subr_and_message) SCM_NORETURN;
 static void throw_with_value_and_data (SCM val, SCM key_subr_and_message) SCM_NORETURN;
@@ -575,6 +599,8 @@ scm_bootstrap_intrinsics (void)
   scm_vm_intrinsics.numerically_equal_p = numerically_equal_p;
   scm_vm_intrinsics.resolve_module = resolve_module;
   scm_vm_intrinsics.module_variable = module_variable;
+  scm_vm_intrinsics.lookup = lookup;
+  scm_vm_intrinsics.lookup_bound = lookup_bound;
   scm_vm_intrinsics.define_x = scm_module_ensure_local_variable;
   scm_vm_intrinsics.throw_ = throw_;
   scm_vm_intrinsics.throw_with_value = throw_with_value;
