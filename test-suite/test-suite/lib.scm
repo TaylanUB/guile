@@ -1,5 +1,5 @@
 ;;;; test-suite/lib.scm --- generic support for testing
-;;;; Copyright (C) 1999-2001,2004,2006-2007,2009-2014,2018
+;;;; Copyright (C) 1999-2001,2004,2006-2007,2009-2014,2016,2018,2020
 ;;;;   Free Software Foundation, Inc.
 ;;;;
 ;;;; This program is free software; you can redistribute it and/or
@@ -466,20 +466,31 @@
      (c&e (pass-if "[unnamed test]" exp)))
     ((_ (pass-if test-name exp))
      (begin (pass-if (string-append test-name " (eval)")
-                     (primitive-eval 'exp))
-            (pass-if (string-append test-name " (compile)")
-                     (compile 'exp #:to 'value #:env (current-module)))))
+              (primitive-eval 'exp))
+            (pass-if (string-append test-name " (compile -O0)")
+              (compile 'exp #:to 'value #:env (current-module)
+                       #:optimization-level 0))
+            (pass-if (string-append test-name " (compile -O2)")
+              (compile 'exp #:to 'value #:env (current-module)
+                       #:optimization-level 2))))
     ((_ (pass-if-equal test-name val exp))
      (begin (pass-if-equal (string-append test-name " (eval)") val
               (primitive-eval 'exp))
-            (pass-if-equal (string-append test-name " (compile)") val
-              (compile 'exp #:to 'value #:env (current-module)))))
+            (pass-if-equal (string-append test-name " (compile -O0)") val
+              (compile 'exp #:to 'value #:env (current-module)
+                       #:optimization-level 0))
+            (pass-if-equal (string-append test-name " (compile -O2)") val
+              (compile 'exp #:to 'value #:env (current-module)
+                       #:optimization-level 2))))
     ((_ (pass-if-exception test-name exc exp))
-     (begin (pass-if-exception (string-append test-name " (eval)")
-                               exc (primitive-eval 'exp))
-            (pass-if-exception (string-append test-name " (compile)")
-                               exc (compile 'exp #:to 'value
-                                            #:env (current-module)))))))
+     (begin (pass-if-exception (string-append test-name " (eval)") exc
+              (primitive-eval 'exp))
+            (pass-if-exception (string-append test-name " (compile -O0)") exc
+              (compile 'exp #:to 'value #:env (current-module)
+                       #:optimization-level 0))
+            (pass-if-exception (string-append test-name " (compile -O2)") exc
+              (compile 'exp #:to 'value #:env (current-module)
+                       #:optimization-level 2))))))
 
 ;;; (with-test-prefix/c&e PREFIX BODY ...)
 ;;; Same as `with-test-prefix', but the enclosed tests are run both with
