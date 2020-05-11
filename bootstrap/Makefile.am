@@ -27,7 +27,7 @@ GUILE_WARNINGS = -W0
 # attempts to resolve primitives at boot fail; weird.  Should fix this
 # but in the meantime we turn on primitive resolution (which normally
 # only happens at -O2).
-GUILE_OPTIMIZATIONS = -O1 -Oresolve-primitives
+GUILE_OPTIMIZATIONS = -O1 -Oresolve-primitives -Ono-cps
 
 include $(top_srcdir)/am/bootstrap.am
 
