@@ -1,6 +1,6 @@
 ;;; Tree Intermediate Language
 
-;; Copyright (C) 2009, 2010, 2011, 2013, 2015 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011,2013,2015,2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -22,8 +22,6 @@
   #:use-module (system base language)
   #:use-module (ice-9 match)
   #:use-module (language tree-il)
-  #:use-module (language tree-il compile-cps)
-  #:use-module (language tree-il compile-bytecode)
   #:use-module ((language tree-il analyze) #:select (make-analyzer))
   #:use-module ((language tree-il optimize) #:select (make-lowerer))
   #:export (tree-il))
@@ -40,11 +38,13 @@
     (_ (error "what!" exps env))))
 
 (define (choose-compiler target optimization-level opts)
+  (define (load-compiler compiler)
+    (module-ref (resolve-interface `(language tree-il ,compiler)) compiler))
   (if (match (memq #:cps? opts)
         ((_ cps? . _) cps?)
         (#f (<= 1 optimization-level)))
-      (cons 'cps compile-cps)
-      (cons 'bytecode compile-bytecode)))
+      (cons 'cps (load-compiler 'compile-bytecode))
+      (cons 'bytecode (load-compiler 'compile-bytecode))))
 
 (define-language tree-il
   #:title	"Tree Intermediate Language"
@@ -52,8 +52,6 @@
   #:printer	write-tree-il
   #:parser      parse-tree-il
   #:joiner      join
-  #:compilers   `((cps . ,compile-cps)
-                  (bytecode . ,compile-bytecode))
   #:compiler-chooser choose-compiler
   #:analyzer    make-analyzer
   #:lowerer     make-lowerer

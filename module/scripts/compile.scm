@@ -29,8 +29,8 @@
 ;;; Code:
 
 (define-module (scripts compile)
-  #:use-module ((system base language) #:select (lookup-language))
-  #:use-module ((system base compile) #:select (compile-file
+  #:use-module ((system base compile) #:select (compute-compiler
+                                                compile-file
                                                 default-warning-level
                                                 default-optimization-level))
   #:use-module (system base target)
@@ -250,12 +250,12 @@ Report bugs to <~A>.~%"
     (when (assoc-ref options 'install-r7rs?)
       (install-r7rs!))
 
-    ;; Load FROM and TO before we have changed the load path.  That way, when
-    ;; cross-compiling Guile itself, we can be sure we're loading our own
-    ;; language modules and not those of the Guile being compiled, which may
-    ;; have incompatible .go files.
-    (lookup-language from)
-    (lookup-language to)
+    ;; Compute a compiler before changing the load path, for its side
+    ;; effects of loading compiler modules.  That way, when
+    ;; cross-compiling Guile itself, we can be sure we're loading our
+    ;; own language modules and not those of the Guile being compiled,
+    ;; which may have incompatible .go files.
+    (compute-compiler from to optimization-level warning-level compile-opts)
 
     (set! %load-path (append load-path %load-path))
     (set! %load-should-auto-compile #f)

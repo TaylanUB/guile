@@ -26,6 +26,7 @@
   #:export (compiled-file-name
             compile-file
             compile-and-load
+            compute-compiler
             read-and-compile
             compile
             decompile
@@ -267,18 +268,16 @@
                ;; unit.
                (values exp env cenv)))))))))
 
-(define (find-language-joint from to)
-  (match (lookup-compilation-order from to)
-    (((langs . passes) ...)
-     (or (let lp ((langs langs))
-           (match langs
-             (() #f)
-             ((lang . langs)
-              (or (lp langs)
-                  (and (language-joiner lang)
-                       lang)))))
-         to))
-    (_ (error "no way to compile" from "to" to))))
+(define (find-language-joint from to optimization-level opts)
+  (let ((from (ensure-language from))
+        (to (ensure-language to)))
+    (let lp ((lang from))
+      (match (next-pass from lang to optimization-level opts)
+        (#f #f)
+        ((next . pass)
+         (or (lp next)
+             (and (language-joiner next)
+                  next)))))))
 
 (define (default-language-joiner lang)
   (lambda (exps env)
@@ -305,7 +304,7 @@
                            (opts '()))
   (let* ((from (ensure-language from))
          (to (ensure-language to))
-         (joint (find-language-joint from to)))
+         (joint (find-language-joint from to optimization-level opts)))
     (parameterize ((current-language from))
       (let lp ((exps '()) (env #f) (cenv env) (from #f) (compile1 #f))
         (match (read-and-parse (current-language) port cenv)
