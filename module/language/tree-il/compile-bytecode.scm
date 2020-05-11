@@ -309,7 +309,7 @@
                                                         (emit-jne asm kf)))
   (<                #:nargs 2 #:predicate? #t  #:emit (lambda (asm a b kf)
                                                         (emit-<? asm a b)
-                                                        (emit-jl asm kf)))
+                                                        (emit-jnl asm kf)))
   (<=               #:nargs 2 #:predicate? #t  #:emit (lambda (asm a b kf)
                                                         (emit-<? asm b a)
                                                         (emit-jnge asm kf)))
