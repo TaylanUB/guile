@@ -266,6 +266,7 @@
   (push-dynamic-state #:nargs 1                #:emit emit-push-dynamic-state)
   (pop-dynamic-state  #:nargs 0                #:emit emit-pop-dynamic-state)
   (push-fluid       #:nargs 2                  #:emit emit-push-fluid)
+  (pop-fluid        #:nargs 0                  #:emit emit-pop-fluid)
   (pop-fluid-state  #:nargs 0                  #:emit emit-pop-dynamic-state)
   (fluid-ref        #:nargs 1 #:has-result? #t #:emit emit-fluid-ref)
   (fluid-set!       #:nargs 2                  #:emit emit-fluid-set!)
