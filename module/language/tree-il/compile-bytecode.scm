@@ -72,7 +72,7 @@
   (cond
    ((= car dst)
     (emit-mov asm 1 car)
-    (emit-cons asm dst 1 (if (= cdr dst) 1 dst)))
+    (emit-cons asm dst 1 (if (= cdr dst) 1 cdr)))
    ((= cdr dst)
     (emit-mov asm 1 cdr)
     (emit-cons asm dst car 1))
