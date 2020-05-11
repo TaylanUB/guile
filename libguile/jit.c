@@ -2173,6 +2173,12 @@ compile_bind_rest (scm_jit_state *j, uint32_t dst)
   jit_reloc_t k, cons;
   jit_gpr_t t = T1;
   
+  /* As with receive-values, although bind-rest is usually used after a
+     call returns, the baseline compiler will sometimes emit it
+     elsewhere.  In that case ensure that FP is in a register for the
+     frame-locals-count branches.  */
+  restore_reloadable_register_state (j, FP_IN_REGISTER);
+
   cons = emit_branch_if_frame_locals_count_greater_than (j, t, dst);
 
   emit_alloc_frame (j, t, dst + 1);
