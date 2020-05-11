@@ -70,7 +70,8 @@
   ;; time enough that we reserve it for -O2.  Also, this makes -O1 avoid
   ;; assumptions about top-level values, in the same way that avoiding
   ;; resolve-primitives does.
-  '((#:resolve-primitives? 2)
+  '((#:cps? 1)
+    (#:resolve-primitives? 2)
     (#:expand-primitives? 1)
     (#:letrectify? 2)
     (#:seal-private-bindings? 3)
