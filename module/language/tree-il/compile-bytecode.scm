@@ -516,7 +516,7 @@
        ;; expressions.  (Escape-only prompt bodies are already
        ;; expressions.)
        (($ <prompt> src #f tag body handler)
-        (make-prompt src tag #f (make-call src body '()) handler))
+        (make-prompt src #f tag (make-call src body '()) handler))
 
        (_ exp)))
    exp))
