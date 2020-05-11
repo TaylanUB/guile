@@ -25,8 +25,6 @@
 ;;;
 ;;; Code:
 
-;; FIXME: Add handle-interrupts, instrument-entry, and instrument-loop.
-
 ;; FIXME: Verify that all SCM values on the stack will be marked.
 
 ;; FIXME: Verify that the stack marker will never misinterpret an
@@ -854,6 +852,7 @@ in the frame with for the lambda-case clause @var{clause}."
               ;; context, but that's not how it currently is.
               (for-values-at body env (frame-base env))
               (emit-unwind asm)
+              (emit-handle-interrupts asm)
               (emit-return-values asm))
              (_
               (for-context body env ctx)
@@ -993,6 +992,7 @@ in the frame with for the lambda-case clause @var{clause}."
          (let ((proc-slot (let ((env (push-frame env)))
                             (fold for-push (for-push proc env) args)
                             (stack-height env))))
+           (emit-handle-interrupts asm)
            (emit-call asm proc-slot (1+ (length args)))
            (emit-reset-frame asm frame-size)))
 
@@ -1121,6 +1121,7 @@ in the frame with for the lambda-case clause @var{clause}."
          (let ((proc-slot (let ((env (push-frame env)))
                             (fold for-push (for-push proc env) args)
                             (stack-height env))))
+           (emit-handle-interrupts asm)
            (emit-call asm proc-slot (1+ (length args)))
            (emit-receive asm (stack-height base) proc-slot frame-size)))
 
@@ -1226,6 +1227,7 @@ in the frame with for the lambda-case clause @var{clause}."
                 (env (push-frame env))
                 (from (stack-height env)))
            (fold for-push (for-push proc env) args)
+           (emit-handle-interrupts asm)
            (emit-call asm from (1+ (length args)))
            (unless (= from to)
              (emit-shuffle-down asm from to))))
@@ -1253,6 +1255,7 @@ in the frame with for the lambda-case clause @var{clause}."
              ($ <lambda>)
              ($ <primcall>))
          (for-values-at exp env (frame-base env))
+         (emit-handle-interrupts asm)
          (emit-return-values asm))
 
         (($ <call> src proc args)
@@ -1263,6 +1266,7 @@ in the frame with for the lambda-case clause @var{clause}."
                (lp (1- i) (env-prev env))
                (emit-mov asm (+ (env-idx env) base) (env-idx env))))
            (emit-reset-frame asm (+ 1 (length args)))
+           (emit-handle-interrupts asm)
            (emit-tail-call asm)))
 
         (($ <prompt>)       (visit-prompt exp env 'tail))
