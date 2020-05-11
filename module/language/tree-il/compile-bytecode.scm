@@ -25,16 +25,6 @@
 ;;;
 ;;; Code:
 
-;; FIXME: Verify that all SCM values on the stack will be marked.
-
-;; FIXME: Verify that the stack marker will never misinterpret an
-;; unboxed temporary (u64 or otherwise) as a SCM.
-
-;; FIXME: Verify that the debugger will never misinterpret an unboxed
-;; temporary as a SCM.
-
-;; FIXME: Add debugging source-location info.
-
 (define-module (language tree-il compile-bytecode)
   #:use-module (ice-9 match)
   #:use-module (language bytecode)
