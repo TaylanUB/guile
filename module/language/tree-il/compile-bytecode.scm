@@ -850,7 +850,7 @@ in the frame with for the lambda-case clause @var{clause}."
              ('tail
               ;; Would be nice if we could invoke the body in true tail
               ;; context, but that's not how it currently is.
-              (for-values body env)
+              (for-values-at body env (frame-base env))
               (emit-unwind asm)
               (emit-return-values asm))
              (_
