@@ -65,7 +65,9 @@
       (emit-word-set!/immediate asm dst 0 tmp)
       (emit-word-set!/immediate asm dst 1 src)))))
 (define (emit-box-set! asm loc val)
-  (emit-word-set!/immediate asm loc 1 val))
+  (emit-scm-set!/immediate asm loc 1 val))
+(define (emit-box-ref asm dst loc)
+  (emit-scm-ref/immediate asm dst loc 1))
 (define (emit-cons asm dst car cdr)
   (cond
    ((= car dst)
@@ -79,7 +81,7 @@
     (emit-scm-set!/immediate asm dst 0 car)
     (emit-scm-set!/immediate asm dst 1 cdr))))
 
-(define (emit-cached-module-box asm dst mod name public? tmp)
+(define (emit-cached-module-box asm dst mod name public? bound? tmp)
   (define key (cons mod name))
   (define cached (gensym "cached"))
   (emit-cache-ref asm dst key)
@@ -88,10 +90,12 @@
   (emit-load-constant asm dst mod)
   (emit-resolve-module asm dst dst public?)
   (emit-load-constant asm tmp name)
-  (emit-module-variable asm dst dst tmp)
+  (if bound?
+      (emit-lookup-bound asm dst dst tmp)
+      (emit-lookup asm dst dst tmp))
   (emit-cache-set! asm key dst)
   (emit-label asm cached))
-(define (emit-cached-toplevel-box asm dst scope name tmp)
+(define (emit-cached-toplevel-box asm dst scope name bound? tmp)
   (define key (cons scope name))
   (define cached (gensym "cached"))
   (emit-cache-ref asm dst key)
@@ -99,13 +103,17 @@
   (emit-je asm cached)
   (emit-cache-ref asm dst scope)
   (emit-load-constant asm tmp name)
-  (emit-module-variable asm dst dst tmp)
+  (if bound?
+      (emit-lookup-bound asm dst dst tmp)
+      (emit-lookup asm dst dst tmp))
   (emit-cache-set! asm key dst)
   (emit-label asm cached))
-(define (emit-toplevel-box asm dst name tmp)
+(define (emit-toplevel-box asm dst name bound? tmp)
   (emit-current-module asm dst)
   (emit-load-constant asm tmp name)
-  (emit-module-variable asm dst dst tmp))
+  (if bound?
+      (emit-lookup-bound asm dst dst tmp)
+      (emit-lookup asm dst dst tmp)))
 
 (define closure-header-words 2)
 (define (emit-allocate-closure asm dst nfree label tmp)
@@ -954,28 +962,28 @@ in the frame with for the lambda-case clause @var{clause}."
            (match (lookup-lexical sym env)
              (($ <env> _ _ _ idx #t #t) ;; Boxed closure.
               (emit-load-free-variable asm 0 (1- frame-size) idx 0)
-              (emit-$variable-set! asm 0 (env-idx env)))
+              (emit-box-set! asm 0 (env-idx env)))
              (($ <env> _ _ _ idx #f #t) ;; Boxed local.
-              (emit-$variable-set! asm idx (env-idx env))))))
+              (emit-box-set! asm idx (env-idx env))))))
 
         (($ <module-set> src mod name public? exp)
          (let ((env (for-value exp env)))
-           (emit-cached-module-box asm 0 mod name public? 1)
-           (emit-$variable-set! asm 0 (env-idx env))))
+           (emit-cached-module-box asm 0 mod name public? #f 1)
+           (emit-box-set! asm 0 (env-idx env))))
 
         (($ <toplevel-set> src mod name exp)
          (let ((env (for-value exp env)))
            (if module-scope
-               (emit-cached-toplevel-box asm 0 module-scope name 1)
-               (emit-toplevel-box asm 0 name 1))
-           (emit-$variable-set! asm 0 (env-idx env))))
+               (emit-cached-toplevel-box asm 0 module-scope name #f 1)
+               (emit-toplevel-box asm 0 name #f 1))
+           (emit-box-set! asm 0 (env-idx env))))
 
         (($ <toplevel-define> src mod name exp)
          (let ((env (for-value exp env)))
            (emit-current-module asm 0)
            (emit-load-constant asm 1 name)
            (emit-define! asm 0 0 1)
-           (emit-$variable-set! asm 0 (env-idx env))))
+           (emit-box-set! asm 0 (env-idx env))))
 
         (($ <call> src proc args)
          (let ((proc-slot (let ((env (push-frame env)))
@@ -1065,11 +1073,11 @@ in the frame with for the lambda-case clause @var{clause}."
          (match (lookup-lexical sym env)
            (($ <env> _ _ _ idx #t #t)
             (emit-load-free-variable asm dst (1- frame-size) idx 0)
-            (emit-$variable-ref asm dst dst))
+            (emit-box-ref asm dst dst))
            (($ <env> _ _ _ idx #t #f)
             (emit-load-free-variable asm dst (1- frame-size) idx 0))
            (($ <env> _ _ _ idx #f #t)
-            (emit-$variable-ref asm dst idx))
+            (emit-box-ref asm dst idx))
            (($ <env> _ _ _ idx #f #f)
             (emit-mov asm dst idx))))
 
@@ -1077,14 +1085,14 @@ in the frame with for the lambda-case clause @var{clause}."
          (emit-load-constant asm dst val))
 
         (($ <module-ref> src mod name public?)
-         (emit-cached-module-box asm 0 mod name public? 1)
-         (emit-$variable-ref asm dst 0))
+         (emit-cached-module-box asm 0 mod name public? #t 1)
+         (emit-box-ref asm dst 0))
 
         (($ <toplevel-ref> src mod name)
          (if module-scope
-             (emit-cached-toplevel-box asm 0 module-scope name 1)
-             (emit-toplevel-box asm 0 name 1))
-         (emit-$variable-ref asm dst 0))
+             (emit-cached-toplevel-box asm 0 module-scope name #t 1)
+             (emit-toplevel-box asm 0 name #t 1))
+         (emit-box-ref asm dst 0))
 
         (($ <lambda> src)
          (match (lookup-closure exp)
