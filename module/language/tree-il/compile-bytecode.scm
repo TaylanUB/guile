@@ -1303,7 +1303,7 @@ in the frame with for the lambda-case clause @var{clause}."
                     (values aok?
                             (map (match-lambda
                                   ((key name sym)
-                                   (cons key (list-index syms sym))))
+                                   (cons key (1+ (list-index syms sym)))))
                                  kw)))))
              (lambda (allow-other-keys? kw-indices)
                (when label (emit-label asm label))
