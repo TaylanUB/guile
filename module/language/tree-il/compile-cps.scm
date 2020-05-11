@@ -1401,36 +1401,16 @@
     scope-id))
 
 (define (toplevel-box cps src name bound? have-var)
-  (define %unbound
-    #(unbound-variable #f "Unbound variable: ~S"))
   (match (current-topbox-scope)
     (#f
      (with-cps cps
        (letv mod name-var box)
-       (letk kbad ($kargs () () ($throw src 'throw/value %unbound (name-var))))
-       (let$ body
-             ((if bound?
-                  (lambda (cps)
-                    (with-cps cps
-                      (letv val)
-                      (let$ body (have-var box))
-                      (letk kdef ($kargs () () ,body))
-                      (letk ktest ($kargs ('val) (val)
-                                    ($branch kdef kbad src
-                                      'undefined? #f (val))))
-                      (build-term
-                        ($continue ktest src
-                          ($primcall 'scm-ref/immediate
-                                     '(box . 1) (box))))))
-                  (lambda (cps)
-                    (with-cps cps
-                      ($ (have-var box)))))))
-       (letk ktest ($kargs () () ,body))
-       (letk kbox ($kargs ('box) (box)
-                    ($branch kbad ktest src 'heap-object? #f (box))))
+       (let$ body (have-var box))
+       (letk kbox ($kargs ('box) (box) ,body))
        (letk kname ($kargs ('name) (name-var)
                      ($continue kbox src
-                       ($primcall 'module-variable #f (mod name-var)))))
+                       ($primcall (if bound? 'lookup-bound 'lookup) #f
+                                  (mod name-var)))))
        (letk kmod ($kargs ('mod) (mod)
                     ($continue kname src ($const name))))
        (build-term
