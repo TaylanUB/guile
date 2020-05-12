@@ -43,7 +43,7 @@
   (if (match (memq #:cps? opts)
         ((_ cps? . _) cps?)
         (#f (<= 1 optimization-level)))
-      (cons 'cps (load-compiler 'compile-bytecode))
+      (cons 'cps (load-compiler 'compile-cps))
       (cons 'bytecode (load-compiler 'compile-bytecode))))
 
 (define-language tree-il
