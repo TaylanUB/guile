@@ -52,7 +52,8 @@ They are registered with the @code{define-language} form.
                        [#:parser=#f] [#:compilers='()] @
                        [#:decompilers='()] [#:evaluator=#f] @
                        [#:joiner=#f] [#:for-humans?=#t] @
-                       [#:make-default-environment=make-fresh-user-module]
+                       [#:make-default-environment=make-fresh-user-module] @
+                       [#:lowerer=#f] [#:analyzer=#f] [#:compiler-chooser=#f]
 Define a language.
 
 This syntax defines a @code{<language>} object, bound to @var{name} in
@@ -96,18 +97,23 @@ The language object will be returned, or @code{#f} if there does not
 exist a language with that name.
 @end deffn
 
-Defining languages this way allows us to programmatically determine
-the necessary steps for compiling code from one language to another.
+When Guile goes to compile Scheme to bytecode, it will ask the Scheme
+language to choose a compiler from Scheme to the next language on the
+path from Scheme to bytecode.  Performing this computation recursively
+builds transformations from a flexible chain of compilers.  The next
+link will be obtained by invoking the language's compiler chooser, or if
+not present, from the language's compilers field.
 
-@deffn {Scheme Procedure} lookup-compilation-order from to
-Recursively traverses the set of languages to which @var{from} can
-compile, depth-first, and return the first path that can transform
-@var{from} to @var{to}. Returns @code{#f} if no path is found.
+A language can specify an analyzer, which is run before a term of that
+language is lowered and compiled.  This is where compiler warnings are
+issued.
 
-This function memoizes its results in a cache that is invalidated by
-subsequent calls to @code{define-language}, so it should be quite
-fast.
-@end deffn
+If a language specifies a lowerer, that procedure is called on
+expressions before compilation.  This is where optimizations and
+canonicalizations go.
+
+Finally a language's compiler translates a lowered term from one
+language to the next one in the chain.
 
 There is a notion of a ``current language'', which is maintained in the
 @code{current-language} parameter, defined in the core @code{(guile)}
