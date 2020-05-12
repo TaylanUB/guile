@@ -9,6 +9,42 @@ Changes in 3.0.3 (since 3.0.2)
 
 * New interfaces and functionality
 
+** New baseline compiler
+
+Guile's CPS-based compiler generates good code, but it takes time and
+memory to do so.  For users that prioritize speed of compilation over
+speed of generated code, Guile now has a new baseline compiler that goes
+directly from the high-level Tree-IL to bytecode, skipping CPS and all
+of its optimizations.  This compiler is used for `guild compile -O0',
+and generally runs around ten times as fast as the CPS compiler.
+
+*** New VM intrinsics to support baseline compiler
+
+See "Intrinsic Call Instructions" in the manual.
+
+*** Compiler support for warning and lowering passes
+*** Compiler support for choosing different compilation orders
+
+See "Compiler Tower" in the manual.  The new per-language "compiler
+chooser" facility can choose different compilers based on optimization
+level.
+
+*** Better support for specifying optimization and warning levels
+
+The procedural compilation interfaces (`compile', `compile-file', and so
+on) now have #:optimization-level and #:warning-level keyword arguments,
+which default to corresponding `default-optimization-level' and
+`default-warning-level' parameters.  You can still specify warning and
+optimization passes manually, but we think most users will find the
+higher-level interfaces more robust to use.
+
+** Faster Guile build from source
+
+Guile now uses the baseline compiler for its bootstrap, when building
+the first Scheme compiler.  Because the baseline compiler runs faster
+and includes less code than the CPS compiler, Guile takes less time to
+build.
+
 ** Refreshed bitvector facility
 
 See "Bit Vectors" in the manual, for more on all of these.
@@ -46,48 +82,48 @@ These replace the wonky "bit-set*!" procedure.
 
 * New deprecations
 
-** Old bitvector interfaces
+** Old bitvector interfaces deprecated
 
 See "Bit Vectors" in the manual, for details on all of these
 replacements.
 
-*** bit-count, bit-position deprecated
+*** bit-count, bit-position
 
 Use bitvector-count or bitvector-position instead.  
 
-*** 'bitvector-ref' deprecated
+*** bitvector-ref
 
 Use 'bitvector-bit-set?' or 'bitvector-bit-clear?' instead.
 
-*** 'bitvector-set!' deprecated
+*** bitvector-set!
 
 Use 'bitvector-set-bit!' or 'bitvector-clear-bit!' instead.
 
-*** 'bitvector-fill!' deprecated
+*** bitvector-fill!
 
 Use 'bitvector-set-all-bits!' or 'bitvector-clear-all-bits!' instead.
 
-*** 'bit-invert!' deprecated
+*** bit-invert!
 
 Use 'bitvector-flip-all-bits! instead.
 
-*** 'bit-set*!' deprecated
+*** bit-set*!
 
 Use 'bitvector-set-bits!' or 'bitvector-clear-bits!' instead.
 
-*** 'bit-count*' deprecated
+*** bit-count*
 
 Use 'bitvector-count-bits' instead, subtracting from 'bitvector-count'
 on the mask bitvector if you are counting unset bits.
 
-*** Accessing generic arrays using the bitvector procedures deprecated
+*** Accessing generic arrays using the bitvector procedures
 
 For the same efficiency reasons that use of 'vector-ref' on generic
 arrays was deprecated in Guile 2.0.10, using 'bitvector->list' and
 similar procedures on 1-dimensional boolean-typed arrays is now
 deprecated.  Use 'array-ref' and similar procedures on arrays.
 
-*** scm_istr2bve deprecated
+*** scm_istr2bve
 
 This C-only procedure to parse a bitvector from a string should be
 replaced by calling `read' on a string port instead, if needed.

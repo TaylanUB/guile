@@ -1,7 +1,7 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Guile Reference Manual.
 @c Copyright (C)  1996, 1997, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2009,
-@c   2010, 2011, 2012, 2013, 2014 Free Software Foundation, Inc.
+@c   2010, 2011, 2012, 2013, 2014, 2020 Free Software Foundation, Inc.
 @c See the file guile.texi for copying conditions.
 
 @node Read/Load/Eval/Compile
@@ -680,7 +680,7 @@ warnings include @code{unused-variable}, @code{unused-toplevel},
 @cindex optimizations, compiler
 Enable or disable specific compiler optimizations; use @code{-Ohelp} for
 a list of available options.  The default is @code{-O2}, which enables
-most optimizations.  @code{-O1} is recommended if compilation speed is
+most optimizations.  @code{-O0} is recommended if compilation speed is
 more important than the speed of the compiled code.  Pass
 @code{-Ono-@var{opt}} to disable a specific compiler pass.  Any number
 of @code{-O} options can be passed to the compiler, with later ones
@@ -716,12 +716,18 @@ coding declaration as recognized by @code{file-encoding}
 (@pxref{Character Encoding of Source Files}).
 @end deffn
 
-The compiler can also be invoked directly by Scheme code using the procedures
-below:
+The compiler can also be invoked directly by Scheme code.  These
+interfaces are in their own module:
+
+@example
+(use-modules (system base compile))
+@end example
 
 @deffn {Scheme Procedure} compile exp [#:env=#f] @
                           [#:from=(current-language)] @
-                          [#:to=value] [#:opts=()]
+                          [#:to=value] [#:opts='()] @
+                          [#:optimization-level=(default-optimization-level)] @
+                          [#:warning-level=(default-warning-level)]
 Compile the expression @var{exp} in the environment @var{env}. If
 @var{exp} is a procedure, the result will be a compiled procedure;
 otherwise @code{compile} is mostly equivalent to @code{eval}.
@@ -734,6 +740,8 @@ the Virtual Machine}.
                           [#:from=(current-language)] [#:to='rtl] @
                           [#:env=(default-environment from)] @
                           [#:opts='()] @
+                          [#:optimization-level=(default-optimization-level)] @
+                          [#:warning-level=(default-warning-level)] @
                           [#:canonicalization='relative]
 Compile the file named @var{file}.
 
@@ -748,6 +756,16 @@ options, and on @var{env} and @var{opts}.
 As with @command{guild compile}, @var{file} is assumed to be
 UTF-8-encoded unless it contains a coding declaration.
 @end deffn
+
+@deffn {Scheme Parameter} default-optimization-level
+The default optimization level, as an integer from 0 to 9.  The default
+is 2.
+@end deffn
+@deffn {Scheme Parameter} default-warning-level
+The default warning level, as an integer from 0 to 9.  The default is 1.
+@end deffn
+
+@xref{Parameters}, for more on how to set parameters.
 
 @deffn {Scheme Procedure} compiled-file-name file
 Compute a cached location for a compiled version of a Scheme file named
