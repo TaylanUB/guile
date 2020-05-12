@@ -743,9 +743,6 @@ in the frame with for the lambda-case clause @var{clause}."
       (_ (error "sym not found!" sym))))
 
   (define (compile-body clause module-scope free-vars frame-size)
-    (define frame-base
-      (make-env #f 'frame-base #f #f #f #f (- frame-size 1)))
-
     (define (push-free-var sym idx env)
       (make-env env sym sym idx #t (assigned? sym) (env-next-local env)))
 
@@ -778,10 +775,15 @@ in the frame with for the lambda-case clause @var{clause}."
             ((sym . free)
              (lp (1+ idx) free
                  (push-free-var sym idx env))))))
+      (define frame-base
+        (make-env #f 'frame-base #f #f #f #f (- frame-size 1)))
       (fold push-local (push-closure (push-free-vars frame-base)) names syms))
 
+    (define (stack-height-under-local idx)
+      (- frame-size idx 1))
+
     (define (stack-height env)
-      (- frame-size (env-next-local env) 1))
+      (stack-height-under-local (env-next-local env)))
 
     (define (maybe-cache-module! scope tmp)
       (unless module-scope
@@ -840,7 +842,7 @@ in the frame with for the lambda-case clause @var{clause}."
              ('tail
               ;; Would be nice if we could invoke the body in true tail
               ;; context, but that's not how it currently is.
-              (for-values-at body env frame-base)
+              (for-values-at body env 0)
               (emit-unwind asm)
               (emit-handle-interrupts asm)
               (emit-return-values asm))
@@ -935,8 +937,8 @@ in the frame with for the lambda-case clause @var{clause}."
         ('effect (for-effect exp env))
         ('value (for-value exp env))
         ('tail (for-tail exp env))
-        (('value-at . base) (for-value-at exp env base))
-        (('values-at . base) (for-values-at exp env base))))
+        (('value-at . dst) (for-value-at exp env dst))
+        (('values-at . height) (for-values-at exp env height))))
 
     (define (for-args exps env)
       (match exps
@@ -1032,7 +1034,7 @@ in the frame with for the lambda-case clause @var{clause}."
         (($ <fix>)          (visit-fix exp env 'effect))
         (($ <let-values>)   (visit-let-values exp env 'effect))))
 
-    (define (for-value-at exp env base)
+    (define (for-value-at exp env dst)
       ;; The baseline compiler follows a stack discipline: compiling
       ;; temporaries pushes entries on an abstract compile-time stack
       ;; (the "env"), which are then popped as they are used.  Generally
@@ -1075,8 +1077,6 @@ in the frame with for the lambda-case clause @var{clause}."
       ;;     this function has to be careful not to do some kind of
       ;;     multi-part computation that first clobbers "dst" and then
       ;;     reads the operands.
-      (define dst-env (push-temp base))
-      (define dst (env-idx dst-env))
       (match exp
         (($ <lexical-ref> src name sym)
          (maybe-emit-source src)
@@ -1136,7 +1136,8 @@ in the frame with for the lambda-case clause @var{clause}."
            (maybe-emit-source src)
            (emit-handle-interrupts asm)
            (emit-call asm proc-slot (1+ (length args)))
-           (emit-receive asm (stack-height base) proc-slot frame-size)))
+           (emit-receive asm (stack-height-under-local dst) proc-slot
+                         frame-size)))
 
         (($ <primcall> src (? variadic-constructor? name) args)
          ;; Stage result in 0 to avoid stompling args.
@@ -1194,12 +1195,12 @@ in the frame with for the lambda-case clause @var{clause}."
                   (maybe-emit-source src)
                   (apply emit asm dst args))))))))
 
-        (($ <prompt>)       (visit-prompt exp env `(value-at . ,base)))
-        (($ <conditional>)  (visit-conditional exp env `(value-at . ,base)))
-        (($ <seq>)          (visit-seq exp env `(value-at . ,base)))
-        (($ <let>)          (visit-let exp env `(value-at . ,base)))
-        (($ <fix>)          (visit-fix exp env `(value-at . ,base)))
-        (($ <let-values>)   (visit-let-values exp env `(value-at . ,base)))))
+        (($ <prompt>)       (visit-prompt exp env `(value-at . ,dst)))
+        (($ <conditional>)  (visit-conditional exp env `(value-at . ,dst)))
+        (($ <seq>)          (visit-seq exp env `(value-at . ,dst)))
+        (($ <let>)          (visit-let exp env `(value-at . ,dst)))
+        (($ <fix>)          (visit-fix exp env `(value-at . ,dst)))
+        (($ <let-values>)   (visit-let-values exp env `(value-at . ,dst)))))
 
     (define (for-value exp env)
       (match (and (lexical-ref? exp)
@@ -1210,7 +1211,7 @@ in the frame with for the lambda-case clause @var{clause}."
          (for-push exp env))))
 
     (define (for-push exp env)
-      (for-value-at exp env env)
+      (for-value-at exp env (env-next-local env))
       (push-temp env))
 
     (define (for-init sym init env)
@@ -1220,12 +1221,12 @@ in the frame with for the lambda-case clause @var{clause}."
            (let ((done (gensym "post-init")))
              (emit-undefined? asm idx)
              (emit-jne asm done)
-             (for-value-at init env prev)
+             (for-value-at init env idx)
              (emit-label asm done)))
          (when boxed?
            (emit-box asm idx idx)))))
 
-    (define (for-values-at exp env base)
+    (define (for-values-at exp env height)
       (match exp
         ((or ($ <const>)
              ($ <lexical-ref>)
@@ -1237,29 +1238,28 @@ in the frame with for the lambda-case clause @var{clause}."
              ($ <module-set>)
              ($ <lambda>)
              ($ <primcall>))
-         (for-value-at exp env base)
-         (emit-reset-frame asm (1+ (stack-height base))))
+         (for-value-at exp env (- frame-size height 1))
+         (emit-reset-frame asm (1+ height)))
 
         (($ <call> src proc args)
-         (let* ((to (stack-height base))
-                (env (push-frame env))
+         (let* ((env (push-frame env))
                 (from (stack-height env)))
            (fold for-push (for-push proc env) args)
            (maybe-emit-source src)
            (emit-handle-interrupts asm)
            (emit-call asm from (1+ (length args)))
-           (unless (= from to)
-             (emit-shuffle-down asm from to))))
+           (unless (= from height)
+             (emit-shuffle-down asm from height))))
 
-        (($ <prompt>)       (visit-prompt exp env `(values-at . ,base)))
-        (($ <conditional>)  (visit-conditional exp env `(values-at . ,base)))
-        (($ <seq>)          (visit-seq exp env `(values-at . ,base)))
-        (($ <let>)          (visit-let exp env `(values-at . ,base)))
-        (($ <fix>)          (visit-fix exp env `(values-at . ,base)))
-        (($ <let-values>)   (visit-let-values exp env `(values-at . ,base)))))
+        (($ <prompt>)       (visit-prompt exp env `(values-at . ,height)))
+        (($ <conditional>)  (visit-conditional exp env `(values-at . ,height)))
+        (($ <seq>)          (visit-seq exp env `(values-at . ,height)))
+        (($ <let>)          (visit-let exp env `(values-at . ,height)))
+        (($ <fix>)          (visit-fix exp env `(values-at . ,height)))
+        (($ <let-values>)   (visit-let-values exp env `(values-at . ,height)))))
 
     (define (for-values exp env)
-      (for-values-at exp env env))
+      (for-values-at exp env (stack-height env)))
 
     (define (for-tail exp env)
       (match exp
@@ -1273,7 +1273,7 @@ in the frame with for the lambda-case clause @var{clause}."
              ($ <module-set>)
              ($ <lambda>)
              ($ <primcall>))
-         (for-values-at exp env frame-base)
+         (for-values-at exp env 0)
          (emit-handle-interrupts asm)
          (emit-return-values asm))
 
