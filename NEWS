@@ -9,84 +9,85 @@ Changes in 3.0.3 (since 3.0.2)
 
 * New interfaces and functionality
 
-** New bitvector-count, bitvector-count-bits, bitvector-position
-   procedures
+** Refreshed bitvector facility
+
+See "Bit Vectors" in the manual, for more on all of these.
+
+*** New bitvector-count, bitvector-count-bits, bitvector-position
+    procedures
 
 These replace the wonky "bit-count", "bit-count*", and "bit-position"
-procedures.  See "Bit Vectors" in the manual, for more.
+procedures.
 
-** New bitvector-bit-set?, bitvector-bit-clear? procedures
+*** New bitvector-bit-set?, bitvector-bit-clear? procedures
 
 These replace bitvector-ref.  The reason to migrate is that it's an
-opportunity be more efficient in 3.0 (because no generic array support),
-easier to read (no need for 'not' when checking for false bits), and
-more consistent with other bitvector procedures.
+opportunity be more efficient in 3.0 (because the new procedures only
+work on true bitvectors, and not generic bit arrays), easier to read (no
+need for 'not' when checking for false bits), and more consistent with
+other bitvector procedures.
 
-** New bitvector-set-bit!, bitvector-clear-bit! procedures
+*** New bitvector-set-bit!, bitvector-clear-bit! procedures
 
 These replace bitvector-set!, for similar reasons as the bitvector-ref
 replacement above.
 
-** New bitvector-set-all-bits!, bitvector-clear-all-bits! procedures
+*** New bitvector-set-all-bits!, bitvector-clear-all-bits! procedures
 
 These replace bitvector-fill!.
 
-** New bitvector-flip-all-bits! procedure
+*** New bitvector-flip-all-bits! procedure
 
 This replaces bit-invert!.
 
-** New bitvector-set-bits!, bitvector-clear-bits! procedures
+*** New bitvector-set-bits!, bitvector-clear-bits! procedures
 
-These replace the wonky "bit-set*!" procedure.  See "Bit Vectors" in the
-manual, for more.
+These replace the wonky "bit-set*!" procedure.
 
 * New deprecations
 
-** bit-count, bit-position deprecated
+** Old bitvector interfaces
 
-Use bitvector-count or bitvector-position instead.  See "Bit Vectors" in
-the manual.
+See "Bit Vectors" in the manual, for details on all of these
+replacements.
 
-** 'bitvector-ref' deprecated
+*** bit-count, bit-position deprecated
+
+Use bitvector-count or bitvector-position instead.  
+
+*** 'bitvector-ref' deprecated
 
 Use 'bitvector-bit-set?' or 'bitvector-bit-clear?' instead.
 
-** 'bitvector-set!' deprecated
+*** 'bitvector-set!' deprecated
 
 Use 'bitvector-set-bit!' or 'bitvector-clear-bit!' instead.
 
-** 'bitvector-fill!' deprecated
+*** 'bitvector-fill!' deprecated
 
 Use 'bitvector-set-all-bits!' or 'bitvector-clear-all-bits!' instead.
 
-** 'bit-invert!' deprecated
+*** 'bit-invert!' deprecated
 
 Use 'bitvector-flip-all-bits! instead.
 
-** 'bit-set*!' deprecated
+*** 'bit-set*!' deprecated
 
 Use 'bitvector-set-bits!' or 'bitvector-clear-bits!' instead.
 
-** 'bit-count*' deprecated
+*** 'bit-count*' deprecated
 
 Use 'bitvector-count-bits' instead, subtracting from 'bitvector-count'
 on the mask bitvector if you are counting unset bits.
 
-** Passing a u32vector to 'bit-set*!' and 'bit-count*' deprecated
-
-These functions had an interface that allowed the second bit-selection
-argument to be a u32vector of bit indices to select.  This added only
-complexity and no efficiency compared to just calling 'bitvector-set!'
-or 'bitvector-ref' in a loop.
-
-** Accessing generic arrays using the bitvector procedures deprecated
+*** Accessing generic arrays using the bitvector procedures deprecated
 
 For the same efficiency reasons that use of 'vector-ref' on generic
-arrays was deprecated in Guile 2.0.10, using 'bitvector-ref' and similar
-procedures on 1-dimensional boolean-typed arrays is now deprecated.  Use
-'array-ref' and similar procedures on arrays.
+arrays was deprecated in Guile 2.0.10, using 'bitvector->list' and
+similar procedures on 1-dimensional boolean-typed arrays is now
+deprecated.  Use 'array-ref' and similar procedures on arrays.
 
-** scm_istr2bve deprecated
+*** scm_istr2bve deprecated
 
 This C-only procedure to parse a bitvector from a string should be
 replaced by calling `read' on a string port instead, if needed.
