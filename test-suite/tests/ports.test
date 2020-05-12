@@ -616,19 +616,16 @@
 
 (pass-if "revealed port fdes not closed"
   (let* ((port (open-file "/dev/null" "r0"))
-         (fdes (port->fdes port))     ;increments revealed count of PORT
-         (guardian (make-guardian)))
-    (guardian port)
+         (fdes (port->fdes port)))
     (set! port #f)
     (gc)
-    (if (port? (guardian))
-        (and (zero? (seek fdes 0 SEEK_CUR))
-             (begin
-               (close-fdes fdes)
-               #t))
-        (begin
-          (close-fdes fdes)
-          (throw 'unresolved)))))
+
+    ;; Note: We can't know for sure whether PORT was GC'd; using a
+    ;; guardian is not an option because it would keep it alive.
+    (and (zero? (seek fdes 0 SEEK_CUR))
+         (begin
+           (close-fdes fdes)
+           #t))))
 
 (when (provided? 'threads)
   (let* ((p (pipe))
