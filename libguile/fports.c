@@ -1,4 +1,4 @@
-/* Copyright 1995-2004,2006-2015,2017-2019
+/* Copyright 1995-2004,2006-2015,2017-2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -452,6 +452,7 @@ scm_i_fdes_to_port (int fdes, long mode_bits, SCM name, unsigned options)
                                                   "file port");
   fp->fdes = fdes;
   fp->options = options;
+  fp->revealed = 0;
 
   port = scm_c_make_port (scm_file_port_type, mode_bits, (scm_t_bits)fp);
   
