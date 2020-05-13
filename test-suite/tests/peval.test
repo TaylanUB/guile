@@ -642,11 +642,11 @@
       ((3 2 1) 'a)
       (else 'b))
     (let (key) (_) ((toplevel foo))
-         (if (if (primcall eqv? (lexical key _) (const 3))
+         (if (if (primcall eq? (lexical key _) (const 3))
                  (const #t)
-                 (if (primcall eqv? (lexical key _) (const 2))
+                 (if (primcall eq? (lexical key _) (const 2))
                      (const #t)
-                     (primcall eqv? (lexical key _) (const 1))))
+                     (primcall eq? (lexical key _) (const 1))))
              (const a)
              (const b))))
 
@@ -1441,3 +1441,59 @@
              (call (lexical add1 _)
                    (const 1)
                    (const 2))))))))
+
+(with-test-prefix "eqv?"
+  (pass-if-peval (eqv? x #f)
+    (primcall eq? (toplevel x) (const #f)))
+
+  (pass-if-peval (eqv? x '())
+    (primcall eq? (toplevel x) (const ())))
+
+  (pass-if-peval (eqv? x #t)
+    (primcall eq? (toplevel x) (const #t)))
+
+  (pass-if-peval (eqv? x 'sym)
+    (primcall eq? (toplevel x) (const sym)))
+
+  (pass-if-peval (eqv? x 42)
+    (primcall eq? (toplevel x) (const 42)))
+
+  (pass-if-peval (eqv? x #\a)
+    (primcall eq? (toplevel x) (const #\a)))
+
+  (pass-if-peval (eqv? x 42.0)
+    (primcall eqv? (toplevel x) (const '42.0)))
+
+  (pass-if-peval (eqv? x #nil)
+    (primcall eq? (toplevel x) (const #nil)))
+
+  (pass-if-peval (eqv? x '(a . b))
+    (primcall eq? (toplevel x) (const (a . b)))))
+
+(with-test-prefix "equal?"
+  (pass-if-peval (equal? x #f)
+    (primcall eq? (toplevel x) (const #f)))
+
+  (pass-if-peval (equal? x '())
+    (primcall eq? (toplevel x) (const ())))
+
+  (pass-if-peval (equal? x #t)
+    (primcall eq? (toplevel x) (const #t)))
+
+  (pass-if-peval (equal? x 'sym)
+    (primcall eq? (toplevel x) (const sym)))
+
+  (pass-if-peval (equal? x 42)
+    (primcall eq? (toplevel x) (const 42)))
+
+  (pass-if-peval (equal? x #\a)
+    (primcall eq? (toplevel x) (const #\a)))
+
+  (pass-if-peval (equal? x 42.0)
+    (primcall eqv? (toplevel x) (const '42.0)))
+
+  (pass-if-peval (equal? x #nil)
+    (primcall eq? (toplevel x) (const #nil)))
+
+  (pass-if-peval (equal? x '(a . b))
+    (primcall equal? (toplevel x) (const (a . b)))))

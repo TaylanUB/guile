@@ -560,42 +560,11 @@
 (define-primitive-expander f64vector-set! (vec i x)
   (bytevector-ieee-double-native-set! vec (* i 8) x))
 
-(define (character-comparison-expander char< <)
-  (lambda (src . args)
-    (expand-primcall
-     (make-primcall src <
-                    (map (lambda (arg)
-                           (make-primcall src 'char->integer (list arg)))
-                         args)))))
-
-(for-each (match-lambda
-            ((char< . <)
-             (define-primitive-expander! char<
-               (character-comparison-expander char< <))))
-          '((char<? . <)
-            (char>? . >)
-            (char<=? . <=)
-            (char>=? . >=)
-            (char=? . =)))
-
-;; Appropriate for use with either 'eqv?' or 'equal?'.
-(define (maybe-simplify-to-eq prim)
+(define (expand-eq prim)
   (case-lambda
     ((src) (make-const src #t))
     ((src a) (make-const src #t))
-    ((src a b)
-     ;; Simplify cases where either A or B is constant.
-     (define (maybe-simplify a b)
-       (and (const? a)
-            (let ((v (const-exp a)))
-              (and (or (memq v '(#f #t () #nil))
-                       (symbol? v)
-                       (and (integer? v)
-                            (exact? v)
-                            (<= v most-positive-fixnum)
-                            (>= v most-negative-fixnum)))
-                   (make-primcall src 'eq? (list a b))))))
-     (or (maybe-simplify a b) (maybe-simplify b a)))
+    ((src a b) #f)
     ((src a b . rest)
      (with-lexicals src (b)
        (make-conditional src (make-primcall src prim (list a b))
@@ -603,8 +572,9 @@
                          (make-const src #f))))
     (else #f)))
 
-(define-primitive-expander! 'eqv?   (maybe-simplify-to-eq 'eqv?))
-(define-primitive-expander! 'equal? (maybe-simplify-to-eq 'equal?))
+(define-primitive-expander! 'eq?    (expand-eq 'eq?))
+(define-primitive-expander! 'eqv?   (expand-eq 'eqv?))
+(define-primitive-expander! 'equal? (expand-eq 'equal?))
 
 (define (expand-chained-comparisons prim)
   (case-lambda
@@ -627,6 +597,24 @@
             (define-primitive-expander! prim
               (expand-chained-comparisons prim)))
  '(< <= = >= > eq?))
+
+(define (character-comparison-expander char< <)
+  (lambda (src . args)
+    (expand-primcall
+     (make-primcall src <
+                    (map (lambda (arg)
+                           (make-primcall src 'char->integer (list arg)))
+                         args)))))
+
+(for-each (match-lambda
+            ((char< . <)
+             (define-primitive-expander! char<
+               (character-comparison-expander char< <))))
+          '((char<? . <)
+            (char>? . >)
+            (char<=? . <=)
+            (char>=? . >=)
+            (char=? . =)))
 
 (define-primitive-expander! 'call-with-prompt
   (case-lambda

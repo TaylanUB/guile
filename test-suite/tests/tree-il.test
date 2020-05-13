@@ -56,66 +56,6 @@
 
 (with-test-prefix "primitives"
 
-  (with-test-prefix "eqv?"
-
-    (pass-if-primitives-resolved
-        (primcall eqv? (toplevel x) (const #f))
-      (primcall eq? (const #f) (toplevel x)))
-
-    (pass-if-primitives-resolved
-        (primcall eqv? (toplevel x) (const ()))
-      (primcall eq? (const ()) (toplevel x)))
-
-    (pass-if-primitives-resolved
-        (primcall eqv? (const #t) (lexical x y))
-      (primcall eq? (const #t) (lexical x y)))
-
-    (pass-if-primitives-resolved
-        (primcall eqv? (const this-is-a-symbol) (toplevel x))
-      (primcall eq? (const this-is-a-symbol) (toplevel x)))
-
-    (pass-if-primitives-resolved
-        (primcall eqv? (const 42) (toplevel x))
-      (primcall eq? (const 42) (toplevel x)))
-
-    (pass-if-primitives-resolved
-        (primcall eqv? (const 42.0) (toplevel x))
-      (primcall eqv? (const 42.0) (toplevel x)))
-
-    (pass-if-primitives-resolved
-        (primcall eqv? (const #nil) (toplevel x))
-      (primcall eq? (const #nil) (toplevel x))))
-
-  (with-test-prefix "equal?"
-
-    (pass-if-primitives-resolved
-        (primcall equal? (toplevel x) (const #f))
-      (primcall eq? (const #f) (toplevel x)))
-
-    (pass-if-primitives-resolved
-        (primcall equal? (toplevel x) (const ()))
-      (primcall eq? (const ()) (toplevel x)))
-
-    (pass-if-primitives-resolved
-        (primcall equal? (const #t) (lexical x y))
-      (primcall eq? (const #t) (lexical x y)))
-
-    (pass-if-primitives-resolved
-        (primcall equal? (const this-is-a-symbol) (toplevel x))
-      (primcall eq? (const this-is-a-symbol) (toplevel x)))
-
-    (pass-if-primitives-resolved
-        (primcall equal? (const 42) (toplevel x))
-      (primcall eq? (const 42) (toplevel x)))
-
-    (pass-if-primitives-resolved
-        (primcall equal? (const 42.0) (toplevel x))
-      (primcall equal? (const 42.0) (toplevel x)))
-
-    (pass-if-primitives-resolved
-        (primcall equal? (const #nil) (toplevel x))
-      (primcall eq? (const #nil) (toplevel x))))
-
   (with-test-prefix "error"
     (pass-if-primitives-resolved
         (primcall error (const "message"))

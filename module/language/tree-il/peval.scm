@@ -1,6 +1,6 @@
 ;;; Tree-IL partial evaluator
 
-;; Copyright (C) 2011-2014, 2017, 2019 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2014, 2017, 2019, 2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -505,22 +505,14 @@ top-level bindings from ENV and return the resulting expression."
     (define (apply-primitive name args)
       ;; todo: further optimize commutative primitives
       (catch #t
-        (lambda ()
-          (call-with-values
-              (lambda ()
-                (case name
-                  ((eq? eqv?)
-                   ;; Constants will be deduplicated later, but eq?
-                   ;; folding can happen now.  Anticipate the
-                   ;; deduplication by using equal? instead of eq?.
-                   ;; Same for eqv?.
-                   (apply equal? args))
-                  (else
-                   (apply (module-ref the-scm-module name) args))))
-            (lambda results
-              (values #t results))))
-        (lambda _
-          (values #f '()))))
+             (lambda ()
+               (call-with-values
+                   (lambda ()
+                     (apply (module-ref the-scm-module name) args))
+                 (lambda results
+                   (values #t results))))
+             (lambda _
+               (values #f '()))))
     (define (make-values src values)
       (match values
         ((single) single)               ; 1 value
@@ -710,7 +702,7 @@ top-level bindings from ENV and return the resulting expression."
   (let loop ((exp   exp)
              (env   vlist-null)         ; vhash of gensym -> <operand>
              (counter #f)               ; inlined call stack
-             (ctx 'values))   ; effect, value, values, test, operator, or call
+             (ctx 'values)) ; effect, value, values, test, operator, or call
     (define (lookup var)
       (cond 
        ((vhash-assq var env) => cdr)
@@ -1348,9 +1340,39 @@ top-level bindings from ENV and return the resulting expression."
                (for-tail (make-seq src k (make-const #f #f))))
               (else
                (make-primcall src name (list k (make-const #f elts))))))))
-         (((? equality-primitive?)
-           ($ <lexical-ref> _ _ sym) ($ <lexical-ref> _ _ sym))
-          (for-tail (make-const #f #t)))
+
+         (((? equality-primitive?) a (and b ($ <const> _ v)))
+          (cond
+           ((const? a)
+            ;; Constants will be deduplicated later, but eq? folding can
+            ;; happen now.  Anticipate the deduplication by using equal?
+            ;; instead of eq? or eqv?.
+            (for-tail (make-const src (equal? (const-exp a) v))))
+           ((eq? name 'eq?)
+            ;; Already in a reduced state.
+            (make-primcall src 'eq? (list a b)))
+           ((or (memq v '(#f #t () #nil)) (symbol? v) (char? v)
+                (and (exact-integer? v)
+                     (<= most-negative-fixnum v most-positive-fixnum)))
+            ;; Reduce to eq?.  Note that in Guile, characters are
+            ;; comparable with eq?.
+            (make-primcall src 'eq? (list a b)))
+           ((number? v)
+            ;; equal? and eqv? on non-fixnum numbers is the same as
+            ;; eqv?, and can't be reduced beyond that.
+            (make-primcall src 'eqv? (list a b)))
+           ((eq? name 'eqv?)
+            ;; eqv? on anything else is the same as eq?.
+            (make-primcall src 'eq? (list a b)))
+           (else
+            ;; FIXME: inline a specialized implementation of equal? for
+            ;; V here.
+            (make-primcall src name (list a b)))))
+         (((? equality-primitive?) (and a ($ <const>)) b)
+          (for-tail (make-primcall src name (list b a))))
+         (((? equality-primitive?) ($ <lexical-ref> _ _ sym)
+                                   ($ <lexical-ref> _ _ sym))
+          (for-tail (make-const src #t)))
 
          (('logbit? ($ <const> src2
                        (? (lambda (bit)
