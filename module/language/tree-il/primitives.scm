@@ -560,28 +560,6 @@
 (define-primitive-expander f64vector-set! (vec i x)
   (bytevector-ieee-double-native-set! vec (* i 8) x))
 
-(define (chained-comparison-expander prim-name)
-  (case-lambda
-    ((src) (make-const src #t))
-    ((src a) #f)
-    ((src a b) #f)
-    ((src a b . rest)
-     (let* ((b-sym (gensym "b"))
-            (b* (make-lexical-ref src 'b b-sym)))
-       (make-let src
-                 '(b)
-                 (list b-sym)
-                 (list b)
-                 (make-conditional src
-                                   (make-primcall src prim-name (list a b*))
-                                   (make-primcall src prim-name (cons b* rest))
-                                   (make-const src #f)))))))
-
-(for-each (lambda (prim-name)
-            (define-primitive-expander! prim-name
-              (chained-comparison-expander prim-name)))
-          '(< > <= >= =))
-
 (define (character-comparison-expander char< <)
   (lambda (src . args)
     (expand-primcall
@@ -619,9 +597,10 @@
                    (make-primcall src 'eq? (list a b))))))
      (or (maybe-simplify a b) (maybe-simplify b a)))
     ((src a b . rest)
-     (make-conditional src (make-primcall src prim (list a b))
-                       (make-primcall src prim (cons b rest))
-                       (make-const src #f)))
+     (with-lexicals src (b)
+       (make-conditional src (make-primcall src prim (list a b))
+                         (make-primcall src prim (cons b rest))
+                         (make-const src #f))))
     (else #f)))
 
 (define-primitive-expander! 'eqv?   (maybe-simplify-to-eq 'eqv?))
@@ -638,9 +617,10 @@
                (make-const src #t)))
     ((src a b) #f)
     ((src a b . rest)
-     (make-conditional src (make-primcall src prim (list a b))
-                       (make-primcall src prim (cons b rest))
-                       (make-const src #f)))
+     (with-lexicals src (b)
+       (make-conditional src (make-primcall src prim (list a b))
+                         (make-primcall src prim (cons b rest))
+                         (make-const src #f))))
     (else #f)))
 
 (for-each (lambda (prim)
@@ -662,26 +642,24 @@
            (make-primcall src 'name (list . args)))
          (define-syntax-rule (const val)
            (make-const src val))
-         (make-let
-          src (list 'handler) (list h) (list handler)
-          (let ((handler (make-lexical-ref src 'handler h)))
-            (make-conditional
-             src
-             (primcall procedure? handler)
-             (make-prompt
-              src #f tag thunk
-              (make-lambda
-               src '()
-               (make-lambda-case
-                src '() #f 'args #f '() (list args)
-                (primcall apply handler (make-lexical-ref #f 'args args))
-                #f)))
-             (primcall throw
-                       (const 'wrong-type-arg)
-                       (const "call-with-prompt")
-                       (const "Wrong type (expecting procedure): ~S")
-                       (primcall list handler)
-                       (primcall list handler)))))))))
+         (with-lexicals src (handler)
+           (make-conditional
+            src
+            (primcall procedure? handler)
+            (make-prompt
+             src #f tag thunk
+             (make-lambda
+              src '()
+              (make-lambda-case
+               src '() #f 'args #f '() (list args)
+               (primcall apply handler (make-lexical-ref #f 'args args))
+               #f)))
+            (primcall throw
+                      (const 'wrong-type-arg)
+                      (const "call-with-prompt")
+                      (const "Wrong type (expecting procedure): ~S")
+                      (primcall list handler)
+                      (primcall list handler))))))))
    (else #f)))
 
 (define-primitive-expander! 'abort-to-prompt*

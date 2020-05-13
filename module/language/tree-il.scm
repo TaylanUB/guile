@@ -1,4 +1,4 @@
-;;;; 	Copyright (C) 2009-2014, 2017-2019 Free Software Foundation, Inc.
+;;;; 	Copyright (C) 2009-2014, 2017-2020 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -60,6 +60,7 @@
             make-tree-il-folder
             post-order
             pre-order
+            with-lexicals
 
             tree-il=?
             tree-il-hash))
@@ -567,6 +568,20 @@ This is an implementation of `foldts' as described by Andy Wingo in
 
 (define (pre-order f x)
   (pre-post-order f (lambda (x) x) x))
+
+(define-syntax-rule (with-lexical src id . body)
+  (let ((k (lambda (id) . body)))
+    (match id
+      (($ <lexical-ref>) (k id))
+      (_
+       (let ((tmp (gensym "v ")))
+         (make-let src (list 'id) (list tmp) (list id)
+                   (k (make-lexical-ref src 'id tmp))))))))
+(define-syntax with-lexicals
+  (syntax-rules ()
+    ((with-lexicals src () . body) (let () . body))
+    ((with-lexicals src (id . ids) . body)
+     (with-lexical src id (with-lexicals src ids . body)))))
 
 ;; FIXME: We should have a better primitive than this.
 (define (struct-nfields x)

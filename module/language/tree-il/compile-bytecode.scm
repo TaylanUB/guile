@@ -432,12 +432,10 @@
 
        ;; struct-set! needs to return its value.
        (($ <primcall> src 'struct-set! (x idx v))
-        (let ((sym (gensym "v ")))
-          (make-let src (list 'v) (list sym) (list v)
-                    (let ((v (make-lexical-ref src 'v sym)))
-                      (make-seq src
-                                (make-primcall src 'struct-set! (list x idx v))
-                                v)))))
+        (with-lexicals src (v)
+          (make-seq src
+                    (make-primcall src 'struct-set! (list x idx v))
+                    v)))
 
        ;; Transform "ash" to lsh / rsh.
        (($ <primcall> src 'ash (x ($ <const> src (? exact-integer? y))))

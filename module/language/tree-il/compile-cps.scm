@@ -2303,19 +2303,6 @@ integer."
 (define *comp-module* (make-fluid))
 
 (define (canonicalize exp)
-  (define-syntax-rule (with-lexical src id . body)
-    (let ((k (lambda (id) . body)))
-      (match id
-        (($ <lexical-ref>) (k id))
-        (_
-         (let ((v (gensym "v ")))
-           (make-let src (list 'v) (list v) (list id)
-                     (k (make-lexical-ref src 'v v))))))))
-  (define-syntax with-lexicals
-    (syntax-rules ()
-      ((with-lexicals src () . body) (let () . body))
-      ((with-lexicals src (id . ids) . body)
-       (with-lexical src id (with-lexicals src ids . body)))))
   (define (reduce-conditional exp)
     (match exp
       (($ <conditional> src
@@ -2348,10 +2335,9 @@ integer."
           (evaluate-args-eagerly-if-needed
            src inits (lambda (inits) (k (cons init inits)))))
          (_
-          (with-lexical
-           src init
-           (evaluate-args-eagerly-if-needed
-            src inits (lambda (inits) (k (cons init inits))))))))))
+          (with-lexicals src (init)
+            (evaluate-args-eagerly-if-needed
+             src inits (lambda (inits) (k (cons init inits))))))))))
   (post-order
    (lambda (exp)
      (match exp
@@ -2521,5 +2507,4 @@ integer."
 ;;; Local Variables:
 ;;; eval: (put 'convert-arg 'scheme-indent-function 2)
 ;;; eval: (put 'convert-args 'scheme-indent-function 2)
-;;; eval: (put 'with-lexicals 'scheme-indent-function 2)
 ;;; End:

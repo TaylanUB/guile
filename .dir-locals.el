@@ -19,6 +19,7 @@
      (eval . (put 'with-fresh-name-state-from-dfg 'scheme-indent-function 1))
      (eval . (put 'with-cps            'scheme-indent-function 1))
      (eval . (put 'with-cps-constants  'scheme-indent-function 1))
+     (eval . (put 'with-lexicals       'scheme-indent-function 2))
      (eval . (put 'build-cps-term      'scheme-indent-function 0))
      (eval . (put 'build-cps-exp       'scheme-indent-function 0))
      (eval . (put 'build-cps-cont      'scheme-indent-function 0))
