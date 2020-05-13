@@ -48,11 +48,6 @@
             cps-optimizations
             make-cps-lowerer))
 
-(define (kw-arg-ref args kw default)
-  (match (memq kw args)
-    ((_ val . _) val)
-    (_ default)))
-
 (define *debug?* #f)
 
 (define (maybe-verify program)
@@ -60,7 +55,7 @@
       (verify program)
       program))
 
-(define-syntax-rule (define-optimizer optimize (pass kw default) ...)
+(define-syntax-rule (define-optimizer optimize (pass kw) ...)
   (define* (optimize program #:optional (opts '()))
     ;; This series of assignments to `program' used to be a series of
     ;; let* bindings of `program', as you would imagine.  In compiled
@@ -76,7 +71,7 @@
     ;; set!.
     (maybe-verify program)
     (set! program
-      (if (kw-arg-ref opts kw default)
+      (if (assq-ref opts kw)
           (maybe-verify (pass program))
           program))
     ...
@@ -92,30 +87,30 @@
   ;; unconditionally, because closure conversion requires it.  Move the
   ;; pass back here when that's fixed.
   ;;
-  ;; (split-rec #:split-rec? #t)
-  (eliminate-dead-code #:eliminate-dead-code? #t)
-  (prune-top-level-scopes #:prune-top-level-scopes? #t)
-  (simplify #:simplify? #t)
-  (contify #:contify? #t)
-  (simplify #:simplify? #t)
-  (devirtualize-integers #:devirtualize-integers? #t)
-  (peel-loops #:peel-loops? #t)
-  (eliminate-common-subexpressions #:cse? #t)
-  (type-fold #:type-fold? #t)
-  (resolve-self-references #:resolve-self-references? #t)
-  (eliminate-dead-code #:eliminate-dead-code? #t)
-  (simplify #:simplify? #t))
+  ;; (split-rec #:split-rec?)
+  (eliminate-dead-code #:eliminate-dead-code?)
+  (prune-top-level-scopes #:prune-top-level-scopes?)
+  (simplify #:simplify?)
+  (contify #:contify?)
+  (simplify #:simplify?)
+  (devirtualize-integers #:devirtualize-integers?)
+  (peel-loops #:peel-loops?)
+  (eliminate-common-subexpressions #:cse?)
+  (type-fold #:type-fold?)
+  (resolve-self-references #:resolve-self-references?)
+  (eliminate-dead-code #:eliminate-dead-code?)
+  (simplify #:simplify?))
 
 (define-optimizer optimize-first-order-cps
-  (specialize-numbers #:specialize-numbers? #t)
-  (hoist-loop-invariant-code #:licm? #t)
-  (specialize-primcalls #:specialize-primcalls? #t)
-  (eliminate-common-subexpressions #:cse? #t)
-  (eliminate-dead-code #:eliminate-dead-code? #t)
+  (specialize-numbers #:specialize-numbers?)
+  (hoist-loop-invariant-code #:licm?)
+  (specialize-primcalls #:specialize-primcalls?)
+  (eliminate-common-subexpressions #:cse?)
+  (eliminate-dead-code #:eliminate-dead-code?)
   ;; Running simplify here enables rotate-loops to do a better job.
-  (simplify #:simplify? #t)
-  (rotate-loops #:rotate-loops? #t)
-  (simplify #:simplify? #t))
+  (simplify #:simplify?)
+  (rotate-loops #:rotate-loops?)
+  (simplify #:simplify?))
 
 (define (cps-optimizations)
   (available-optimizations 'cps))
@@ -134,6 +129,10 @@
   (renumber exp))
 
 (define (make-cps-lowerer optimization-level opts)
+  (define (kw-arg-ref args kw default)
+    (match (memq kw args)
+      ((_ val . _) val)
+      (_ default)))
   (define (enabled-for-level? level) (<= level optimization-level))
   (let ((opts (let lp ((all-opts (cps-optimizations)))
                 (match all-opts

@@ -32,11 +32,6 @@
             make-lowerer
             tree-il-optimizations))
 
-(define (kw-arg-ref args kw default)
-  (match (memq kw args)
-    ((_ val . _) val)
-    (_ default)))
-
 (define *debug?* #f)
 
 (define (maybe-verify x)
@@ -45,27 +40,31 @@
       x))
 
 (define (optimize x env opts)
-  (define-syntax-rule (run-pass pass kw default)
-    (when (kw-arg-ref opts kw default)
+  (define-syntax-rule (run-pass pass kw)
+    (when (assq-ref opts kw)
       (set! x (maybe-verify (pass x)))))
   (define (resolve* x) (resolve-primitives x env))
   (define (peval* x) (peval x env))
   (define (letrectify* x)
-    (let ((seal? (kw-arg-ref opts #:seal-private-bindings? #f)))
+    (let ((seal? (assq-ref opts #:seal-private-bindings?)))
       (letrectify x #:seal-private-bindings? seal?)))
   (maybe-verify x)
-  (run-pass resolve*           #:resolve-primitives? #t)
-  (run-pass expand-primitives  #:expand-primitives?  #t)
-  (run-pass letrectify*        #:letrectify?         #t)
+  (run-pass resolve*           #:resolve-primitives?)
+  (run-pass expand-primitives  #:expand-primitives?)
+  (run-pass letrectify*        #:letrectify?)
   (set! x (fix-letrec x))
-  (run-pass peval*             #:partial-eval?       #t)
-  (run-pass eta-expand         #:eta-expand?         #t)
+  (run-pass peval*             #:partial-eval?)
+  (run-pass eta-expand         #:eta-expand?)
   x)
 
 (define (tree-il-optimizations)
   (available-optimizations 'tree-il))
 
 (define (make-lowerer optimization-level opts)
+  (define (kw-arg-ref args kw default)
+    (match (memq kw args)
+      ((_ val . _) val)
+      (_ default)))
   (define (enabled-for-level? level) (<= level optimization-level))
   (let ((opts (let lp ((all-opts (tree-il-optimizations)))
                 (match all-opts
