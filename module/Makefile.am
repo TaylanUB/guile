@@ -36,12 +36,48 @@ $(nobase_ccache_DATA): ../bootstrap/ice-9/eval.go
 ice-9/psyntax-pp.go: ice-9/psyntax.scm ice-9/psyntax-pp.scm
 	$(AM_V_GUILEC)GUILE_AUTO_COMPILE=0				\
 	$(top_builddir)/meta/build-env					\
-	guild compile --target="$(host)" $(GUILE_WARNINGS)		\
+	guild compile --target="$(host)" $(GUILE_WARNINGS) $(GUILE_OPTIMIZATIONS) \
 	  -L "$(abs_srcdir)" -L "$(abs_builddir)"			\
 	  -L "$(abs_top_srcdir)/guile-readline"				\
 	  -o "ice-9/psyntax-pp.go" "$(srcdir)/ice-9/psyntax.scm"
 
 SOURCES =					\
+  ice-9/eval.scm				\
+  ice-9/psyntax-pp.scm				\
+						\
+  language/cps.scm				\
+  language/cps/closure-conversion.scm		\
+  language/cps/compile-bytecode.scm		\
+  language/cps/contification.scm		\
+  language/cps/cse.scm				\
+  language/cps/dce.scm				\
+  language/cps/devirtualize-integers.scm	\
+  language/cps/effects-analysis.scm		\
+  language/cps/graphs.scm			\
+  language/cps/intmap.scm			\
+  language/cps/intset.scm			\
+  language/cps/licm.scm				\
+  language/cps/loop-instrumentation.scm		\
+  language/cps/optimize.scm			\
+  language/cps/peel-loops.scm			\
+  language/cps/prune-top-level-scopes.scm	\
+  language/cps/reify-primitives.scm		\
+  language/cps/renumber.scm			\
+  language/cps/rotate-loops.scm			\
+  language/cps/self-references.scm		\
+  language/cps/simplify.scm			\
+  language/cps/slot-allocation.scm		\
+  language/cps/spec.scm				\
+  language/cps/specialize-primcalls.scm		\
+  language/cps/specialize-numbers.scm		\
+  language/cps/split-rec.scm			\
+  language/cps/type-checks.scm			\
+  language/cps/type-fold.scm			\
+  language/cps/types.scm			\
+  language/cps/utils.scm			\
+  language/cps/verify.scm			\
+  language/cps/with-cps.scm			\
+						\
   ice-9/and-let-star.scm			\
   ice-9/arrays.scm				\
   ice-9/atomic.scm				\
@@ -56,7 +92,6 @@ SOURCES =					\
   ice-9/deprecated.scm				\
   ice-9/documentation.scm			\
   ice-9/eval-string.scm				\
-  ice-9/eval.scm				\
   ice-9/exceptions.scm				\
   ice-9/expect.scm				\
   ice-9/fdes-finalizers.scm			\
@@ -91,7 +126,6 @@ SOURCES =					\
   ice-9/ports.scm				\
   ice-9/posix.scm				\
   ice-9/pretty-print.scm			\
-  ice-9/psyntax-pp.scm				\
   ice-9/q.scm					\
   ice-9/r5rs.scm				\
   ice-9/rdelim.scm				\
@@ -126,39 +160,6 @@ SOURCES =					\
 						\
   language/bytecode.scm				\
   language/bytecode/spec.scm			\
-						\
-  language/cps.scm				\
-  language/cps/closure-conversion.scm		\
-  language/cps/compile-bytecode.scm		\
-  language/cps/contification.scm		\
-  language/cps/cse.scm				\
-  language/cps/dce.scm				\
-  language/cps/devirtualize-integers.scm	\
-  language/cps/effects-analysis.scm		\
-  language/cps/graphs.scm			\
-  language/cps/intmap.scm			\
-  language/cps/intset.scm			\
-  language/cps/licm.scm				\
-  language/cps/loop-instrumentation.scm		\
-  language/cps/optimize.scm			\
-  language/cps/peel-loops.scm			\
-  language/cps/prune-top-level-scopes.scm	\
-  language/cps/reify-primitives.scm		\
-  language/cps/renumber.scm			\
-  language/cps/rotate-loops.scm			\
-  language/cps/self-references.scm		\
-  language/cps/simplify.scm			\
-  language/cps/slot-allocation.scm		\
-  language/cps/spec.scm				\
-  language/cps/specialize-primcalls.scm		\
-  language/cps/specialize-numbers.scm		\
-  language/cps/split-rec.scm			\
-  language/cps/type-checks.scm			\
-  language/cps/type-fold.scm			\
-  language/cps/types.scm			\
-  language/cps/utils.scm			\
-  language/cps/verify.scm			\
-  language/cps/with-cps.scm			\
 						\
   language/ecmascript/tokenize.scm		\
   language/ecmascript/parse.scm			\
