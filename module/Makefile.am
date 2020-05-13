@@ -78,6 +78,21 @@ SOURCES =					\
   language/cps/verify.scm			\
   language/cps/with-cps.scm			\
 						\
+  language/tree-il.scm				\
+  language/tree-il/analyze.scm			\
+  language/tree-il/compile-bytecode.scm		\
+  language/tree-il/compile-cps.scm		\
+  language/tree-il/cps-primitives.scm		\
+  language/tree-il/debug.scm			\
+  language/tree-il/effects.scm			\
+  language/tree-il/eta-expand.scm		\
+  language/tree-il/fix-letrec.scm		\
+  language/tree-il/letrectify.scm		\
+  language/tree-il/optimize.scm			\
+  language/tree-il/peval.scm			\
+  language/tree-il/primitives.scm		\
+  language/tree-il/spec.scm			\
+						\
   ice-9/and-let-star.scm			\
   ice-9/arrays.scm				\
   ice-9/atomic.scm				\
@@ -183,21 +198,6 @@ SOURCES =					\
   language/scheme/compile-tree-il.scm		\
   language/scheme/decompile-tree-il.scm		\
   language/scheme/spec.scm			\
-						\
-  language/tree-il.scm				\
-  language/tree-il/analyze.scm			\
-  language/tree-il/compile-bytecode.scm		\
-  language/tree-il/compile-cps.scm		\
-  language/tree-il/cps-primitives.scm		\
-  language/tree-il/debug.scm			\
-  language/tree-il/effects.scm			\
-  language/tree-il/eta-expand.scm		\
-  language/tree-il/fix-letrec.scm		\
-  language/tree-il/letrectify.scm		\
-  language/tree-il/optimize.scm			\
-  language/tree-il/peval.scm			\
-  language/tree-il/primitives.scm		\
-  language/tree-il/spec.scm			\
 						\
   language/value/spec.scm			\
 						\
