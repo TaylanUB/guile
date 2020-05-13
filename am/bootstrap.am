@@ -59,8 +59,6 @@ SOURCES =					\
 						\
   language/tree-il.scm				\
   language/tree-il/analyze.scm			\
-  language/tree-il/compile-cps.scm		\
-  language/tree-il/cps-primitives.scm		\
   language/tree-il/debug.scm			\
   language/tree-il/effects.scm			\
   language/tree-il/eta-expand.scm		\
@@ -122,6 +120,9 @@ SOURCES =					\
   system/vm/program.scm				\
   system/vm/vm.scm				\
   system/foreign.scm				\
+						\
+  language/tree-il/compile-cps.scm		\
+  language/tree-il/cps-primitives.scm		\
 						\
   language/cps.scm				\
   language/cps/closure-conversion.scm		\
