@@ -25,7 +25,6 @@
   #:use-module (system base message)
   #:use-module (system vm program)
   #:use-module (system vm loader)
-  #:autoload (language tree-il optimize) (optimize)
   #:use-module (ice-9 control)
   #:use-module (ice-9 history)
   #:export (<repl> make-repl repl-language repl-options
@@ -111,6 +110,14 @@ See <http://www.gnu.org/licenses/lgpl.html>, for more details.")
 (define repl-default-options
   (copy-tree
    `((compile-options ,%auto-compilation-options #f)
+     (optimization-level #f (lambda (x)
+                              (unless (and (exact-integer? x) (<= 0 x 9))
+                                (error "Invalid optimization level" x))
+                              x))
+     (warning-level #f (lambda (x)
+                         (unless (and (exact-integer? x) (<= 0 x 9))
+                           (error "Invalid warning level" x))
+                         x))
      (trace #f #f)
      (interp #f #f)
      (prompt #f ,(lambda (prompt)
@@ -173,27 +180,44 @@ See <http://www.gnu.org/licenses/lgpl.html>, for more details.")
 (define (repl-compile-options repl)
   (repl-option-ref repl 'compile-options))
 
+(define (repl-optimization-level repl)
+  (or (repl-option-ref repl 'optimization-level)
+      (default-optimization-level)))
+
+(define (repl-warning-level repl)
+  (or (repl-option-ref repl 'warning-level)
+      (default-warning-level)))
+
 (define (repl-compile repl form)
   (let ((from (repl-language repl))
         (opts (repl-compile-options repl)))
     (compile form #:from from #:to 'bytecode #:opts opts
+             #:optimization-level (repl-optimization-level repl)
+             #:warning-level (repl-warning-level repl)
              #:env (current-module))))
 
-(define (repl-expand repl form)
+(define* (repl-expand repl form #:key (lang 'tree-il))
   (let ((from (repl-language repl))
         (opts (repl-compile-options repl)))
-    (decompile (compile form #:from from #:to 'tree-il #:opts opts
+    (decompile (compile form #:from from #:to lang #:opts opts
                         #:env (current-module))
-               #:from 'tree-il #:to from)))
+               #:from lang #:to from)))
 
-(define (repl-optimize repl form)
+(define* (repl-optimize repl form #:key (lang 'tree-il))
   (let ((from (repl-language repl))
+        (make-lower (language-lowerer (lookup-language lang)))
+        (optimization-level (repl-optimization-level repl))
+        (warning-level (repl-warning-level repl))
         (opts (repl-compile-options repl)))
-    (decompile (optimize (compile form #:from from #:to 'tree-il #:opts opts
-                                  #:env (current-module))
-                         (current-module)
-                         opts)
-               #:from 'tree-il #:to from)))
+    (unless make-lower
+      (error "language has no optimizer" lang))
+    (decompile ((make-lower optimization-level opts)
+                (compile form #:from from #:to lang #:opts opts
+                         #:optimization-level optimization-level
+                         #:warning-level warning-level
+                         #:env (current-module))
+                (current-module))
+               #:from lang #:to from)))
 
 (define (repl-parse repl form)
   (let ((parser (language-parser (repl-language repl))))
