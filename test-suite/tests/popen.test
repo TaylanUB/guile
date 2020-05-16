@@ -220,28 +220,32 @@ exec 2>~a; read REPLY"
 ;; pipeline related tests
 ;;
 
-(pass-if "open-process"
+(pass-if-equal "open-process"
+    '("hello world" 0)
   (receive (from to pid)
       ((@@ (ice-9 popen) open-process) OPEN_BOTH "rev")
     (display "dlrow olleh" to) (close to)
-    (and (equal? "hello world" (read-string from))
-         (= 0 (status:exit-val (cdr (waitpid pid)))))))
+    (list (read-string from)
+          (status:exit-val (cdr (waitpid pid))))))
 
-(pass-if "piped-process"
-  (= 42 (status:exit-val
-         (cdr (waitpid ((@@ (ice-9 popen) piped-process)
-                        "./meta/guile" '("-c" "(exit 42)")))))))
+(pass-if-equal "piped-process"
+    42
+  (status:exit-val
+   (cdr (waitpid ((@@ (ice-9 popen) piped-process)
+                  "./meta/guile" '("-c" "(exit 42)"))))))
 
-(pass-if "piped-process: with output"
+(pass-if-equal "piped-process: with output"
+    '("foo bar\n" 0)
   (let* ((p (pipe))
          (pid ((@@ (ice-9 popen) piped-process) "echo" '("foo" "bar")
-                             (cons (port->fdes (car p))
-                                   (port->fdes (cdr p))))))
-    (and (equal? "foo bar\n" (read-string (car p)))
-         (= 0 (status:exit-val (cdr (waitpid pid)))))))
+               (cons (port->fdes (car p))
+                     (port->fdes (cdr p))))))
+    (list (read-string (car p))
+          (status:exit-val (cdr (waitpid pid))))))
 
-(pass-if "pipeline"
+(pass-if-equal "pipeline"
+    '("hello world\n" (0 0))
   (receive (from to pids)
       (pipeline '(("echo" "dlrow olleh") ("rev")))
-    (and (string=? "hello world\n" (read-string from))
-         (equal? '(0 0) (map (compose status:exit-val cdr waitpid) pids)))))
+    (list (read-string from)
+          (map (compose status:exit-val cdr waitpid) pids))))
