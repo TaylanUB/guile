@@ -1,6 +1,6 @@
 ;;; -*- mode: scheme; coding: utf-8; -*-
 ;;;
-;;; Copyright (C) 2010, 2011, 2012 Free Software Foundation, Inc.
+;;; Copyright (C) 2010, 2011, 2012, 2020 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -24,11 +24,15 @@
             match-let*
             match-letrec))
 
-(define (error _ . args)
-  ;; Error procedure for run-time "no matching pattern" errors.
-  (apply throw 'match-error "match" args))
-
 ;; Support for record matching.
+
+;; For backwards compatibility with previously-compiled files, keep the
+;; old definition of "error" around.
+(define (error _ . args)
+  (apply throw 'match-error "match" args))
+;; FIXME: In 3.1.x, use this new definition:
+;; (define-syntax-rule (error where msg datum)
+;;   (throw 'match-error "match" msg datum))
 
 (define-syntax slot-ref
   (syntax-rules ()

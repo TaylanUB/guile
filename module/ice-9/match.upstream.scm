@@ -292,7 +292,7 @@
      ;; Here we call error in non-tail context, so that the backtrace
      ;; can show the source location of the failing match form.
      (begin
-       (error 'match "no matching pattern" v)
+       (throw 'match-error "match" "no matching pattern" v)
        #f))
     ;; named failure continuation
     ((match-next v g+s (pat (=> failure) . body) . rest)
