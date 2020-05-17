@@ -1173,7 +1173,7 @@ evaluates to @code{baz}.
 
 @deffn {Scheme Procedure} raise obj
 Equivalent to core Guile @code{(raise-exception @var{obj})}.
-@xref{Raising and Handling Exceptions}.  p(Unfortunately, @code{raise}
+@xref{Raising and Handling Exceptions}.  (Unfortunately, @code{raise}
 is already bound to a different function in core Guile.
 @xref{Signals}.)
 @end deffn

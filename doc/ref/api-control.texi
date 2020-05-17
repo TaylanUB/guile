@@ -678,8 +678,8 @@ Evaluate @var{expr} in a prompt, optionally specifying a tag and a
 handler.  If no tag is given, the default prompt tag is used.
 
 If no handler is given, a default handler is installed.  The default
-handler accepts a procedure of one argument, which will called on the
-captured continuation, within a prompt.
+handler accepts a procedure of one argument, which will be called on
+the captured continuation, within a prompt.
 
 Sometimes it's easier just to show code, as in this case:
 

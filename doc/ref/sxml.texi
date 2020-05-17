@@ -230,7 +230,7 @@ SAX parsers were created to give the programmer more control on the
 parsing process.  A programmer gives the SAX parser a number of
 ``callbacks'': functions that will be called on various features of the
 XML stream as they are encountered.  SAX parsers are more efficient, but
-much harder to user, as users typically have to manually maintain a
+much harder to use, as users typically have to manually maintain a
 stack of open elements.
 
 Kiselyov realized that the SAX programming model could be made much
