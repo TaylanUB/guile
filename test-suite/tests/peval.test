@@ -23,14 +23,11 @@
   #:use-module (system base pmatch)
   #:use-module (system base message)
   #:use-module (language tree-il)
-  #:use-module (language tree-il primitives)
   #:use-module (language tree-il fix-letrec)
+  #:use-module (language tree-il peval)
+  #:use-module (language tree-il primitives)
   #:use-module (rnrs bytevectors) ;; for the bytevector primitives
   #:use-module (srfi srfi-13))
-
-(define peval
-  ;; The partial evaluator.
-  (@@ (language tree-il optimize) peval))
 
 (define-syntax pass-if-peval
   (syntax-rules ()
