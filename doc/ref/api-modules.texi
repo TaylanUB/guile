@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Guile Reference Manual.
-@c Copyright (C)  1996, 1997, 2000-2004, 2007-2014, 2019
+@c Copyright (C)  1996, 1997, 2000-2004, 2007-2014, 2019, 2020
 @c   Free Software Foundation, Inc.
 @c See the file guile.texi for copying conditions.
 
@@ -295,8 +295,10 @@ example,
   (set! foo (delete-duplicates ...)))
 @end example
 
-When a module is autoloaded, all its bindings become available.
-@var{symbol-list} is just those that will first trigger the load.
+When a module is autoloaded, only the bindings in @var{symbol-list}
+become available@footnote{In Guile 2.2 and earlier, @emph{all} the
+module bindings would become available; @var{symbol-list} was just the
+list of bindings that will first trigger the load.}.
 
 An autoload is a good way to put off loading a big module until it's
 really needed, for instance for faster startup or if it will only be
