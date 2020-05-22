@@ -304,10 +304,6 @@ An autoload is a good way to put off loading a big module until it's
 really needed, for instance for faster startup or if it will only be
 needed in certain circumstances.
 
-@code{@@} can do a similar thing (@pxref{Using Guile Modules}), but in
-that case an @code{@@} form must be written every time a binding from
-the module is used.
-
 @item #:export @var{list}
 @cindex export
 Export all identifiers in @var{list} which must be a list of symbols
