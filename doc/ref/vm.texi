@@ -1375,7 +1375,7 @@ as a @code{scm} value directly.
 
 @deftypefn Instruction {} make-non-immediate s24:@var{dst} n32:@var{offset}
 Load a pointer to statically allocated memory into @var{dst}.  The
-object's memory is will be found @var{offset} 32-bit words away from the
+object's memory will be found @var{offset} 32-bit words away from the
 current instruction pointer.  Whether the object is mutable or immutable
 depends on where it was allocated by the compiler, and loaded by the
 loader.
@@ -1384,7 +1384,7 @@ loader.
 Sometimes you need to load up a code pointer into a register; for this,
 use @code{load-label}.
 
-@deftypefn Instruction {} make-non-immediate s24:@var{dst} l32:@var{offset}
+@deftypefn Instruction {} load-label s24:@var{dst} l32:@var{offset}
 Load a label @var{offset} words away from the current @code{ip} and
 write it to @var{dst}.  @var{offset} is a signed 32-bit integer.
 @end deftypefn
@@ -1422,7 +1422,7 @@ pointer.  @var{offset} is a signed value.
 Fields of non-immediates may need to be fixed up at load time, because
 we do not know in advance at what address they will be loaded.  This is
 the case, for example, for a pair containing a non-immediate in one of
-its fields.  @code{static-ref} and @code{static-patch!} are used in
+its fields.  @code{static-set!} and @code{static-patch!} are used in
 these situations.
 
 @deftypefn Instruction {} static-set! s24:@var{src} lo32:@var{offset}
