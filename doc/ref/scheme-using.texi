@@ -804,6 +804,32 @@ installed on your system in @code{/usr/}, then the extensions dir will
 be @code{/usr/lib/guile/@value{EFFECTIVE-VERSION}/extensions}.
 
 
+@node Distributing Guile Code
+@section Distributing Guile Code
+
+@cindex distribution, of Guile projects
+There's a tool that doesn't come bundled with Guile and yet can be very
+useful in your day to day experience with it.  This tool is
+@uref{https://gitlab.com/a-sassmannshausen/guile-hall, Hall}.
+
+Hall helps you create, manage, and package your Guile projects through a
+simple command-line interface.  When you start a new project, Hall
+creates a folder containing a scaffold of your new project.  It contains
+a directory for your tests, for your libraries, for your scripts and for
+your documentation.  This means you immediately know where to put the
+files you are hacking on.
+
+@cindex build system, for Guile code
+In addition, the scaffold will include your basic ``Autotools'' setup,
+so you don't have to take care of that yourself (@pxref{The GNU Build
+System,,, autoconf, Autoconf: Creating Automatic Configuration Scripts},
+for more information on the GNU ``Autotools'').  Having Autotools set up
+with your project means you can immediately start hacking on your
+project without worrying about whether your code will work on other
+people's computers.  Hall can also generate package definitions for the
+GNU@tie{}Guix package manager, making it easy for Guix users to install
+it.
+
 @c Local Variables:
 @c TeX-master: "guile.texi"
 @c End:
