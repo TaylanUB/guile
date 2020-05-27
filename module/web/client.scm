@@ -545,12 +545,14 @@ true)."
 (define-syntax-rule (define-http-verb http-verb method doc)
   (define* (http-verb uri #:key
                       (body #f)
-                      (port (open-socket-for-uri uri))
+                      (verify-certificate? #t)
+                      (port (open-socket-for-uri uri
+                                                 #:verify-certificate?
+                                                 verify-certificate?))
                       (version '(1 . 1))
                       (keep-alive? #f)
                       (headers '())
                       (decode-body? #t)
-                      (verify-certificate? #t)
                       (streaming? #f))
     doc
     (http-request uri
