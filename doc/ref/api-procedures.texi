@@ -730,8 +730,8 @@ Return @code{#t} if @var{obj} is a procedure.
 
 @deffn {Scheme Procedure} thunk? obj
 @deffnx {C Function} scm_thunk_p (obj)
-Return @code{#t} if @var{obj} is a thunk---a procedure that does
-not accept arguments.
+Return @code{#t} if @var{obj} is a procedure that can be called with
+zero arguments.
 @end deffn
 
 @cindex procedure properties

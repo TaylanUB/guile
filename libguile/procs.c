@@ -1,4 +1,4 @@
-/* Copyright 1995-1997,1999-2001,2006,2008-2013,2017-2018
+/* Copyright 1995-1997,1999-2001,2006,2008-2013,2017-2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -58,7 +58,8 @@ SCM_DEFINE (scm_procedure_p, "procedure?", 1, 0, 0,
 
 SCM_DEFINE (scm_thunk_p, "thunk?", 1, 0, 0, 
 	    (SCM obj),
-	    "Return @code{#t} if @var{obj} is a thunk.")
+	    "Return @code{#t} if @var{obj} is a procedure that can be "
+            "called with zero arguments.")
 #define FUNC_NAME s_scm_thunk_p
 {
   int req, opt, rest;
