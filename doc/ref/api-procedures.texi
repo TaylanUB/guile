@@ -143,9 +143,11 @@ loaded, and save the result to disk. Procedures can be compiled at
 runtime as well. @xref{Read/Load/Eval/Compile}, for more information
 on runtime compilation.
 
-Compiled procedures, also known as @dfn{programs}, respond all
-procedures that operate on procedures. In addition, there are a few
-more accessors for low-level details on programs.
+Compiled procedures, also known as @dfn{programs}, respond to all
+procedures that operate on procedures: you can pass a program to
+@code{procedure?}, @code{procedure-name}, and so on (@pxref{Procedure
+Properties}).  In addition, there are a few more accessors for low-level
+details on programs.
 
 Most people won't need to use the routines described in this section,
 but it's good to have them documented. You'll have to include the
