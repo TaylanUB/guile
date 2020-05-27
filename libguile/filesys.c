@@ -1762,7 +1762,7 @@ SCM_DEFINE (scm_opendir, "opendir", 1, 0, 0,
     SCM_SYSERROR;
 
   SCM_RETURN_NEWSMOB2 (scm_tc16_dir | (SCM_DIR_FLAG_OPEN << 16),
-		       ds, SCM_PACK_POINTER (mutex));
+		       ds, SCM_UNPACK (SCM_PACK_POINTER (mutex)));
 }
 #undef FUNC_NAME
 
