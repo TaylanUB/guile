@@ -80,7 +80,7 @@ an intset containing ancestor labels whose value is available at LABEL."
 
 (define (compute-truthy-expressions conts kfun)
   "Compute a \"truth map\", indicating which expressions can be shown to
-be true and/or false at each label in the function starting at KFUN..
+be true and/or false at each label in the function starting at KFUN.
 Returns an intmap of intsets.  The even elements of the intset indicate
 labels that may be true, and the odd ones indicate those that may be
 false.  It could be that both true and false proofs are available."
@@ -133,46 +133,9 @@ false.  It could be that both true and false proofs are available."
              (propagate1 kbody)))
         (($ $ktail) (propagate0)))))
 
-  (intset-fold
-   (lambda (kfun boolv)
-     (worklist-fold* visit-cont
-                     (intset kfun)
-                     (intmap-add boolv kfun empty-intset)))
-   (intmap-keys (compute-reachable-functions conts kfun))
-   empty-intmap))
-
-(define (intset-map f set)
-  (persistent-intmap
-   (intset-fold (lambda (i out) (intmap-add! out i (f i)))
-                set
-                empty-intmap)))
-
-;; Returns a map of label-idx -> (var-idx ...) indicating the variables
-;; defined by a given labelled expression.
-(define (compute-defs conts kfun)
-  (intset-map (lambda (label)
-                (match (intmap-ref conts label)
-                  (($ $kfun src meta self tail clause)
-                   (if self (list self) '()))
-                  (($ $kclause arity body alt)
-                   (match (intmap-ref conts body)
-                     (($ $kargs names vars) vars)))
-                  (($ $kreceive arity kargs)
-                   (match (intmap-ref conts kargs)
-                     (($ $kargs names vars) vars)))
-                  (($ $ktail)
-                   '())
-                  (($ $kargs names vars term)
-                   (match term
-                     (($ $continue k)
-                      (match (intmap-ref conts k)
-                        (($ $kargs names vars) vars)
-                        (_ #f)))
-                     (($ $branch)
-                      '())
-                     ((or ($ $prompt) ($ $throw))
-                      #f)))))
-               (compute-function-body conts kfun)))
+  (worklist-fold* visit-cont
+                  (intset kfun)
+                  (intmap-add empty-intmap kfun empty-intset)))
 
 (define (compute-singly-referenced succs)
   (define (visit label succs single multiple)
@@ -187,14 +150,15 @@ false.  It could be that both true and false proofs are available."
       (intset-subtract (persistent-intset single)
                        (persistent-intset multiple)))))
 
-(define (compute-equivalent-expressions-in-fun kfun conts
-                                               equiv-labels var-substs)
+(define (eliminate-common-subexpressions-in-fun kfun conts out)
   (let* ((effects (synthesize-definition-effects (compute-effects conts)))
          (succs (compute-successors conts kfun))
          (singly-referenced (compute-singly-referenced succs))
          (avail (compute-available-expressions succs kfun effects))
-         (defs (compute-defs conts kfun))
+         (truthy-labels (compute-truthy-expressions conts kfun))
          (equiv-set (make-hash-table)))
+    (define (true-idx idx) (ash idx 1))
+    (define (false-idx idx) (1+ (ash idx 1)))
     (define (subst-var var-substs var)
       (intmap-ref var-substs var (lambda (var) var)))
     (define (subst-vars var-substs vars)
@@ -203,24 +167,23 @@ false.  It could be that both true and false proofs are available."
           (() '())
           ((var . vars) (cons (subst-var var-substs var) (lp vars))))))
 
-    (define (compute-term-key var-substs term)
+    (define (compute-term-key term)
       (match term
         (($ $continue k src exp)
          (match exp
-           (($ $const val) (cons 'const val))
-           (($ $prim name) (cons 'prim name))
-           (($ $fun body) #f)
-           (($ $rec names syms funs) #f)
-           (($ $const-fun label) #f)
-           (($ $code label) (cons 'code label))
-           (($ $call proc args) #f)
-           (($ $callk k proc args) #f)
-           (($ $primcall name param args)
-            (cons* name param (subst-vars var-substs args)))
-           (($ $values args) #f)))
-        (($ $branch kf kt src op param args)
-         (cons* op param (subst-vars var-substs args)))
-        ((or ($ $prompt) ($ $throw)) #f)))
+           (($ $const val)                       (cons 'const val))
+           (($ $prim name)                       (cons 'prim name))
+           (($ $fun body)                        #f)
+           (($ $rec names syms funs)             #f)
+           (($ $const-fun label)                 #f)
+           (($ $code label)                      (cons 'code label))
+           (($ $call proc args)                  #f)
+           (($ $callk k proc args)               #f)
+           (($ $primcall name param args)        (cons* name param args))
+           (($ $values args)                     #f)))
+        (($ $branch kf kt src op param args)     (cons* op param args))
+        (($ $prompt)                             #f)
+        (($ $throw)                              #f)))
 
     (define (add-auxiliary-definitions! label defs var-substs term-key)
       (let ((defs (and defs (subst-vars var-substs defs))))
@@ -281,73 +244,121 @@ false.  It could be that both true and false proofs are available."
          ((u <- untag-char #f s)           (s <- tag-char #f u))
          ((s <- tag-char #f u)             (u <- untag-char #f s)))))
 
-    (define (visit-label label cont equiv-labels var-substs)
+    (define (rename-uses term var-substs)
+      (define (subst-var var)
+        (intmap-ref var-substs var (lambda (var) var)))
+      (define (rename-exp exp)
+        (rewrite-exp exp
+          ((or ($ $const) ($ $prim) ($ $fun) ($ $rec) ($ $const-fun) ($ $code))
+           ,exp)
+          (($ $call proc args)
+           ($call (subst-var proc) ,(map subst-var args)))
+          (($ $callk k proc args)
+           ($callk k (and proc (subst-var proc)) ,(map subst-var args)))
+          (($ $primcall name param args)
+           ($primcall name param ,(map subst-var args)))
+          (($ $values args)
+           ($values ,(map subst-var args)))))
+      (rewrite-term term
+        (($ $branch kf kt src op param args)
+         ($branch kf kt src op param ,(map subst-var args)))
+        (($ $continue k src exp)
+         ($continue k src ,(rename-exp exp)))
+        (($ $prompt k kh src escape? tag)
+         ($prompt k kh src escape? (subst-var tag)))
+        (($ $throw src op param args)
+         ($throw src op param ,(map subst-var args)))))
+
+    (define (visit-label label cont out var-substs)
       (define (term-defs term)
         (match term
           (($ $continue k)
            (and (intset-ref singly-referenced k)
-                (intmap-ref defs label)))
+                (match (intmap-ref conts k)
+                  (($ $kargs names vars) vars)
+                  (_ #f))))
           (($ $branch) '())))
+      (define (add cont)
+        (intmap-add! out label cont))
       (match cont
         (($ $kargs names vars term)
-         (match (compute-term-key var-substs term)
-           (#f (values equiv-labels var-substs))
-           (term-key
-            (let* ((equiv (hash-ref equiv-set term-key '()))
-                   (fx (intmap-ref effects label))
-                   (avail (intmap-ref avail label)))
-              (define (finish equiv-labels var-substs defs)
-                ;; If this expression defines auxiliary definitions,
-                ;; as `cons' does for the results of `car' and `cdr',
-                ;; define those.  Do so after finding equivalent
-                ;; expressions, so that we can take advantage of
-                ;; subst'd output vars.
-                (add-auxiliary-definitions! label defs var-substs term-key)
-                (values equiv-labels var-substs))
-              (let lp ((candidates equiv))
-                (match candidates
-                  (()
-                   ;; No matching expressions.  Add our expression
-                   ;; to the equivalence set, if appropriate.  Note
-                   ;; that expressions that allocate a fresh object
-                   ;; or change the current fluid environment can't
-                   ;; be eliminated by CSE (though DCE might do it
-                   ;; if the value proves to be unused, in the
-                   ;; allocation case).
-                   (let ((defs (term-defs term)))
-                     (when (and defs
-                                (not (causes-effect? fx &allocation))
-                                (not (effect-clobbers? fx (&read-object &fluid))))
-                       (hash-set! equiv-set term-key (acons label defs equiv)))
-                     (finish equiv-labels var-substs defs)))
-                  (((and head (candidate . vars)) . candidates)
-                   (cond
-                    ((not (intset-ref avail candidate))
-                     ;; This expression isn't available here; try
-                     ;; the next one.
-                     (lp candidates))
-                    (else
-                     ;; Yay, a match.  Mark expression as equivalent.  If
-                     ;; we provide the definitions for the successor, mark
-                     ;; the vars for substitution.
+         (let ((term (rename-uses term var-substs)))
+           (define (residualize)
+             (add (build-cont ($kargs names vars ,term))))
+           (define (eliminate k src vals)
+             (add (build-cont ($kargs names vars
+                                ($continue k src ($values vals))))))
+
+           (match (compute-term-key term)
+             (#f
+              (values (residualize) var-substs))
+             (term-key
+              (let* ((equiv (hash-ref equiv-set term-key '()))
+                     (fx (intmap-ref effects label))
+                     (avail (intmap-ref avail label)))
+                (define (finish out var-substs defs)
+                  ;; If this expression defines auxiliary definitions,
+                  ;; as `cons' does for the results of `car' and `cdr',
+                  ;; define those.  Do so after finding equivalent
+                  ;; expressions, so that we can take advantage of
+                  ;; subst'd output vars.
+                  (add-auxiliary-definitions! label defs var-substs term-key)
+                  (values out var-substs))
+                (let lp ((candidates equiv))
+                  (match candidates
+                    (()
+                     ;; No matching expressions.  Add our expression
+                     ;; to the equivalence set, if appropriate.  Note
+                     ;; that expressions that allocate a fresh object
+                     ;; or change the current fluid environment can't
+                     ;; be eliminated by CSE (though DCE might do it
+                     ;; if the value proves to be unused, in the
+                     ;; allocation case).
                      (let ((defs (term-defs term)))
-                       (finish (intmap-add equiv-labels label head)
-                               (if defs
-                                   (fold (lambda (def var var-substs)
-                                           (intmap-add var-substs def var))
-                                         var-substs defs vars)
-                                   var-substs)
-                               defs)))))))))))
-        (_ (values equiv-labels var-substs))))
+                       (when (and defs
+                                  (not (causes-effect? fx &allocation))
+                                  (not (effect-clobbers? fx (&read-object &fluid))))
+                         (hash-set! equiv-set term-key (acons label defs equiv)))
+                       (finish (residualize) var-substs defs)))
+                    (((candidate . vars) . candidates)
+                     (cond
+                      ((not (intset-ref avail candidate))
+                       ;; This expression isn't available here; try
+                       ;; the next one.
+                       (lp candidates))
+                      (else
+                       ;; Yay, a match.  Mark expression as equivalent.
+                       ;; For expressions that define values, mark the
+                       ;; vars for substitution.  For branches, maybe
+                       ;; fold the branch.
+                       (match term
+                         (($ $continue k src)
+                          (let ((defs (term-defs term)))
+                            (finish (eliminate k src vars)
+                                    (if defs
+                                        (fold (lambda (def var var-substs)
+                                                (intmap-add var-substs def var))
+                                              var-substs defs vars)
+                                        var-substs)
+                                    defs)))
+                         (($ $branch kf kt src)
+                          (let* ((bool (intmap-ref truthy-labels label))
+                                 (t (intset-ref bool (true-idx candidate)))
+                                 (f (intset-ref bool (false-idx candidate))))
+                            (if (eqv? t f)
+                                ;; Can't fold the branch; keep on
+                                ;; looking for another candidate.
+                                (lp candidates)
+                                (values (eliminate (if t kt kf) src '())
+                                        var-substs)))))))))))))))
+        (_ (values (add cont) var-substs))))
 
-    ;; Because of the renumber pass, the labels are numbered in
-    ;; reverse post-order, which will visit definitions before uses.
-    (intmap-fold visit-label
-                 conts
-                 equiv-labels
-                 var-substs)))
+    ;; Because of the renumber pass, the labels are numbered in reverse
+    ;; post-order, so the intmap-fold will visit definitions before
+    ;; uses.
+    (intmap-fold visit-label conts out empty-intmap)))
 
-(define (fold-renumbered-functions f conts . seeds)
+(define (fold-renumbered-functions f conts seed)
   ;; Precondition: CONTS has been renumbered, and therefore functions
   ;; contained within it are topologically sorted, and the conts of each
   ;; function's body are numbered sequentially after the function's
@@ -363,78 +374,14 @@ false.  It could be that both true and false proofs are available."
            (cont
             (lp (1+ k) (intmap-add! body k cont))))))))
 
-  (let fold ((kfun 0) (seeds seeds))
+  (let fold ((kfun 0) (seed seed))
     (match (next-function-body kfun)
-      (#f (apply values seeds))
+      (#f seed)
       (conts
-       (call-with-values (lambda () (apply f kfun conts seeds))
-         (lambda seeds
-           (fold (1+ (intmap-prev conts)) seeds)))))))
-
-(define (compute-equivalent-expressions conts)
-  (fold-renumbered-functions compute-equivalent-expressions-in-fun
-                             conts empty-intmap empty-intmap))
-
-(define (apply-cse conts equiv-labels var-substs truthy-labels)
-  (define (true-idx idx) (ash idx 1))
-  (define (false-idx idx) (1+ (ash idx 1)))
-
-  (define (subst-var var)
-    (intmap-ref var-substs var (lambda (var) var)))
-
-  (define (visit-exp exp)
-    (rewrite-exp exp
-      ((or ($ $const) ($ $prim) ($ $fun) ($ $rec) ($ $const-fun) ($ $code)) ,exp)
-      (($ $call proc args)
-       ($call (subst-var proc) ,(map subst-var args)))
-      (($ $callk k proc args)
-       ($callk k (and proc (subst-var proc)) ,(map subst-var args)))
-      (($ $primcall name param args)
-       ($primcall name param ,(map subst-var args)))
-      (($ $values args)
-       ($values ,(map subst-var args)))))
-
-  (define (visit-term label term)
-    (match term
-      (($ $branch kf kt src op param args)
-       (match (intmap-ref equiv-labels label (lambda (_) #f))
-         ((equiv) ; A branch defines no values.
-          (let* ((bool (intmap-ref truthy-labels label))
-                 (t (intset-ref bool (true-idx equiv)))
-                 (f (intset-ref bool (false-idx equiv))))
-            (if (eqv? t f)
-                (build-term
-                  ($branch kf kt src op param ,(map subst-var args)))
-                (build-term
-                  ($continue (if t kt kf) src ($values ()))))))
-         (#f
-          (build-term
-            ($branch kf kt src op param ,(map subst-var args))))))
-      (($ $continue k src exp)
-       (match (intmap-ref equiv-labels label (lambda (_) #f))
-         ((equiv . vars)
-          (build-term ($continue k src ($values vars))))
-         (#f
-          (build-term
-            ($continue k src ,(visit-exp exp))))))
-      (($ $prompt k kh src escape? tag)
-       (build-term
-         ($prompt k kh src escape? (subst-var tag))))
-      (($ $throw src op param args)
-       (build-term
-         ($throw src op param ,(map subst-var args))))))
-
-  (intmap-map
-   (lambda (label cont)
-     (rewrite-cont cont
-       (($ $kargs names vars term)
-        ($kargs names vars ,(visit-term label term)))
-       (_ ,cont)))
-   conts))
+       (fold (1+ (intmap-prev conts)) (f kfun conts seed))))))
 
 (define (eliminate-common-subexpressions conts)
   (let ((conts (renumber conts 0)))
-    (call-with-values (lambda () (compute-equivalent-expressions conts))
-      (lambda (equiv-labels var-substs)
-        (let ((truthy-labels (compute-truthy-expressions conts 0)))
-          (apply-cse conts equiv-labels var-substs truthy-labels))))))
+    (persistent-intmap
+     (fold-renumbered-functions eliminate-common-subexpressions-in-fun
+                                conts empty-intmap))))
