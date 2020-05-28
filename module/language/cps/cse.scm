@@ -34,11 +34,11 @@
   #:use-module (language cps renumber)
   #:export (eliminate-common-subexpressions))
 
-(define (compute-available-expressions succs kfun effects)
+(define (compute-available-expressions succs kfun clobbers)
   "Compute and return a map of LABEL->ANCESTOR..., where ANCESTOR... is
 an intset containing ancestor labels whose value is available at LABEL."
   (let ((init (intmap-map (lambda (label succs) #f) succs))
-        (kill (compute-clobber-map effects))
+        (kill clobbers)
         (gen (intmap-map (lambda (label succs) (intset label)) succs))
         (subtract (lambda (in-1 kill-1)
                     (if in-1
@@ -137,24 +137,12 @@ false.  It could be that both true and false proofs are available."
                   (intset kfun)
                   (intmap-add empty-intmap kfun empty-intset)))
 
-(define (compute-singly-referenced succs)
-  (define (visit label succs single multiple)
-    (intset-fold (lambda (label single multiple)
-                   (if (intset-ref single label)
-                       (values single (intset-add! multiple label))
-                       (values (intset-add! single label) multiple)))
-                 succs single multiple))
-  (call-with-values (lambda ()
-                      (intmap-fold visit succs empty-intset empty-intset))
-    (lambda (single multiple)
-      (intset-subtract (persistent-intset single)
-                       (persistent-intset multiple)))))
-
 (define (eliminate-common-subexpressions-in-fun kfun conts out)
   (let* ((effects (synthesize-definition-effects (compute-effects conts)))
+         (clobbers (compute-clobber-map effects))
          (succs (compute-successors conts kfun))
-         (singly-referenced (compute-singly-referenced succs))
-         (avail (compute-available-expressions succs kfun effects))
+         (preds (invert-graph succs))
+         (avail (compute-available-expressions succs kfun clobbers))
          (truthy-labels (compute-truthy-expressions conts kfun))
          (equiv-set (make-hash-table)))
     (define (true-idx idx) (ash idx 1))
@@ -184,6 +172,39 @@ false.  It could be that both true and false proofs are available."
         (($ $branch kf kt src op param args)     (cons* op param args))
         (($ $prompt)                             #f)
         (($ $throw)                              #f)))
+
+    (define (add-var-substs label defs out var-substs)
+      (match (trivial-intset (intmap-ref preds label))
+        (#f var-substs)
+        (pred
+         (match (intmap-ref out pred)
+           (($ $kargs _ _ ($ $continue _ _ ($ $values vals)))
+            ;; FIXME: Eliminate predecessor entirely, retargetting its
+            ;; predecessors.
+            (fold (lambda (def var var-substs)
+                    (intmap-add var-substs def var))
+                  var-substs defs vals))
+           (($ $kargs _ _ term)
+            (match (compute-term-key term)
+              (#f #f)
+              (term-key
+               (let ((fx (intmap-ref effects pred)))
+                 ;; Add residualized definition to the equivalence set.
+                 ;; Note that expressions that allocate a fresh object
+                 ;; or change the current fluid environment can't be
+                 ;; eliminated by CSE (though DCE might do it if the
+                 ;; value proves to be unused, in the allocation case).
+                 (when (and (not (causes-effect? fx &allocation))
+                            (not (effect-clobbers? fx (&read-object &fluid))))
+                   (let ((equiv (hash-ref equiv-set term-key '())))
+                     (hash-set! equiv-set term-key (acons pred defs equiv)))))
+               ;; If the predecessor defines auxiliary definitions, as
+               ;; `cons' does for the results of `car' and `cdr', define
+               ;; those as well.
+               (add-auxiliary-definitions! pred defs var-substs term-key)))
+            var-substs)
+           (_
+            var-substs)))))
 
     (define (add-auxiliary-definitions! label defs var-substs term-key)
       (let ((defs (and defs (subst-vars var-substs defs))))
@@ -270,87 +291,50 @@ false.  It could be that both true and false proofs are available."
          ($throw src op param ,(map subst-var args)))))
 
     (define (visit-label label cont out var-substs)
-      (define (term-defs term)
-        (match term
-          (($ $continue k)
-           (and (intset-ref singly-referenced k)
-                (match (intmap-ref conts k)
-                  (($ $kargs names vars) vars)
-                  (_ #f))))
-          (($ $branch) '())))
       (define (add cont)
         (intmap-add! out label cont))
       (match cont
         (($ $kargs names vars term)
-         (let ((term (rename-uses term var-substs)))
+         (let* ((var-substs (add-var-substs label vars out var-substs))
+                (term (rename-uses term var-substs)))
            (define (residualize)
              (add (build-cont ($kargs names vars ,term))))
            (define (eliminate k src vals)
              (add (build-cont ($kargs names vars
                                 ($continue k src ($values vals))))))
 
-           (match (compute-term-key term)
-             (#f
-              (values (residualize) var-substs))
-             (term-key
-              (let* ((equiv (hash-ref equiv-set term-key '()))
-                     (fx (intmap-ref effects label))
-                     (avail (intmap-ref avail label)))
-                (define (finish out var-substs defs)
-                  ;; If this expression defines auxiliary definitions,
-                  ;; as `cons' does for the results of `car' and `cdr',
-                  ;; define those.  Do so after finding equivalent
-                  ;; expressions, so that we can take advantage of
-                  ;; subst'd output vars.
-                  (add-auxiliary-definitions! label defs var-substs term-key)
-                  (values out var-substs))
-                (let lp ((candidates equiv))
-                  (match candidates
-                    (()
-                     ;; No matching expressions.  Add our expression
-                     ;; to the equivalence set, if appropriate.  Note
-                     ;; that expressions that allocate a fresh object
-                     ;; or change the current fluid environment can't
-                     ;; be eliminated by CSE (though DCE might do it
-                     ;; if the value proves to be unused, in the
-                     ;; allocation case).
-                     (let ((defs (term-defs term)))
-                       (when (and defs
-                                  (not (causes-effect? fx &allocation))
-                                  (not (effect-clobbers? fx (&read-object &fluid))))
-                         (hash-set! equiv-set term-key (acons label defs equiv)))
-                       (finish (residualize) var-substs defs)))
-                    (((candidate . vars) . candidates)
-                     (cond
-                      ((not (intset-ref avail candidate))
-                       ;; This expression isn't available here; try
-                       ;; the next one.
-                       (lp candidates))
-                      (else
-                       ;; Yay, a match.  Mark expression as equivalent.
-                       ;; For expressions that define values, mark the
-                       ;; vars for substitution.  For branches, maybe
-                       ;; fold the branch.
-                       (match term
-                         (($ $continue k src)
-                          (let ((defs (term-defs term)))
-                            (finish (eliminate k src vars)
-                                    (if defs
-                                        (fold (lambda (def var var-substs)
-                                                (intmap-add var-substs def var))
-                                              var-substs defs vars)
-                                        var-substs)
-                                    defs)))
-                         (($ $branch kf kt src)
-                          (let* ((bool (intmap-ref truthy-labels label))
-                                 (t (intset-ref bool (true-idx candidate)))
-                                 (f (intset-ref bool (false-idx candidate))))
-                            (if (eqv? t f)
-                                ;; Can't fold the branch; keep on
-                                ;; looking for another candidate.
-                                (lp candidates)
-                                (values (eliminate (if t kt kf) src '())
-                                        var-substs)))))))))))))))
+           (values
+            (match (compute-term-key term)
+              (#f (residualize))
+              (term-key
+               (let ((avail (intmap-ref avail label)))
+                 (let lp ((candidates (hash-ref equiv-set term-key '())))
+                   (match candidates
+                     (()
+                      ;; No available expression; residualize.
+                      (residualize))
+                     (((candidate . vars) . candidates)
+                      (cond
+                       ((not (intset-ref avail candidate))
+                        ;; This expression isn't available here; try
+                        ;; the next one.
+                        (lp candidates))
+                       (else
+                        (match term
+                          (($ $continue k src)
+                           ;; Yay, a match; eliminate the expression.
+                           (eliminate k src vars))
+                          (($ $branch kf kt src)
+                           (let* ((bool (intmap-ref truthy-labels label))
+                                  (t (intset-ref bool (true-idx candidate)))
+                                  (f (intset-ref bool (false-idx candidate))))
+                             (if (eqv? t f)
+                                 ;; Can't fold the branch; keep on
+                                 ;; looking for another candidate.
+                                 (lp candidates)
+                                 ;; Nice, the branch folded.
+                                 (eliminate (if t kt kf) src '())))))))))))))
+            var-substs)))
         (_ (values (add cont) var-substs))))
 
     ;; Because of the renumber pass, the labels are numbered in reverse
