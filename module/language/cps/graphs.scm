@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2015, 2017-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2015, 2017-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -82,7 +82,8 @@ member, or @code{#f} otherwise."
   "Assuming the values of @var{map} are integers and are unique, compute
 a map in which each value maps to its key.  If the values are not
 unique, an error will be signalled."
-  (intmap-fold (lambda (k v out) (intmap-add out v k)) map empty-intmap))
+  (persistent-intmap
+   (intmap-fold (lambda (k v out) (intmap-add! out v k)) map empty-intmap)))
 
 (define (invert-partition map)
   "Assuming the values of @var{map} are disjoint intsets, compute a map
