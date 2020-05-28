@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -88,7 +88,7 @@ false.  It could be that both true and false proofs are available."
 
   (define (propagate boolv succ out)
     (let* ((in (intmap-ref boolv succ (lambda (_) #f)))
-           (in* (if in (intset-intersect in out) out)))
+           (in* (if in (intset-union in out) out)))
       (if (eq? in in*)
           (values '() boolv)
           (values (list succ)
