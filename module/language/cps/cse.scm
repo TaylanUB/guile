@@ -31,6 +31,7 @@
   #:use-module (language cps effects-analysis)
   #:use-module (language cps intmap)
   #:use-module (language cps intset)
+  #:use-module (language cps renumber)
   #:export (eliminate-common-subexpressions))
 
 (define (compute-available-expressions succs kfun effects)
@@ -284,14 +285,14 @@ false.  It could be that both true and false proofs are available."
            ((u <- untag-char #f s)           (s <- tag-char #f u))
            ((s <- tag-char #f u)             (u <- untag-char #f s)))))
 
-      (define (visit-label label equiv-labels var-substs)
+      (define (visit-label label cont equiv-labels var-substs)
         (define (term-defs term)
           (match term
             (($ $continue k)
              (and (intset-ref singly-referenced k)
                   (intmap-ref defs label)))
             (($ $branch) '())))
-        (match (intmap-ref conts label)
+        (match cont
           (($ $kargs names vars term)
            (match (compute-term-key var-substs term)
              (#f (values equiv-labels var-substs))
@@ -343,12 +344,12 @@ false.  It could be that both true and false proofs are available."
                                  defs)))))))))))
           (_ (values equiv-labels var-substs))))
 
-      ;; Traverse the labels in fun in reverse post-order, which will
-      ;; visit definitions before uses first.
-      (fold2 visit-label
-             (compute-reverse-post-order succs kfun)
-             equiv-labels
-             var-substs)))
+      ;; Because of the renumber pass, the labels are numbered in
+      ;; reverse post-order, which will visit definitions before uses.
+      (intmap-fold visit-label
+                   conts
+                   equiv-labels
+                   var-substs)))
 
   (intmap-fold visit-fun
                (compute-reachable-functions conts kfun)
@@ -413,7 +414,8 @@ false.  It could be that both true and false proofs are available."
    conts))
 
 (define (eliminate-common-subexpressions conts)
-  (call-with-values (lambda () (compute-equivalent-subexpressions conts 0))
-    (lambda (equiv-labels var-substs)
-      (let ((truthy-labels (compute-truthy-expressions conts 0)))
-        (apply-cse conts equiv-labels var-substs truthy-labels)))))
+  (let ((conts (renumber conts 0)))
+    (call-with-values (lambda () (compute-equivalent-subexpressions conts 0))
+      (lambda (equiv-labels var-substs)
+        (let ((truthy-labels (compute-truthy-expressions conts 0)))
+          (apply-cse conts equiv-labels var-substs truthy-labels))))))
