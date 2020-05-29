@@ -221,7 +221,7 @@
      (make-$kclause (build-arity arity) kbody kalternate))))
 
 (define-syntax build-term
-  (syntax-rules (unquote $rec $continue)
+  (syntax-rules (unquote $continue $branch $prompt $throw)
     ((_ (unquote exp))
      exp)
     ((_ ($continue k src exp))
