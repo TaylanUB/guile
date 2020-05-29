@@ -250,6 +250,27 @@ false.  It could be that both true and false proofs are available."
                              kt (true-idx pred)))
                  (_ bool)))))))
 
+(define (propagate-analysis analysis label out)
+  (match analysis
+    (($ <analysis> effects clobbers preds avail truthy-labels)
+     (call-with-values
+         (lambda ()
+           (intset-fold
+            (lambda (pred avail-in bool-in)
+              (call-with-values
+                  (lambda ()
+                    (compute-avail-and-bool-edge analysis pred label out))
+                (lambda (avail-in* bool-in*)
+                  (values (if avail-in
+                              (intset-intersect avail-in avail-in*)
+                              avail-in*)
+                          (intset-union bool-in bool-in*)))))
+            (intmap-ref preds label) #f empty-intset))
+       (lambda (avail-in bool-in)
+         (make-analysis effects clobbers preds
+                        (intmap-replace avail label avail-in)
+                        (intmap-replace truthy-labels label bool-in)))))))
+
 (define (term-successors term)
   (match term
     (($ $continue k) (intset k))
@@ -481,7 +502,8 @@ false.  It could be that both true and false proofs are available."
                (values term analysis)))))))))
 
   (define (visit-term label names vars term out substs analysis)
-    (let ((term (rename-uses term substs)))
+    (let ((term (rename-uses term substs))
+          (analyis (propagate-analysis analysis label out)))
       (match term
         (($ $branch)
          ;; Can only forward predecessors if this continuation binds no
