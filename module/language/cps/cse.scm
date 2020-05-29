@@ -503,7 +503,7 @@ false.  It could be that both true and false proofs are available."
 
   (define (visit-term label names vars term out substs analysis)
     (let ((term (rename-uses term substs))
-          (analyis (propagate-analysis analysis label out)))
+          (analysis (propagate-analysis analysis label out)))
       (match term
         (($ $branch)
          ;; Can only forward predecessors if this continuation binds no
