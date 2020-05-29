@@ -79,15 +79,15 @@ an intset containing ancestor labels whose value is available at LABEL."
     ((f worklist seed)
      ((make-worklist-folder* seed) f worklist seed))))
 
+(define-syntax-rule (true-idx idx) (ash idx 1))
+(define-syntax-rule (false-idx idx) (1+ (ash idx 1)))
+
 (define (compute-truthy-expressions conts kfun)
   "Compute a \"truth map\", indicating which expressions can be shown to
 be true and/or false at each label in the function starting at KFUN.
 Returns an intmap of intsets.  The even elements of the intset indicate
 labels that may be true, and the odd ones indicate those that may be
 false.  It could be that both true and false proofs are available."
-  (define (true-idx label) (ash label 1))
-  (define (false-idx label) (1+ (ash label 1)))
-
   (define (propagate boolv succ out)
     (let* ((in (intmap-ref boolv succ (lambda (_) #f)))
            (in* (if in (intset-union in out) out)))
@@ -172,6 +172,21 @@ false.  It could be that both true and false proofs are available."
 ;; residualized yet and so we can't rewrite it.  This is an
 ;; implementation limitation.
 ;;
+(define (forward-cont cont from to)
+  (define (rename k) (if (eqv? k from) to k))
+  (rewrite-cont cont
+    (($ $kargs names vals ($ $continue k src exp))
+     ($kargs names vals ($continue (rename k) src ,exp)))
+    (($ $kargs names vals ($ $branch kf kt src op param args))
+     ($kargs names vals ($branch (rename kf) (rename kt) src op param args)))
+    (($ $kargs names vals ($ $prompt k kh src escape? tag))
+     ($kargs names vals ($prompt (rename k) (rename kh) src escape? tag)))
+    (($ $kreceive ($ $arity req () rest () #f) kbody)
+     ($kreceive req rest (rename kbody)))
+    (($ $kclause arity kbody kalternate)
+     ;; Can only be a body continuation.
+     ($kclause ,arity (rename kbody) kalternate))))
+
 (define (elide-predecessor label pred out analysis)
   (match analysis
     (($ <analysis> effects clobbers preds avail truthy-labels)
@@ -185,18 +200,7 @@ false.  It could be that both true and false proofs are available."
             (define (rename k) (if (eqv? k pred) label k))
             (intmap-replace!
              out pred-pred
-             (rewrite-cont (intmap-ref out pred-pred)
-               (($ $kargs names vals ($ $continue k src exp))
-                ($kargs names vals ($continue (rename k) src ,exp)))
-               (($ $kargs names vals ($ $branch kf kt src op param args))
-                ($kargs names vals ($branch (rename kf) (rename kt) src op param args)))
-               (($ $kargs names vals ($ $prompt k kh src escape? tag))
-                ($kargs names vals ($prompt (rename k) (rename kh) src escape? tag)))
-               (($ $kreceive ($ $arity req () rest () #f) kbody)
-                ($kreceive req rest (rename kbody)))
-               (($ $kclause arity kbody kalternate)
-                ;; Can only be a body continuation.
-                ($kclause ,arity (rename kbody) kalternate)))))
+             (forward-cont (intmap-ref out pred-pred) pred label)))
           pred-preds
           (intmap-remove out pred))
          (make-analysis effects
@@ -215,10 +219,36 @@ false.  It could be that both true and false proofs are available."
                     avail
                     truthy-labels))))
 
+(define (forward-branch analysis pred old-succ new-succ)
+  (match analysis
+    (($ <analysis> effects clobbers preds avail truthy-labels)
+     (make-analysis effects
+                    clobbers
+                    (let ((preds (intmap-add preds old-succ pred
+                                             intset-remove)))
+                      (intmap-add preds new-succ pred intset-add))
+                    avail
+                    truthy-labels))))
+
 (define (prune-successors analysis pred succs)
   (intset-fold (lambda (succ analysis)
                  (prune-branch analysis pred succ))
                succs analysis))
+
+(define (compute-avail-and-bool-edge analysis pred succ out)
+  (match analysis
+    (($ <analysis> effects clobbers preds avail truthy-labels)
+     (let ((avail (intmap-ref avail pred))
+           (kill  (intmap-ref clobbers pred))
+           (bool  (intmap-ref truthy-labels pred)))
+       (values (intset-add (intset-subtract avail kill) pred)
+               (match (and (< pred succ) (intmap-ref out pred))
+                 (($ $kargs _ _ ($ $branch kf kt))
+                  (define (maybe-add bool k idx)
+                    (if (eqv? k succ) (intset-add bool idx) bool))
+                  (maybe-add (maybe-add bool kf (false-idx pred))
+                             kt (true-idx pred)))
+                 (_ bool)))))))
 
 (define (term-successors term)
   (match term
@@ -241,16 +271,33 @@ false.  It could be that both true and false proofs are available."
   (make-hash-table))
 (define (add-equivalent-expression! table key label vars)
   (let ((equiv (hash-ref table key empty-intmap)))
-    (hash-set! table key (intmap-add equiv label vars))))
+    (define (allow-equal old new)
+      (if (equal? old new)
+          old
+          (error "bad equiv var update" label old new)))
+    (hash-set! table key
+               (intmap-add equiv label vars allow-equal))))
 (define (lookup-equivalent-expressions table key avail)
   (match (hash-ref table key)
     (#f empty-intmap)
     (equiv (intmap-select equiv avail))))
 
+;; return #(taken not-taken), or #f if can't decide.
+(define (fold-branch table key kf kt avail bool)
+  (let ((equiv (lookup-equivalent-expressions table key avail)))
+    (let lp ((candidate (intmap-prev equiv)))
+      (match candidate
+        (#f #f)
+        (_ (let ((t (intset-ref bool (true-idx candidate)))
+                 (f (intset-ref bool (false-idx candidate))))
+             (if (eqv? t f)
+                 (lp (intmap-prev equiv (1- candidate)))
+                 (if t
+                     (vector kt kf)
+                     (vector kf kt)))))))))
+
 (define (eliminate-common-subexpressions-in-fun kfun conts out substs)
   (define equivalent-expressions (make-equivalent-expression-table))
-  (define (true-idx idx) (ash idx 1))
-  (define (false-idx idx) (1+ (ash idx 1)))
   (define (subst-var substs var)
     (intmap-ref substs var (lambda (var) var)))
   (define (subst-vars substs vars)
@@ -378,55 +425,99 @@ false.  It could be that both true and false proofs are available."
             (equiv
              (forward (intmap-ref equiv (intmap-next equiv))))))))))
 
+  (define (maybe-forward-branch-predecessor label pred key kf kt out analysis)
+    (cond
+     ((<= label pred)
+      ;; A backwards branch; punt.
+      (values out analysis))
+     (else
+      (call-with-values (lambda ()
+                          (compute-avail-and-bool-edge analysis pred label out))
+        (lambda (pred-avail pred-bool)
+          (match (fold-branch equivalent-expressions key kf kt
+                              pred-avail pred-bool)
+            (#(taken not-taken)
+             (values (intmap-replace!
+                      out pred
+                      (forward-cont (intmap-ref out pred) label taken))
+                     (forward-branch analysis pred label taken)))
+            (#f
+             (values out analysis))))))))
+
+  (define (simplify-branch-predecessors label term out analysis)
+    ;; if any predecessor's truthy-edge folds the branch, forward the
+    ;; precedecessor.  may cause branch to become dead, or cause
+    ;; remaining predecessor to eliminate.
+    (match term
+      (($ $branch kf kt)
+       (let ((key (compute-branch-key term)))
+         (match analysis
+           (($ <analysis> effects clobbers preds avail truthy-labels)
+            (call-with-values
+                (lambda ()
+                  (intset-fold
+                   (lambda (pred out analysis)
+                     (maybe-forward-branch-predecessor label pred
+                                                       key kf kt out analysis))
+                   (intmap-ref preds label) out analysis))
+              (lambda (out* analysis*)
+                (if (eq? analysis analysis*)
+                    #f
+                    (cons out* analysis*))))))))))
+
   (define (visit-branch label term analysis)
-    (define (residualize)
-      (values term analysis))
-    (define (fold-branch true?)
-      (match term
-        (($ $branch kf kt src)
-         (values (build-term ($continue (if true? kt kf) src ($values ())))
-                 (prune-branch analysis label (if true? kf kt))))))
+    (match term
+      (($ $branch kf kt src)
+       (match analysis
+         (($ <analysis> effects clobbers preds avail truthy-labels)
+          (let ((key (compute-branch-key term))
+                (avail (intmap-ref avail label))
+                (bool (intmap-ref truthy-labels label)))
+            (match (fold-branch equivalent-expressions key kf kt avail bool)
+              (#(taken not-taken)
+               (values (build-term ($continue taken src ($values ())))
+                       (prune-branch analysis label not-taken)))
+              (#f
+               (values term analysis)))))))))
 
-    (match analysis
-      (($ <analysis> effects clobbers preds avail truthy-labels)
-       (let* ((equiv (lookup-equivalent-expressions equivalent-expressions
-                                                    (compute-branch-key term)
-                                                    (intmap-ref avail label)))
-              (bool (intmap-ref truthy-labels label)))
-         (let lp ((candidate (intmap-prev equiv)))
-           (match candidate
-             (#f (residualize))
-             (_ (let ((t (intset-ref bool (true-idx candidate)))
-                      (f (intset-ref bool (false-idx candidate))))
-                  (if (eqv? t f)
-                      (lp (intmap-prev equiv (1- candidate)))
-                      (fold-branch t))))))))))
-
-  (define (visit-term label term substs analysis)
+  (define (visit-term label names vars term out substs analysis)
     (let ((term (rename-uses term substs)))
       (match term
         (($ $branch)
-         (visit-branch label term analysis))
+         ;; Can only forward predecessors if this continuation binds no
+         ;; values.
+         (match (and (null? vars)
+                     (simplify-branch-predecessors label term out analysis))
+           (#f
+            (call-with-values (lambda ()
+                                (visit-branch label term analysis))
+              (lambda (term analysis)
+                (values (intmap-add! out label
+                                     (build-cont ($kargs names vars ,term)))
+                        substs
+                        analysis))))
+           ((out . analysis)
+            ;; Recurse.
+            (visit-label label (build-cont ($kargs names vars ,term))
+                         out substs analysis))))
         (($ $continue k src exp)
-         (values (build-term
-                   ($continue k src ,(visit-exp label exp analysis)))
+         (values (intmap-add! out label
+                              (build-cont
+                                ($kargs names vars
+                                  ($continue k src
+                                    ,(visit-exp label exp analysis)))))
+                 substs
                  analysis))
         ((or ($ $prompt) ($ $throw))
-         (values term analysis)))))
+         (values (intmap-add! out label (build-cont ($kargs names vars ,term)))
+                 substs
+                 analysis)))))
 
   (define (visit-label label cont out substs analysis)
     (match cont
       (($ $kargs names vars term)
-       (define (visit-term* names vars out substs analysis)
-         (call-with-values (lambda ()
-                             (visit-term label term substs analysis))
-           (lambda (term analysis)
-             (values (intmap-add! out label
-                                  (build-cont ($kargs names vars ,term)))
-                     substs
-                     analysis))))
        (define (visit-term-normally)
-         (visit-term* names vars out substs analysis))
+         (visit-term label names vars term out substs analysis))
        (match analysis
          (($ <analysis> effects clobbers preds avail truthy-labels)
           (let ((preds (intmap-ref preds label)))
@@ -449,9 +540,9 @@ false.  It could be that both true and false proofs are available."
                           (#f
                            ;; Can't elide; predecessor must be target of
                            ;; backwards branch.
-                           (visit-term* names vars out substs analysis))
+                           (visit-term label names vars term out substs analysis))
                           ((out . analysis)
-                           (visit-term* names' vars' out substs analysis)))))
+                           (visit-term label names' vars' term out substs analysis)))))
                      (($ $kargs _ _ term)
                       (match (compute-term-key term)
                         (#f #f)
