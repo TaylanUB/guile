@@ -259,23 +259,27 @@ false.  It could be that both true and false proofs are available."
         (() '())
         ((var . vars) (cons (subst-var substs var) (lp vars))))))
 
+  (define (compute-branch-key branch)
+    (match branch
+      (($ $branch kf kt src op param args)  (cons* op param args))))
+  (define (compute-expr-key expr)
+    (match expr
+      (($ $const val)                       (cons 'const val))
+      (($ $prim name)                       (cons 'prim name))
+      (($ $fun body)                        #f)
+      (($ $rec names syms funs)             #f)
+      (($ $const-fun label)                 #f)
+      (($ $code label)                      (cons 'code label))
+      (($ $call proc args)                  #f)
+      (($ $callk k proc args)               #f)
+      (($ $primcall name param args)        (cons* name param args))
+      (($ $values args)                     #f)))
   (define (compute-term-key term)
     (match term
-      (($ $continue k src exp)
-       (match exp
-         (($ $const val)                       (cons 'const val))
-         (($ $prim name)                       (cons 'prim name))
-         (($ $fun body)                        #f)
-         (($ $rec names syms funs)             #f)
-         (($ $const-fun label)                 #f)
-         (($ $code label)                      (cons 'code label))
-         (($ $call proc args)                  #f)
-         (($ $callk k proc args)               #f)
-         (($ $primcall name param args)        (cons* name param args))
-         (($ $values args)                     #f)))
-      (($ $branch kf kt src op param args)     (cons* op param args))
-      (($ $prompt)                             #f)
-      (($ $throw)                              #f)))
+      (($ $continue k src exp)              (compute-expr-key exp))
+      (($ $branch)                          (compute-branch-key term))
+      (($ $prompt)                          #f)
+      (($ $throw)                           #f)))
 
   (define (add-auxiliary-definitions! label defs substs term-key)
     (define (add-def! aux-key var)
@@ -359,40 +363,56 @@ false.  It could be that both true and false proofs are available."
       (($ $throw src op param args)
        ($throw src op param ,(map subst-var args)))))
 
-  (define (visit-term label term substs analysis)
-    (let* ((term (rename-uses term substs)))
-      (define (residualize)
-        (values term analysis))
-      (define (eliminate k src vals)
-        (values (build-term ($continue k src ($values vals))) analysis))
-      (define (fold-branch true? kf kt src)
-        (values (build-term ($continue (if true? kt kf) src ($values ())))
-                (prune-branch analysis label (if true? kf kt))))
+  (define (visit-exp label exp analysis)
+    (define (residualize) exp)
+    (define (forward vals) (build-exp ($values vals)))
+    (match (compute-expr-key exp)
+      (#f (residualize))
+      (key
+       (match analysis
+         (($ <analysis> effects clobbers preds avail truthy-labels)
+          (match (lookup-equivalent-expressions equivalent-expressions
+                                                key (intmap-ref avail label))
+            ((? (lambda (x) (eq? x empty-intmap)))
+             (residualize))
+            (equiv
+             (forward (intmap-ref equiv (intmap-next equiv))))))))))
 
-      (match (compute-term-key term)
-        (#f (residualize))
-        (term-key
-         (match analysis
-           (($ <analysis> effects clobbers preds avail truthy-labels)
-            (match (lookup-equivalent-expressions equivalent-expressions
-                                                  term-key
-                                                  (intmap-ref avail label))
-              ((? (lambda (x) (eq? x empty-intmap)))
-               (residualize))
-              (equiv
-               (match term
-                 (($ $continue k src)
-                  (eliminate k src (intmap-ref equiv (intmap-next equiv))))
-                 (($ $branch kf kt src)
-                  (let ((bool (intmap-ref truthy-labels label)))
-                    (let lp ((candidate (intmap-prev equiv)))
-                      (match candidate
-                        (#f (residualize))
-                        (_ (let ((t (intset-ref bool (true-idx candidate)))
-                                 (f (intset-ref bool (false-idx candidate))))
-                             (if (eqv? t f)
-                                 (lp (intmap-prev equiv (1- candidate)))
-                                 (fold-branch t kf kt src)))))))))))))))))
+  (define (visit-branch label term analysis)
+    (define (residualize)
+      (values term analysis))
+    (define (fold-branch true?)
+      (match term
+        (($ $branch kf kt src)
+         (values (build-term ($continue (if true? kt kf) src ($values ())))
+                 (prune-branch analysis label (if true? kf kt))))))
+
+    (match analysis
+      (($ <analysis> effects clobbers preds avail truthy-labels)
+       (let* ((equiv (lookup-equivalent-expressions equivalent-expressions
+                                                    (compute-branch-key term)
+                                                    (intmap-ref avail label)))
+              (bool (intmap-ref truthy-labels label)))
+         (let lp ((candidate (intmap-prev equiv)))
+           (match candidate
+             (#f (residualize))
+             (_ (let ((t (intset-ref bool (true-idx candidate)))
+                      (f (intset-ref bool (false-idx candidate))))
+                  (if (eqv? t f)
+                      (lp (intmap-prev equiv (1- candidate)))
+                      (fold-branch t))))))))))
+
+  (define (visit-term label term substs analysis)
+    (let ((term (rename-uses term substs)))
+      (match term
+        (($ $branch)
+         (visit-branch label term analysis))
+        (($ $continue k src exp)
+         (values (build-term
+                   ($continue k src ,(visit-exp label exp analysis)))
+                 analysis))
+        ((or ($ $prompt) ($ $throw))
+         (values term analysis)))))
 
   (define (visit-label label cont out substs analysis)
     (match cont
