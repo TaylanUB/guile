@@ -227,8 +227,28 @@ false.  It could be that both true and false proofs are available."
     (($ $prompt k kh) (intset k kh))
     (($ $throw) empty-intset)))
 
+(define (intmap-select map keys)
+  (persistent-intmap
+   (intmap-fold (lambda (k v out)
+                  (if (intset-ref keys k)
+                      (intmap-add! out k v)
+                      out))
+                map empty-intmap)))
+
+(define (make-equivalent-expression-table)
+  ;; Table associating expressions with equivalent variables, indexed by
+  ;; the label that defines them.
+  (make-hash-table))
+(define (add-equivalent-expression! table key label vars)
+  (let ((equiv (hash-ref table key empty-intmap)))
+    (hash-set! table key (intmap-add equiv label vars))))
+(define (lookup-equivalent-expressions table key avail)
+  (match (hash-ref table key)
+    (#f empty-intmap)
+    (equiv (intmap-select equiv avail))))
+
 (define (eliminate-common-subexpressions-in-fun kfun conts out substs)
-  (define equiv-set (make-hash-table))
+  (define equivalent-expressions (make-equivalent-expression-table))
   (define (true-idx idx) (ash idx 1))
   (define (false-idx idx) (1+ (ash idx 1)))
   (define (subst-var substs var)
@@ -259,9 +279,8 @@ false.  It could be that both true and false proofs are available."
 
   (define (add-auxiliary-definitions! label defs substs term-key)
     (define (add-def! aux-key var)
-      (let ((equiv (hash-ref equiv-set aux-key '())))
-        (hash-set! equiv-set aux-key
-                   (acons label (list var) equiv))))
+      (add-equivalent-expression! equivalent-expressions aux-key label
+                                  (list var)))
     (define-syntax add-definitions
       (syntax-rules (<-)
         ((add-definitions)
@@ -355,33 +374,25 @@ false.  It could be that both true and false proofs are available."
         (term-key
          (match analysis
            (($ <analysis> effects clobbers preds avail truthy-labels)
-            (let ((avail (intmap-ref avail label)))
-              (let lp ((candidates (hash-ref equiv-set term-key '())))
-                (match candidates
-                  (()
-                   ;; No available expression; residualize.
-                   (residualize))
-                  (((candidate . vars) . candidates)
-                   (cond
-                    ((not (intset-ref avail candidate))
-                     ;; This expression isn't available here; try
-                     ;; the next one.
-                     (lp candidates))
-                    (else
-                     (match term
-                       (($ $continue k src)
-                        ;; Yay, a match; eliminate the expression.
-                        (eliminate k src vars))
-                       (($ $branch kf kt src)
-                        (let* ((bool (intmap-ref truthy-labels label))
-                               (t (intset-ref bool (true-idx candidate)))
-                               (f (intset-ref bool (false-idx candidate))))
-                          (if (eqv? t f)
-                              ;; Can't fold the branch; keep on
-                              ;; looking for another candidate.
-                              (lp candidates)
-                              ;; Nice, the branch folded.
-                              (fold-branch t kf kt src)))))))))))))))))
+            (match (lookup-equivalent-expressions equivalent-expressions
+                                                  term-key
+                                                  (intmap-ref avail label))
+              ((? (lambda (x) (eq? x empty-intmap)))
+               (residualize))
+              (equiv
+               (match term
+                 (($ $continue k src)
+                  (eliminate k src (intmap-ref equiv (intmap-next equiv))))
+                 (($ $branch kf kt src)
+                  (let ((bool (intmap-ref truthy-labels label)))
+                    (let lp ((candidate (intmap-prev equiv)))
+                      (match candidate
+                        (#f (residualize))
+                        (_ (let ((t (intset-ref bool (true-idx candidate)))
+                                 (f (intset-ref bool (false-idx candidate))))
+                             (if (eqv? t f)
+                                 (lp (intmap-prev equiv (1- candidate)))
+                                 (fold-branch t kf kt src)))))))))))))))))
 
   (define (visit-label label cont out substs analysis)
     (match cont
@@ -433,8 +444,7 @@ false.  It could be that both true and false proofs are available."
                            ;; value proves to be unused, in the allocation case).
                            (when (and (not (causes-effect? fx &allocation))
                                       (not (effect-clobbers? fx (&read-object &fluid))))
-                             (let ((equiv (hash-ref equiv-set term-key '())))
-                               (hash-set! equiv-set term-key (acons pred vars equiv)))))
+                             (add-equivalent-expression! equivalent-expressions term-key pred vars)))
                          ;; If the predecessor defines auxiliary definitions, as
                          ;; `cons' does for the results of `car' and `cdr', define
                          ;; those as well.
