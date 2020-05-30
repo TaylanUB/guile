@@ -1040,6 +1040,21 @@ If @var{suffix} is provided, and is equal to the end of
 @end lisp
 @end deffn
 
+@deffn {Scheme Procedure} canonicalize-path path
+@deffnx {C Function} scm_canonicalize_path (path)
+Return the canonical (absolute) path of @var{path}.
+A canonical path has no @code{.} or @code{..} components,
+nor any repeated path separators (@code{/}) nor symlinks.
+
+Raises an error if any component of @var{path} does not
+exist.
+
+@lisp
+(canonicalize-path "test.xml")
+@result{} "/tmp/test.xml"
+@end lisp
+@end deffn
+
 @deffn {Scheme Procedure} file-exists? filename
 Return @code{#t} if the file named @var{filename} exists, @code{#f} if
 not.
