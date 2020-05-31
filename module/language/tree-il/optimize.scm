@@ -51,7 +51,7 @@
       (verify exp)
       (run-pass! (resolve exp env))
       (run-pass! (expand exp))
-      (run-pass! (letrectify exp))
+      (run-pass! (letrectify exp #:seal-private-bindings? seal?))
       (run-pass! (fix-letrec exp))
       (run-pass! (peval exp env))
       (run-pass! (eta-expand exp))
