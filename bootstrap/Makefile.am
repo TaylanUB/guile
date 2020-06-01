@@ -22,12 +22,7 @@
 
 
 GUILE_WARNINGS = -W0
-# Loading eval.go happens before boot and therefore before modules are
-# resolved.  For some reason if compiled without resolve-primitives,
-# attempts to resolve primitives at boot fail; weird.  Should fix this
-# but in the meantime we turn on primitive resolution (which normally
-# only happens at -O2).
-GUILE_OPTIMIZATIONS = -O1 -Oresolve-primitives -Ono-cps
+GUILE_OPTIMIZATIONS = -O1
 
 include $(top_srcdir)/am/bootstrap.am
 

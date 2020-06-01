@@ -27,16 +27,8 @@
 (define* (available-optimizations #:optional lang-name)
   (match lang-name
     ('tree-il
-     ;; Avoid resolve-primitives until -O2, when CPS optimizations kick in.
-     ;; Otherwise, inlining the primcalls during Tree-IL->CPS compilation
-     ;; will result in a lot of code that will never get optimized nicely.
-     ;; Similarly letrectification is great for generated code quality, but
-     ;; as it gives the compiler more to work with, it increases compile
-     ;; time enough that we reserve it for -O2.  Also, this makes -O1 avoid
-     ;; assumptions about top-level values, in the same way that avoiding
-     ;; resolve-primitives does.
-     '((#:cps? 1)
-       (#:resolve-primitives? 2)
+     '((#:cps? 2)
+       (#:resolve-primitives? 1)
        (#:expand-primitives? 1)
        (#:letrectify? 2)
        (#:seal-private-bindings? 3)

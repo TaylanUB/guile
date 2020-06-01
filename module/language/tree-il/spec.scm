@@ -42,7 +42,7 @@
     (module-ref (resolve-interface `(language tree-il ,compiler)) compiler))
   (if (match (memq #:cps? opts)
         ((_ cps? . _) cps?)
-        (#f (<= 1 optimization-level)))
+        (#f (<= 2 optimization-level)))
       (cons 'cps (load-compiler 'compile-cps))
       (cons 'bytecode (load-compiler 'compile-bytecode))))
 
