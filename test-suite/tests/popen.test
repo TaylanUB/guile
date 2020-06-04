@@ -221,10 +221,11 @@ exec 2>~a; read REPLY"
 ;;
 
 (pass-if-equal "open-process"
-    '("hello world" 0)
+    '("HELLO WORLD" 0)
   (receive (from to pid)
-      ((@@ (ice-9 popen) open-process) OPEN_BOTH "rev")
-    (display "dlrow olleh" to) (close to)
+      ((@@ (ice-9 popen) open-process) OPEN_BOTH
+       "tr" "[:lower:]" "[:upper:]")
+    (display "hello world" to) (close to)
     (list (read-string from)
           (status:exit-val (cdr (waitpid pid))))))
 
@@ -244,8 +245,9 @@ exec 2>~a; read REPLY"
           (status:exit-val (cdr (waitpid pid))))))
 
 (pass-if-equal "pipeline"
-    '("hello world\n" (0 0))
+    '("HELLO WORLD\n" (0 0))
   (receive (from to pids)
-      (pipeline '(("echo" "dlrow olleh") ("rev")))
+      (pipeline '(("echo" "hello world")
+                  ("tr" "[:lower:]" "[:upper:]")))
     (list (read-string from)
           (map (compose status:exit-val cdr waitpid) pids))))
