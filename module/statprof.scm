@@ -370,15 +370,6 @@ always collects full stacks.)"
           (source-line-for-user source)
           (source-column source)))
 
-(define (program-debug-info-printable pdi)
-  (let* ((addr (program-debug-info-addr pdi))
-         (name (or (and=> (program-debug-info-name pdi) symbol->string)
-                   (string-append "#x" (number->string addr 16))))
-         (loc (and=> (find-source-for-addr addr) source->string)))
-    (if loc
-        (string-append name " at " loc)
-        name)))
-
 (define (addr->pdi addr cache)
   (cond
    ((hashv-get-handle cache addr) => cdr)
@@ -389,6 +380,7 @@ always collects full stacks.)"
 
 (define (addr->printable addr pdi)
   (or (and=> (and=> pdi program-debug-info-name) symbol->string)
+      (and=> (primitive-code-name addr) symbol->string)
       (string-append "anon #x" (number->string addr 16))))
 
 (define (inc-call-data-cum-sample-count! cd)
