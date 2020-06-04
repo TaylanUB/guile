@@ -1,6 +1,6 @@
 ;;;; reader.test --- Reader test.    -*- coding: iso-8859-1; mode: scheme -*-
 ;;;;
-;;;; Copyright (C) 1999, 2001-2003, 2007-2011, 2013-2015
+;;;; Copyright (C) 1999, 2001-2003, 2007-2011, 2013-2015, 2020
 ;;;;   Free Software Foundation, Inc.
 ;;;;
 ;;;; Jim Blandy <jimb@red-bean.com>
@@ -40,8 +40,8 @@
   (cons 'read-error "end of file in string constant$"))
 (define exception:eof-in-symbol
   (cons 'read-error "end of file while reading symbol$"))
-(define exception:illegal-escape
-  (cons 'read-error "illegal character in escape sequence: .*$"))
+(define exception:invalid-escape
+  (cons 'read-error "invalid character in escape sequence: .*$"))
 (define exception:missing-expression
   (cons 'read-error "no expression after #;"))
 (define exception:mismatched-paren
@@ -234,8 +234,8 @@
   (pass-if-exception "eof in string"
     exception:eof-in-string
     (read-string "\"the string that never ends"))
-  (pass-if-exception "illegal escape in string"
-    exception:illegal-escape
+  (pass-if-exception "invalid escape in string"
+    exception:invalid-escape
     (read-string "\"some string \\???\"")))
 
 
@@ -304,31 +304,31 @@
 
   (with-test-prefix "r6rs-hex-escapes"
       (pass-if-exception "non-hex char in two-digit hex-escape"
-      exception:illegal-escape
+      exception:invalid-escape
       (with-read-options '(r6rs-hex-escapes)
         (lambda ()
           (with-input-from-string "\"\\x0g;\"" read))))
 
     (pass-if-exception "non-hex char in four-digit hex-escape"
-      exception:illegal-escape
+      exception:invalid-escape
       (with-read-options '(r6rs-hex-escapes)
         (lambda ()
           (with-input-from-string "\"\\x000g;\"" read))))
 
     (pass-if-exception "non-hex char in six-digit hex-escape"
-      exception:illegal-escape
+      exception:invalid-escape
       (with-read-options '(r6rs-hex-escapes)
         (lambda ()
           (with-input-from-string "\"\\x00000g;\"" read))))
 
     (pass-if-exception "no semicolon at termination of one-digit hex-escape"
-      exception:illegal-escape
+      exception:invalid-escape
       (with-read-options '(r6rs-hex-escapes)
         (lambda ()
           (with-input-from-string "\"\\x0\"" read))))
 
     (pass-if-exception "no semicolon at termination of three-digit hex-escape"
-      exception:illegal-escape
+      exception:invalid-escape
       (with-read-options '(r6rs-hex-escapes)
         (lambda ()
           (with-input-from-string "\"\\x000\"" read))))

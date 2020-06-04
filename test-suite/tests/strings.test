@@ -1,7 +1,7 @@
 ;;;; strings.test --- test suite for Guile's string functions    -*- scheme -*-
 ;;;; Jim Blandy <jimb@red-bean.com> --- August 1999
 ;;;;
-;;;; Copyright (C) 1999,2001,2004-2006,2008-2011,2013,2015,2018
+;;;; Copyright (C) 1999,2001,2004-2006,2008-2011,2013,2015,2018,2020
 ;;;;   Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
@@ -25,8 +25,8 @@
 
 (define exception:read-only-string
   (cons 'misc-error "^string is read-only"))
-(define exception:illegal-escape
-  (cons 'read-error "illegal character in escape sequence"))
+(define exception:invalid-escape
+  (cons 'read-error "invalid character in escape sequence"))
 
 ;; Create a string from integer char values, eg. (string-ints 65) => "A"
 (define (string-ints . args)
@@ -197,27 +197,27 @@
 (with-test-prefix "escapes"
 
   (pass-if-exception "non-hex char in two-digit hex-escape"
-    exception:illegal-escape                     
+    exception:invalid-escape                     
     (with-input-from-string "\"\\x0g\"" read))
 
   (pass-if-exception "non-hex char in four-digit hex-escape"
-    exception:illegal-escape                     
+    exception:invalid-escape                     
     (with-input-from-string "\"\\u000g\"" read))
 
   (pass-if-exception "non-hex char in six-digit hex-escape"
-    exception:illegal-escape                     
+    exception:invalid-escape                     
     (with-input-from-string "\"\\U00000g\"" read))
 
   (pass-if-exception "premature termination of two-digit hex-escape"
-    exception:illegal-escape                     
+    exception:invalid-escape                     
     (with-input-from-string "\"\\x0\"" read))
 
   (pass-if-exception "premature termination of four-digit hex-escape"
-    exception:illegal-escape                     
+    exception:invalid-escape                     
     (with-input-from-string "\"\\u000\"" read))
 
   (pass-if-exception "premature termination of six-digit hex-escape"
-    exception:illegal-escape                     
+    exception:invalid-escape                     
     (with-input-from-string "\"\\U00000\"" read))
 
   (pass-if "extra hex digits ignored for two-digit hex escape"

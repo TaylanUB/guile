@@ -704,7 +704,7 @@ scm_read_string_like_syntax (int chr, SCM port, scm_t_read_opts *opts)
                 break;
             bad_escaped:
               scm_i_input_error (FUNC_NAME, port,
-                                 "illegal character in escape sequence: ~S",
+                                 "invalid character in escape sequence: ~S",
                                  scm_list_1 (SCM_MAKE_CHAR (c)));
             }
         }
