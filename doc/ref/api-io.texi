@@ -1596,7 +1596,7 @@ of bytes read.
 
 @item write
 A port's @code{write} implementation flushes write buffers to the
-mutable store.  A port's @code{read} implementation fills read buffers.
+mutable store.
 It should write out bytes from the supplied bytevector @code{src},
 starting at offset @code{start} and continuing for @code{count} bytes,
 and return the number of bytes that were written.
