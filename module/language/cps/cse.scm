@@ -551,7 +551,11 @@ false.  It could be that both true and false proofs are available."
                       (prune-successors analysis label (term-successors term))))
              ((trivial-intset preds)
               => (lambda (pred)
-                   (match (intmap-ref out pred)
+                   (match (and (< pred label) (intmap-ref out pred))
+                     (#f
+                      ;; Orphan loop; branch folding must have removed
+                      ;; entry.  Could still be alive though.
+                      (visit-term-normally))
                      (($ $kargs names' vars' ($ $continue _ _ ($ $values vals)))
                       ;; Substitute dominating definitions, and try to elide the
                       ;; predecessor entirely.
@@ -583,7 +587,7 @@ false.  It could be that both true and false proofs are available."
                          ;; those as well.
                          (add-auxiliary-definitions! pred vars substs term-key)))
                       (visit-term-normally))
-                     (_
+                     ((or ($ $kclause) ($ $kreceive))
                       (visit-term-normally)))))
              (else
               (visit-term-normally)))))))
