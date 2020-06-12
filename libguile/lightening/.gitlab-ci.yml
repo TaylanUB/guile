@@ -1,4 +1,4 @@
-image: debian:testing
+image: debian:stable
 
 before_script:
   - dpkg --add-architecture i386
@@ -30,4 +30,9 @@ aarch64:
 armhf:
   stage: test
   script:
-    - make -C tests test-armv7 CC_ARMv7=arm-linux-gnueabihf-gcc
+    - make -C tests test-armv7 CC_ARMv7="arm-linux-gnueabihf-gcc -marm"
+
+armhf-thumb:
+  stage: test
+  script:
+    - make -C tests test-armv7 CC_ARMv7="arm-linux-gnueabihf-gcc -mthumb"
