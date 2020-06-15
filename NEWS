@@ -45,6 +45,11 @@ the first Scheme compiler.  Because the baseline compiler runs faster
 and includes less code than the CPS compiler, Guile takes less time to
 build.
 
+** New 'pipeline' procedure in (ice-9 popen)
+
+The 'pipeline' procedure provides a simple way to spawn command pipeline
+as one would do in a shell.
+
 ** Refreshed bitvector facility
 
 See "Bit Vectors" in the manual, for more on all of these.
@@ -79,6 +84,21 @@ This replaces bit-invert!.
 *** New bitvector-set-bits!, bitvector-clear-bits! procedures
 
 These replace the wonky "bit-set*!" procedure.
+
+* Bug fixes
+
+** statprof reports the names of primitives
+
+Previously statprof would show strings like "anon #x1234" for primitives
+written in C.
+
+** 'http-get', 'http-post', etc. now honor #:verify-certificates?
+   (<https://bugs.gnu.org/40486>)
+
+** (web http) parser recognizes the CONNECT and PATCH methods
+
+** Initial revealed count of file ports is now zero
+   (<https://bugs.gnu.org/41204>)
 
 * New deprecations
 
