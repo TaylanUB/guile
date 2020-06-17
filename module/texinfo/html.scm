@@ -1,6 +1,6 @@
 ;;;; (texinfo html) -- translating stexinfo into shtml
 ;;;;
-;;;; 	Copyright (C) 2009, 2010, 2011  Free Software Foundation, Inc.
+;;;; 	Copyright (C) 2009, 2010, 2011, 2020  Free Software Foundation, Inc.
 ;;;;    Copyright (C) 2003,2004,2009 Andy Wingo <wingo at pobox dot com>
 ;;;; 
 ;;;; This library is free software; you can redistribute it and/or
@@ -202,6 +202,7 @@ name, @code{#}, and the node name."
     (*fragment*   div) ;; should be ok
 
     (asis         span)
+    (w            span (@ (class "verbatim")))
     (bold         b)
     (i            i)
     (sample       samp)

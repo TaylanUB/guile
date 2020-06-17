@@ -1,6 +1,6 @@
 ;;;; (texinfo) -- parsing of texinfo into SXML
 ;;;;
-;;;; 	Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014  Free Software Foundation, Inc.
+;;;; 	Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2020  Free Software Foundation, Inc.
 ;;;;    Copyright (C) 2004, 2009 Andy Wingo <wingo at pobox dot com>
 ;;;;    Copyright (C) 2001,2002 Oleg Kiselyov <oleg at pobox dot com>
 ;;;;
@@ -211,6 +211,7 @@ lambda. Only present for @code{INLINE-ARGS}, @code{EOL-ARGS},
     (sansserif          INLINE-TEXT)
     (slanted            INLINE-TEXT)
     (t                  INLINE-TEXT)
+    (w                  INLINE-TEXT)
 
     ;; Inline args commands
     (value              INLINE-ARGS . (key))
@@ -382,7 +383,7 @@ Examples:
 ;; The % is for arguments
 (define (space-significant? command)
   (memq command
-        '(example smallexample verbatim lisp smalllisp menu %)))
+        '(example smallexample verbatim lisp smalllisp menu w %)))
 
 ;; Like a DTD for texinfo
 (define (command-spec command)
