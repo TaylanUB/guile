@@ -1,6 +1,6 @@
 ;;; srfi-1.scm --- List Library
 
-;; 	Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2009, 2010, 2011, 2014 Free Software Foundation, Inc.
+;; 	Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2009, 2010, 2011, 2014, 2020 Free Software Foundation, Inc.
 ;;
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -719,6 +719,17 @@ the list returned."
 
 
 ;;; Searching
+
+(define (find pred lst)
+  "Return the first element of @var{lst} that satisfies the predicate
+@var{pred}, or return @code{#f} if no such element is found."
+  (check-arg procedure? pred find)
+  (let loop ((lst lst))
+    (and (not (null? lst))
+         (let ((head (car lst)))
+           (if (pred head)
+               head
+               (loop (cdr lst)))))))
 
 (define (take-while pred ls)
   "Return a new list which is the longest initial prefix of LS whose

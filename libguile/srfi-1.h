@@ -1,5 +1,5 @@
 /* srfi-1.h --- SRFI-1 procedures for Guile
-   Copyright 2002-2003,2005-2006,2010-2011,2018
+   Copyright 2002-2003,2005-2006,2010-2011,2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -33,7 +33,6 @@ SCM_INTERNAL SCM scm_srfi1_delete (SCM x, SCM lst, SCM pred);
 SCM_INTERNAL SCM scm_srfi1_delete_x (SCM x, SCM lst, SCM pred);
 SCM_INTERNAL SCM scm_srfi1_delete_duplicates (SCM lst, SCM pred);
 SCM_INTERNAL SCM scm_srfi1_delete_duplicates_x (SCM lst, SCM pred);
-SCM_INTERNAL SCM scm_srfi1_find (SCM pred, SCM lst);
 SCM_INTERNAL SCM scm_srfi1_find_tail (SCM pred, SCM lst);
 SCM_INTERNAL SCM scm_srfi1_length_plus (SCM lst);
 SCM_INTERNAL SCM scm_srfi1_lset_difference_x (SCM equal, SCM lst, SCM rest);

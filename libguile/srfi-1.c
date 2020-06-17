@@ -1,6 +1,6 @@
 /* srfi-1.c --- SRFI-1 procedures for Guile
 
-   Copyright 1995-1997,2000-2003,2005-2006,2008-2011,2013-2014,2018
+   Copyright 1995-1997,2000-2003,2005-2006,2008-2011,2013-2014,2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -574,29 +574,6 @@ SCM_DEFINE (scm_srfi1_delete_duplicates_x, "delete-duplicates!", 1, 1, 0,
   return ret;
 }
 #undef FUNC_NAME
-
-
-SCM_DEFINE (scm_srfi1_find, "find", 2, 0, 0,
-            (SCM pred, SCM lst),
-	    "Return the first element of @var{lst} which satisfies the\n"
-	    "predicate @var{pred}, or return @code{#f} if no such element is\n"
-	    "found.")
-#define FUNC_NAME s_scm_srfi1_find
-{
-  SCM_VALIDATE_PROC (SCM_ARG1, pred);
-
-  for ( ; scm_is_pair (lst); lst = SCM_CDR (lst))
-    {
-      SCM elem = SCM_CAR (lst);
-      if (scm_is_true (scm_call_1 (pred, elem)))
-        return elem;
-    }
-  SCM_ASSERT_TYPE (SCM_NULL_OR_NIL_P (lst), lst, SCM_ARG2, FUNC_NAME, "list");
-
-  return SCM_BOOL_F;
-}
-#undef FUNC_NAME
-
 
 SCM_DEFINE (scm_srfi1_find_tail, "find-tail", 2, 0, 0,
             (SCM pred, SCM lst),

@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Guile Reference Manual.
-@c Copyright (C) 1996, 1997, 2000-2004, 2006, 2007-2014, 2017, 2018, 2019
+@c Copyright (C) 1996, 1997, 2000-2004, 2006, 2007-2014, 2017, 2018, 2019, 2020
 @c   Free Software Foundation, Inc.
 @c See the file guile.texi for copying conditions.
 
@@ -824,7 +824,7 @@ predicate or a comparison object for determining which elements are to
 be searched.
 
 @deffn {Scheme Procedure} find pred lst
-Return the first element of @var{lst} which satisfies the predicate
+Return the first element of @var{lst} that satisfies the predicate
 @var{pred} and @code{#f} if no such element is found.
 @end deffn
 
