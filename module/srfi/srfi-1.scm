@@ -923,6 +923,23 @@ and those making the associations."
 
 ;;; Delete / assoc / member
 
+(define* (assoc key alist #:optional (= equal?))
+  "Behaves like @code{assq} but uses third argument @var{pred} for key
+comparison.  If @var{pred} is not supplied, @code{equal?} is
+used.  (Extended from R5RS.)"
+  (cond
+   ((eq? = eq?) (assq key alist))
+   ((eq? = eqv?) (assv key alist))
+   (else
+    (check-arg procedure? = assoc)
+    (let loop ((alist alist))
+      (and (pair? alist)
+           (let ((item (car alist)))
+             (check-arg pair? item assoc)
+             (if (= key (car item))
+                 item
+                 (loop (cdr alist)))))))))
+
 (define* (member x ls #:optional (= equal?))
   (cond
    ;; This might be performance-sensitive, so punt on the check here,

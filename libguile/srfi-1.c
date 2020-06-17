@@ -710,37 +710,6 @@ SCM_DEFINE (scm_srfi1_lset_difference_x, "lset-difference!", 2, 0, 1,
 }
 #undef FUNC_NAME
 
-
-SCM_DEFINE (scm_srfi1_assoc, "assoc", 2, 1, 0,
-	    (SCM key, SCM alist, SCM pred),
-	    "Behaves like @code{assq} but uses third argument @var{pred}\n"
-	    "for key comparison.  If @var{pred} is not supplied,\n"
-	    "@code{equal?} is used.  (Extended from R5RS.)\n")
-#define FUNC_NAME s_scm_srfi1_assoc
-{
-  SCM ls = alist;
-  scm_t_trampoline_2 equal_p;
-  if (SCM_UNBNDP (pred))
-    equal_p = equal_trampoline;
-  else
-    {
-      SCM_VALIDATE_PROC (SCM_ARG3, pred);
-      equal_p = scm_call_2;
-    }
-  for(; scm_is_pair (ls); ls = SCM_CDR (ls)) 
-    {
-      SCM tmp = SCM_CAR (ls);
-      SCM_ASSERT_TYPE (scm_is_pair (tmp), alist, SCM_ARG2, FUNC_NAME,
-		       "association list");
-      if (scm_is_true (equal_p (pred, key, SCM_CAR (tmp))))
-	return tmp;
-    }
-  SCM_ASSERT_TYPE (SCM_NULL_OR_NIL_P (ls), alist, SCM_ARG2, FUNC_NAME,
-		   "association list");
-  return SCM_BOOL_F;
-}
-#undef FUNC_NAME
-
 SCM_DEFINE (scm_srfi1_partition, "partition", 2, 0, 0,
 	    (SCM pred, SCM list),
 	    "Partition the elements of @var{list} with predicate @var{pred}.\n"
