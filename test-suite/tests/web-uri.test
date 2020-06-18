@@ -1,6 +1,6 @@
 ;;;; web-uri.test --- URI library          -*- mode: scheme; coding: utf-8; -*-
 ;;;;
-;;;; 	Copyright (C) 2010-2012, 2014, 2017, 2019 Free Software Foundation, Inc.
+;;;; 	Copyright (C) 2010-2012, 2014, 2017, 2019, 2020 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -178,6 +178,13 @@
            #:host "bar"
            #:port 22
            #:path "/baz"))
+
+  (pass-if-equal "xyz://abc/x/y/z"         ;<https://bugs.gnu.org/40582>
+      (list 'xyz "abc" "/x/y/z")
+    (let ((uri (string->uri "xyz://abc/x/y/z")))
+      (list (uri-scheme uri)
+            (uri-host uri)
+            (uri-path uri))))
 
   (pass-if "http://bad.host.1"
     (not (string->uri "http://bad.host.1")))

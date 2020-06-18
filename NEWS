@@ -95,6 +95,9 @@ written in C.
 ** 'http-get', 'http-post', etc. now honor #:verify-certificates?
    (<https://bugs.gnu.org/40486>)
 
+** web: Accept URI host names consisting only of hex digits
+   (<https://bugs.gnu.org/40582>)
+
 ** (web http) parser recognizes the CONNECT and PATCH methods
 
 ** Initial revealed count of file ports is now zero

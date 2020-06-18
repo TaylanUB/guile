@@ -1,6 +1,6 @@
 ;;;; (web uri) --- URI manipulation tools
 ;;;;
-;;;; Copyright (C) 1997,2001,2002,2010,2011,2012,2013,2014,2019 Free Software Foundation, Inc.
+;;;; Copyright (C) 1997,2001,2002,2010,2011,2012,2013,2014,2019,2020 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -188,7 +188,7 @@ for ‘build-uri’ except there is no scheme."
 (define ipv4-regexp
   (make-regexp (string-append "^([" digits ".]+)$")))
 (define ipv6-regexp
-  (make-regexp (string-append "^([" hex-digits ":.]+)$")))
+  (make-regexp (string-append "^([" hex-digits "]*:[" hex-digits ":.]+)$")))
 (define domain-label-regexp
   (make-regexp
    (string-append "^[" letters digits "]"
