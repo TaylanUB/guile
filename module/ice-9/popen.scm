@@ -215,10 +215,10 @@ information on how to interpret this value."
   (open-pipe command OPEN_BOTH))
 
 (define (pipeline commands)
-  "Execute a pipeline of @var(commands) -- where each command is a list of a
-program and its arguments as strings -- returning an input port to the
+  "Execute a pipeline of @var{commands}, where each command is a list of a
+program and its arguments as strings, returning an input port to the
 end of the pipeline, an output port to the beginning of the pipeline and
-a list of PIDs of the processes executing the @var(commands)."
+a list of PIDs of the processes executing the @var{commands}."
   (let* ((to (pipe->fdes))
          (pipes (map (lambda _ (pipe->fdes)) commands))
 	 (pipeline (fold (lambda (from proc prev)
