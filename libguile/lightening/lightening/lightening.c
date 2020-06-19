@@ -380,7 +380,9 @@ jit_patch_there(jit_state_t* _jit, jit_reloc_t reloc, jit_pointer_t addr)
   ptrdiff_t diff = (uint8_t*)addr - pc_base;
   ASSERT((diff & ((1 << reloc.rsh) - 1)) == 0);
   diff >>= reloc.rsh;
+#ifdef JIT_NEEDS_LITERAL_POOL
   int flags = reloc.kind & ~JIT_RELOC_MASK;
+#endif
 
   switch (reloc.kind & JIT_RELOC_MASK)
     {
