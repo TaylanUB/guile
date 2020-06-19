@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2019  Free Software Foundation, Inc.
+ * Copyright (C) 2012-2020  Free Software Foundation, Inc.
  *
  * This file is part of GNU lightning.
  *
@@ -1241,8 +1241,8 @@ static void
 reset_literal_pool(jit_state_t *_jit, struct jit_literal_pool *pool)
 {
   pool->deadline = _jit->limit - _jit->start;
-  pool->size = 0;
   memset(pool->entries, 0, sizeof(pool->entries[0]) * pool->size);
+  pool->size = 0;
 }
 
 #define INITIAL_LITERAL_POOL_CAPACITY 12
