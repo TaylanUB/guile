@@ -230,7 +230,7 @@ encode_thumb_immediate(unsigned int v)
     return ((v & 0xff) | (1 << 12));
   /* abcdefgh 00000000 abcdefgh 00000000 */
   if (((v & 0xffff0000) >> 16) == (v & 0xffff) && (v & 0xff) == 0)
-    return ((v & 0x000000ff) | (2 << 12));
+    return (((v & 0x0000ff00) >> 8) | (2 << 12));
   /* abcdefgh abcdefgh abcdefgh abcdefgh */
   if ( (v &    0xff)        == ((v &     0xff00) >>  8) &&
        ((v &   0xff00) >> 8) == ((v &   0xff0000) >> 16) &&
