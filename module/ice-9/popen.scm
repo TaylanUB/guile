@@ -99,13 +99,28 @@ process (based on pipes) is created and returned.  @var{mode} specifies
 whether an input, an output or an input-output port to the process is
 created: it should be the value of @code{OPEN_READ}, @code{OPEN_WRITE}
 or @code{OPEN_BOTH}."
+  (define (unbuffered port)
+    (setvbuf port 'none)
+    port)
+
+  (define (fdes-pair ports)
+    (and ports
+         (cons (port->fdes (car ports)) (port->fdes (cdr ports)))))
+
   (let* ((from (and (or (string=? mode OPEN_READ)
-                        (string=? mode OPEN_BOTH)) (pipe->fdes)))
+                        (string=? mode OPEN_BOTH))
+                    (pipe)))
          (to (and (or (string=? mode OPEN_WRITE)
-                      (string=? mode OPEN_BOTH)) (pipe->fdes)))
-         (pid (piped-process command args from to)))
-    (values (and from (fdes->inport (car from)))
-            (and to (fdes->outport (cdr to))) pid)))
+                      (string=? mode OPEN_BOTH))
+                  (pipe)))
+         (pid (piped-process command args
+                             (fdes-pair from)
+                             (fdes-pair to))))
+    ;; The original 'open-process' procedure would return unbuffered
+    ;; ports; do the same here.
+    (values (and from (unbuffered (car from)))
+            (and to (unbuffered (cdr to)))
+            pid)))
 
 (define (open-pipe* mode command . args)
   "Executes the program @var{command} with optional arguments

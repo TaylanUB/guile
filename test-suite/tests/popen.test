@@ -196,6 +196,29 @@ exec 2>~a; read REPLY"
             (close-pipe port)
             result))))))
 
+
+ (with-test-prefix "open-pipe*"
+
+   (pass-if-equal "OPEN_BOTH"
+       '(0 (good!))
+     ;; This test ensures that the ports that underlie the read/write
+     ;; port are unbuffered.  If they were buffered, the child process
+     ;; would wait in 'read' forever.
+     (let ((pipe (open-pipe* OPEN_BOTH "guile" "-c"
+                             (object->string
+                              '(begin
+                                 (setvbuf (current-output-port) 'line)
+                                 (write '(hello!))
+                                 (newline)
+                                 (let ((greeting (read)))
+                                   (write '(good!))))))))
+       (setvbuf pipe 'line)
+       (let ((return (read pipe)))
+         (write '(hi!) pipe)
+         (newline pipe)
+         (let ((last (read pipe)))
+           (list (close-pipe pipe) last))))))
+
  ;;
  ;; close-pipe
  ;;
