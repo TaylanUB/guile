@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2017, 2019  Free Software Foundation, Inc.
+ * Copyright (C) 2012-2017,2019-2020  Free Software Foundation, Inc.
  *
  * This file is part of GNU lightning.
  *
@@ -195,8 +195,15 @@ emit_wide_thumb(jit_state_t *_jit, uint32_t inst)
   emit_u16_with_pool(_jit, inst & 0xffff);
 }
 
-/* from binutils */
-#  define rotate_left(v, n)     (v << n | v >> (32 - n))
+static uint32_t
+rotate_left(uint32_t v, uint32_t n) {
+  if (n == 0) {
+    return v;
+  }
+  ASSERT(n < 32);
+  return (v << n | v >> (32 - n));
+}
+
 static int
 encode_arm_immediate(unsigned int v)
 {
