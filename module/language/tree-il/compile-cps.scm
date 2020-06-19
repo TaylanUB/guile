@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2015,2017-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2015,2017-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -895,37 +895,32 @@
     ($ (ensure-bytevector klen src op pred bv))))
 
 (define (bytevector-ref-converter scheme-name ptr-op width kind)
-  (define tag
+  (define (tag cps k src val)
     (match kind
       ('unsigned
        (if (< (ash 1 (* width 8)) (target-most-positive-fixnum))
-           (lambda (cps k src val)
-             (with-cps cps
-               (letv s)
-               (letk kcvt
-                     ($kargs ('s) (s)
-                       ($continue k src ($primcall 'tag-fixnum #f (s)))))
-               (build-term
-                 ($continue kcvt src ($primcall 'u64->s64 #f (val))))))
-           (lambda (cps k src val)
-             (with-cps cps
-               (build-term
-                 ($continue k src ($primcall 'u64->scm #f (val))))))))
+           (with-cps cps
+             (letv s)
+             (letk kcvt
+                   ($kargs ('s) (s)
+                           ($continue k src ($primcall 'tag-fixnum #f (s)))))
+             (build-term
+               ($continue kcvt src ($primcall 'u64->s64 #f (val)))))
+           (with-cps cps
+             (build-term
+               ($continue k src ($primcall 'u64->scm #f (val)))))))
       ('signed
        (if (< (ash 1 (* width 8)) (target-most-positive-fixnum))
-           (lambda (cps k src val)
-             (with-cps cps
-               (build-term
-                 ($continue k src ($primcall 'tag-fixnum #f (val))))))
-           (lambda (cps k src val)
-             (with-cps cps
-               (build-term
-                 ($continue k src ($primcall 's64->scm #f (val))))))))
+           (with-cps cps
+             (build-term
+               ($continue k src ($primcall 'tag-fixnum #f (val)))))
+           (with-cps cps
+             (build-term
+               ($continue k src ($primcall 's64->scm #f (val)))))))
       ('float
-       (lambda (cps k src val)
-         (with-cps cps
-           (build-term
-             ($continue k src ($primcall 'f64->scm #f (val)))))))))
+       (with-cps cps
+         (build-term
+           ($continue k src ($primcall 'f64->scm #f (val))))))))
   (lambda (cps k src op param bv idx)
     (prepare-bytevector-access
      cps src scheme-name 'bytevector? bv idx width
@@ -962,9 +957,9 @@
       (build-term
         ($branch k' kbad src 'imm-s64-< hi (sval)))))
   (define (integer-unboxer lo hi)
-    (cond
-     ((<= hi (target-most-positive-fixnum))
-      (lambda (cps src val have-val)
+    (lambda (cps src val have-val)
+      (cond
+       ((<= hi (target-most-positive-fixnum))
         (let ((have-val (if (zero? lo)
                             (lambda (cps s)
                               (with-cps cps
@@ -989,17 +984,15 @@
                   ($kargs () ()
                     ($continue klo src ($primcall 'untag-fixnum #f (val)))))
             (build-term
-              ($branch kbad kuntag src 'fixnum? #f (val)))))))
-     ((zero? lo)
-      (lambda (cps src val have-val)
+              ($branch kbad kuntag src 'fixnum? #f (val))))))
+       ((zero? lo)
         (with-cps cps
           (letv u)
           (let$ body (limit-urange src val u hi have-val))
           (letk khi ($kargs ('u) (u) ,body))
           (build-term
-            ($continue khi src ($primcall 'scm->u64 #f (val)))))))
-     (else
-      (lambda (cps src val have-val)
+            ($continue khi src ($primcall 'scm->u64 #f (val))))))
+       (else
         (with-cps cps
           (letv s)
           (let$ body (limit-srange src val s lo hi have-val))

@@ -14,6 +14,7 @@
      (eval . (put 'with-test-prefix/c&e 'scheme-indent-function 1))
      (eval . (put 'with-code-coverage  'scheme-indent-function 1))
      (eval . (put 'with-statprof       'scheme-indent-function 1))
+     (eval . (put 'with-target         'scheme-indent-function 1))
      (eval . (put 'let-gensyms         'scheme-indent-function 1))
      (eval . (put 'let-fresh           'scheme-indent-function 2))
      (eval . (put 'with-fresh-name-state 'scheme-indent-function 1))
