@@ -92,6 +92,10 @@ These replace the wonky "bit-set*!" procedure.
 Previously statprof would show strings like "anon #x1234" for primitives
 written in C.
 
+** JIT bugs on ARMv7 have been fixed
+   (<https://bugs.gnu.org/40737>,
+    <https://gitlab.com/wingo/lightening/-/issues/12>)
+
 ** 'http-get', 'http-post', etc. now honor #:verify-certificates?
    (<https://bugs.gnu.org/40486>)
 
