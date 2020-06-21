@@ -1,5 +1,5 @@
 TESTS=$(sort $(basename $(wildcard *.c)))
-TARGETS=native ia32 aarch64 armv7
+TARGETS ?= native ia32 aarch64 armv7
 
 # Suitable values of cross-compiler variables for Debian:
 #
@@ -17,9 +17,9 @@ TARGETS=native ia32 aarch64 armv7
 #     gcc-aarch64-linux-gnu libc6-dev-arm64-cross libc6:arm64
 #
 CC = gcc
-CC_IA32=guix environment --pure -s i686-linux --ad-hoc gcc-toolchain glibc -- gcc
-CC_AARCH64=guix environment --pure -s aarch64-linux --ad-hoc gcc-toolchain glibc -- gcc
-CC_ARMv7=guix environment --pure -s armhf-linux --ad-hoc gcc-toolchain glibc -- gcc
+CC_IA32=guix environment --pure -s i686-linux --ad-hoc gcc-toolchain -- gcc
+CC_AARCH64=guix environment --pure -s aarch64-linux --ad-hoc gcc-toolchain -- gcc
+CC_ARMv7=guix environment --pure -s armhf-linux --ad-hoc gcc-toolchain -- gcc
 CFLAGS = -Wall -O0 -g
 
 all: $(foreach TARGET,$(TARGETS),$(addprefix test-$(TARGET)-,$(TESTS)))
