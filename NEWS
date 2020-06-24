@@ -5,6 +5,15 @@ See the end for copying conditions.
 Please send Guile bug reports to bug-guile@gnu.org.
 
 
+Changes in 3.0.4 (since 3.0.3)
+
+This release fixes the SONAME of libguile-3.0.so, which was erroneously
+bumped in 3.0.3 compared to 3.0.2.  Distributions are strongly
+encouraged to use 3.0.4 instead of 3.0.3.
+
+Thanks to Chris Vine for reporting the issue.
+
+
 Changes in 3.0.3 (since 3.0.2)
 
 * New interfaces and functionality
