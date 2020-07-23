@@ -89,6 +89,7 @@
             emit-jne
             emit-jge
             emit-jnge
+            emit-jtable
 
             emit-fixnum?
             emit-heap-object?
@@ -746,6 +747,19 @@ later by the linker."
           (emit asm (pack-u8-u24 a b)))
          ((C16_C16 a b)
           (emit asm (pack-u16-u16 a b)))
+         ((V32_X8_L24 labels)
+          (let ((len (vector-length labels)))
+            (emit asm len)
+            (let lp ()
+              (unless (<= (+ (asm-pos asm) (* 4 len))
+                          (bytevector-length (asm-buf asm)))
+                (grow-buffer! asm)
+                (lp)))
+            (let lp ((n 0))
+              (when (< n len)
+                (record-label-reference asm (vector-ref labels n))
+                (emit asm 0)
+                (lp (1+ n))))))
          ((B1_X7_L24 a label)
           (record-label-reference asm label)
           (emit asm (pack-u1-u7-u24 (if a 1 0) 0 0)))
@@ -1050,6 +1064,7 @@ later by the linker."
           ('C8_C24 #'(a b))
           ('C8_S24 #'(a b))
           ('C16_C16 #'(a b))
+          ('V32_X8_L24 #'(labels))
           ('B1_X7_L24 #'(a label))
           ('B1_C7_L24 #'(a b label))
           ('B1_X31 #'(a))

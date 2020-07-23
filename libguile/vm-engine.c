@@ -3376,7 +3376,31 @@ VM_NAME (scm_thread *thread)
       NEXT (2);
     }
 
-  VM_DEFINE_OP (163, unused_163, NULL, NOP)
+  /* jtable idx:24 len:32 (_:8 offset:24)...
+   *
+   * Branch to an entry in a table, as in C's switch statement.  IDX is
+   * a u64 local, and the immediate LEN indicates the number of entries
+   * in the table, and should be greater than or equal to 1.  The last
+   * entry in the table is the "catch-all" entry.  The OFFSET... values
+   * are in the usual L24 encoding, indicating a memory address as a
+   * number of 32-bit words away from the current instruction pointer.
+   */
+  VM_DEFINE_OP (163, jtable, "jtable", OP2 (X8_S24, V32_X8_L24))
+    {
+      uint32_t idx, len;
+      const uint32_t *offsets;
+
+      UNPACK_24 (op, idx);
+      len = ip[1];
+      offsets = ip + 2;
+
+      uint64_t i = SP_REF_U64 (idx);
+      VM_ASSERT (len > 0, abort());
+      int32_t offset = offsets[i < len ? i : len - 1];
+      offset >>= 8; /* Sign-extending shift. */
+      NEXT (offset);
+    }
+
   VM_DEFINE_OP (164, unused_164, NULL, NOP)
   VM_DEFINE_OP (165, unused_165, NULL, NOP)
   VM_DEFINE_OP (166, unused_166, NULL, NOP)

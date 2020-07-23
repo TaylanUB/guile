@@ -1,6 +1,6 @@
 ;;; Guile bytecode disassembler
 
-;;; Copyright (C) 2001, 2009-2010, 2012-2015, 2017-2019 Free Software Foundation, Inc.
+;;; Copyright (C) 2001, 2009-2010, 2012-2015, 2017-2020 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -43,27 +43,6 @@
             instruction-stack-size-after
             instruction-slot-clobbers))
 
-(define-syntax-rule (u32-ref buf n)
-  (bytevector-u32-native-ref buf (* n 4)))
-
-(define-syntax-rule (s32-ref buf n)
-  (bytevector-s32-native-ref buf (* n 4)))
-
-(define-syntax visit-opcodes
-  (lambda (x)
-    (syntax-case x ()
-      ((visit-opcodes macro arg ...)
-       (with-syntax (((inst ...)
-                      (map (lambda (x) (datum->syntax #'macro x))
-                           (instruction-list))))
-         #'(begin
-             (macro arg ... . inst)
-             ...))))))
-
-(eval-when (expand compile load eval)
-  (define (id-append ctx a b)
-    (datum->syntax ctx (symbol-append (syntax->datum a) (syntax->datum b)))))
-
 (define (unpack-scm n)
   (pointer->scm (make-pointer n)))
 
@@ -82,8 +61,31 @@
       s
       (- s (ash 1 32))))
 
-(define-syntax disassembler
-  (lambda (x)
+(eval-when (expand)
+  (define-syntax-rule (u32-ref buf n)
+    (bytevector-u32-native-ref buf (* n 4)))
+
+  (define-syntax-rule (s32-ref buf n)
+    (bytevector-s32-native-ref buf (* n 4)))
+
+  (define-syntax-rule (define-op-handlers handlers make-handler)
+    (define handlers
+      (let ((handlers (make-vector 256 #f)))
+        (define-syntax init-handlers
+          (lambda (stx)
+            #`(begin
+                #,@(filter-map
+                    (match-lambda
+                     ((name opcode kind . word-types)
+                      (match (make-handler name kind word-types)
+                        (#f #f)
+                        (init #`(vector-set! handlers #,opcode #,init)))))
+                    (instruction-list)))))
+        (init-handlers)
+        handlers))))
+
+(define-op-handlers disassemblers
+  (lambda (name kind word-types)
     (define (parse-first-word word type)
       (with-syntax ((word word))
         (case type
@@ -114,75 +116,76 @@
           (else
            (error "bad head kind" type)))))
 
-    (define (parse-tail-word word type)
-      (with-syntax ((word word))
+    (define (parse-tail-word word type n)
+      (with-syntax ((word word) (n n))
         (case type
           ((C32 I32 A32 B32 AU32 BU32 AS32 BS32 AF32 BF32)
-           #'(word))
+           #'(1 word))
           ((N32 R32 L32 LO32)
-           #'((unpack-s32 word)))
+           #'(1 (unpack-s32 word)))
           ((C8_C24 C8_S24)
-           #'((logand word #xff)
+           #'(1
+              (logand word #xff)
               (ash word -8)))
           ((C16_C16)
-           #'((logand word #xffff)
+           #'(1
+              (logand word #xffff)
               (ash word -16)))
           ((B1_C7_L24)
-           #'((not (zero? (logand word #x1)))
+           #'(1
+              (not (zero? (logand word #x1)))
               (logand (ash word -1) #x7f)
               (unpack-s24 (ash word -8))))
           ((B1_X7_S24 B1_X7_F24 B1_X7_C24)
-           #'((not (zero? (logand word #x1)))
+           #'(1
+              (not (zero? (logand word #x1)))
               (ash word -8)))
           ((B1_X7_L24)
-           #'((not (zero? (logand word #x1)))
+           #'(1
+              (not (zero? (logand word #x1)))
               (unpack-s24 (ash word -8))))
           ((B1_X31)
-           #'((not (zero? (logand word #x1)))))
+           #'(1 (not (zero? (logand word #x1)))))
           ((X8_S24 X8_F24 X8_C24)
-           #'((ash word -8)))
+           #'(1 (ash word -8)))
           ((X8_L24)
-           #'((unpack-s24 (ash word -8))))
+           #'(1 (unpack-s24 (ash word -8))))
+          ((V32_X8_L24)
+           #'((+ 1 word)
+              (let ((v (make-vector word))
+                    (base (+ offset n 1)))
+                (let lp ((i 0))
+                  (when (< i word)
+                    (vector-set! v i
+                                 (unpack-s24 (ash (u32-ref buf (+ base i)) -8)))
+                    (lp (1+ i))))
+                v)))
           (else
            (error "bad tail kind" type)))))
 
-    (syntax-case x ()
-      ((_ name opcode word0 word* ...)
-       (let ((vars (generate-temporaries #'(word* ...))))
-         (with-syntax (((word* ...) vars)
-                       ((n ...) (map 1+ (iota (length #'(word* ...)))))
+    (match word-types
+      ((first-word . tail-words)
+       (let ((vars (generate-temporaries tail-words))
+             (word-offsets (map 1+ (iota (length tail-words)))))
+         (with-syntax ((name (datum->syntax #'nowhere name))
+                       ((word* ...) vars)
+                       ((n ...) word-offsets)
                        ((asm ...)
-                        (parse-first-word #'first (syntax->datum #'word0)))
-                       (((asm* ...) ...)
-                        (map (lambda (word type)
-                               (parse-tail-word word type))
-                             vars
-                             (syntax->datum #'(word* ...)))))
+                        (parse-first-word #'first first-word))
+                       (((len asm* ...) ...)
+                        (map parse-tail-word vars tail-words word-offsets)))
            #'(lambda (buf offset first)
                (let ((word* (u32-ref buf (+ offset n)))
                      ...)
-                 (values (+ 1 (length '(word* ...)))
+                 (values (+ 1 len ...)
                          (list 'name asm ... asm* ... ...))))))))))
-
-(define (disasm-invalid buf offset first)
-  (error "bad instruction" (logand first #xff) first buf offset))
-
-(define disassemblers (make-vector 256 disasm-invalid))
-
-(define-syntax define-disassembler
-  (lambda (x)
-    (syntax-case x ()
-      ((_ name opcode kind arg ...)
-       (with-syntax ((parse (id-append #'name #'parse- #'name)))
-         #'(let ((parse (disassembler name opcode arg ...)))
-             (vector-set! disassemblers opcode parse)))))))
-
-(visit-opcodes define-disassembler)
 
 ;; -> len list
 (define (disassemble-one buf offset)
   (let ((first (u32-ref buf offset)))
-    ((vector-ref disassemblers (logand first #xff)) buf offset first)))
+    (match (vector-ref disassemblers (logand first #xff))
+      (#f (error "bad instruction" (logand first #xff) first buf offset))
+      (disassemble (disassemble buf offset first)))))
 
 (define (u32-offset->addr offset context)
   "Given an offset into an image in 32-bit units, return the absolute
@@ -305,7 +308,15 @@ address of that offset."
                  ((prompt)
                   (match arg
                     ((_ ... target)
-                     (add-label! (+ offset target) "H")))))))
+                     (add-label! (+ offset target) "H"))))
+                 ((jtable)
+                  (match arg
+                    ((_ ... targets)
+                     (let ((len (vector-length targets)))
+                       (let lp ((i 0))
+                         (when (< i len)
+                           (add-label! (+ offset (vector-ref targets i)) "L")
+                           (lp (1+ i)))))))))))
             (lp (+ offset len))))))
     (let lp ((offset start) (n 1))
       (when (< offset end)
@@ -473,15 +484,27 @@ address of that offset."
       ((_)
        (let ((lengths (make-vector 256 #f)))
          (for-each (match-lambda
+                    ((name opcode kind word ... 'V32_X8_L24)
+                     ;; Indicate variable-length instruction by setting
+                     ;; statically known length to 0.
+                     (vector-set! lengths opcode 0))
                     ((name opcode kind words ...)
                      (vector-set! lengths opcode (* 4 (length words)))))
                    (instruction-list))
          (datum->syntax x lengths))))))
 
 (define (instruction-length code pos)
+  (unless (zero? (modulo pos 4))
+    (error "invalid pos"))
   (let ((opcode (logand (bytevector-u32-native-ref code pos) #xff)))
-    (or (vector-ref (instruction-lengths-vector) opcode)
-        (error "Unknown opcode" opcode))))
+    (match (vector-ref (instruction-lengths-vector) opcode)
+      (#f (error "Unknown opcode" opcode))
+      (0 (call-with-values (lambda ()
+                             (let ((offset (/ pos 4)))
+                               (disassemble-one code offset)))
+           (lambda (u32-len disasm)
+             (* u32-len 4))))
+      (len len))))
 
 (define-syntax static-opcode-set
   (lambda (x)
@@ -507,139 +530,128 @@ address of that offset."
                        tail-call tail-call-label
                        return-values
                        subr-call foreign-call continuation-call
-                       j))
+                       j jtable))
   (let ((opcode (logand (bytevector-u32-native-ref code pos) #xff)))
     (bitvector-bit-clear? non-fallthrough-set opcode)))
 
-(define-syntax define-jump-parser
-  (lambda (x)
-    (syntax-case x ()
-      ((_ name opcode kind word0 word* ...)
-       (let ((symname (syntax->datum #'name)))
-         (if (memq symname '(prompt j je jl jge jne jnl jnge))
-             (let ((offset (* 4 (length #'(word* ...)))))
-               #`(vector-set!
-                  jump-parsers
-                  opcode
-                  (lambda (code pos)
-                    (let ((target
-                           (bytevector-s32-native-ref code (+ pos #,offset))))
-                      ;; Assume that the target is in the last word, as
-                      ;; an L24 in the high bits.
-                      (list (* 4 (ash target -8)))))))
-             #'(begin)))))))
+(define (word-offset->byte-offset n)
+  (* n 4))
 
-(define jump-parsers (make-vector 256 (lambda (code pos) '())))
-(visit-opcodes define-jump-parser)
+(define-op-handlers jump-parsers
+  (lambda (op kind word-types)
+    (case op
+      ((prompt j je jl jge jne jnl jnge)
+       #'(lambda (code pos)
+           (call-with-values (lambda () (disassemble-one code (/ pos 4)))
+             (lambda (len disasm)
+               (match disasm
+                 ;; Assume that the target is in the last word, as a
+                 ;; word offset.
+                 ((_ ___ target) (list (word-offset->byte-offset target))))))))
+      ((jtable)
+       #'(lambda (code pos)
+           (call-with-values (lambda () (disassemble-one code (/ pos 4)))
+             (lambda (len disasm)
+               (match disasm
+                 ;; Assume that the target is in the last word, as a
+                 ;; vector of word offsets.
+                 ((_ ___ targets)
+                  (map word-offset->byte-offset (vector->list targets))))))))
+      (else #f))))
 
 (define (instruction-relative-jump-targets code pos)
   (let ((opcode (logand (bytevector-u32-native-ref code pos) #xff)))
-    ((vector-ref jump-parsers opcode) code pos)))
+    (match (vector-ref jump-parsers opcode)
+      (#f '())
+      (proc (proc code pos)))))
 
-(define-syntax define-stack-effect-parser
-  (lambda (x)
-    (define (stack-effect-parser name)
-      (case name
-        ((push)
-         #'(lambda (code pos size) (and size (+ size 1))))
-        ((pop)
-         #'(lambda (code pos size) (and size (- size 1))))
-        ((drop)
-         #'(lambda (code pos size)
-             (let ((count (ash (bytevector-u32-native-ref code pos) -8)))
-               (and size (- size count)))))
-        ((alloc-frame reset-frame bind-optionals)
-         #'(lambda (code pos size)
-             (let ((nlocals (ash (bytevector-u32-native-ref code pos) -8)))
-               nlocals)))
-        ((receive)
-         #'(lambda (code pos size)
-             (let ((nlocals (ash (bytevector-u32-native-ref code (+ pos 4))
-                                 -8)))
-               nlocals)))
-        ((bind-kwargs)
-         #'(lambda (code pos size)
-             (let ((ntotal (ash (bytevector-u32-native-ref code (+ pos 8)) -8)))
-               ntotal)))
-        ((bind-rest)
-         #'(lambda (code pos size)
-             (let ((dst (ash (bytevector-u32-native-ref code pos) -8)))
-               (+ dst 1))))
-        ((assert-nargs-ee/locals)
-         #'(lambda (code pos size)
-             (let ((nargs (logand (ash (bytevector-u32-native-ref code pos) -8)
-                                  #xfff))
-                   (nlocals (ash (bytevector-u32-native-ref code pos) -20)))
-               (+ nargs nlocals))))
-        ((call call-label tail-call tail-call-label expand-apply-argument)
-         #'(lambda (code pos size) #f))
-        ((shuffle-down)
-         #'(lambda (code pos size)
-             (let ((from (logand (ash (bytevector-u32-native-ref code pos) -8)
-                                 #xfff))
-                   (to (ash (bytevector-u32-native-ref code pos) -20)))
-               (and size (- size (- from to))))))
-        (else
-         #f)))
-    (syntax-case x ()
-      ((_ name opcode kind word0 word* ...)
-       (let ((parser (stack-effect-parser (syntax->datum #'name))))
-         (if parser
-             #`(vector-set! stack-effect-parsers opcode #,parser)
-             #'(begin)))))))
-
-(define stack-effect-parsers (make-vector 256 (lambda (code pos size) size)))
-(visit-opcodes define-stack-effect-parser)
+(define-op-handlers stack-effect-parsers
+  (lambda (name kind word-types)
+    (case name
+      ((push)
+       #'(lambda (code pos size) (and size (+ size 1))))
+      ((pop)
+       #'(lambda (code pos size) (and size (- size 1))))
+      ((drop)
+       #'(lambda (code pos size)
+           (let ((count (ash (bytevector-u32-native-ref code pos) -8)))
+             (and size (- size count)))))
+      ((alloc-frame reset-frame bind-optionals)
+       #'(lambda (code pos size)
+           (let ((nlocals (ash (bytevector-u32-native-ref code pos) -8)))
+             nlocals)))
+      ((receive)
+       #'(lambda (code pos size)
+           (let ((nlocals (ash (bytevector-u32-native-ref code (+ pos 4))
+                               -8)))
+             nlocals)))
+      ((bind-kwargs)
+       #'(lambda (code pos size)
+           (let ((ntotal (ash (bytevector-u32-native-ref code (+ pos 8)) -8)))
+             ntotal)))
+      ((bind-rest)
+       #'(lambda (code pos size)
+           (let ((dst (ash (bytevector-u32-native-ref code pos) -8)))
+             (+ dst 1))))
+      ((assert-nargs-ee/locals)
+       #'(lambda (code pos size)
+           (let ((nargs (logand (ash (bytevector-u32-native-ref code pos) -8)
+                                #xfff))
+                 (nlocals (ash (bytevector-u32-native-ref code pos) -20)))
+             (+ nargs nlocals))))
+      ((call call-label tail-call tail-call-label expand-apply-argument)
+       #'(lambda (code pos size) #f))
+      ((shuffle-down)
+       #'(lambda (code pos size)
+           (let ((from (logand (ash (bytevector-u32-native-ref code pos) -8)
+                               #xfff))
+                 (to (ash (bytevector-u32-native-ref code pos) -20)))
+             (and size (- size (- from to))))))
+      (else
+       #f))))
 
 (define (instruction-stack-size-after code pos size)
   (let ((opcode (logand (bytevector-u32-native-ref code pos) #xff)))
-    ((vector-ref stack-effect-parsers opcode) code pos size)))
+    (match (vector-ref stack-effect-parsers opcode)
+      (#f size)
+      (proc (proc code pos size)))))
 
-(define-syntax define-clobber-parser
-  (lambda (x)
-    (syntax-case x ()
-      ((_ name opcode kind arg0 arg* ...)
-       (case (syntax->datum #'kind)
-         ((!)
-          (case (syntax->datum #'name)
-            ((call call-label)
-             #'(let ((parse (lambda (code pos nslots-in nslots-out)
-                              (call-with-values
-                                  (lambda ()
-                                    (disassemble-one code (/ pos 4)))
-                                (lambda (len elt)
-                                  (define frame-size 3)
-                                  (match elt
-                                    ((_ proc . _)
-                                     (let lp ((slot (- proc frame-size)))
-                                       (if (and nslots-in (< slot nslots-in))
-                                           (cons slot (lp (1+ slot)))
-                                           '())))))))))
-                 (vector-set! clobber-parsers opcode parse)))
-            (else
-             #'(begin))))
-         ((<-)
-          #`(let ((parse (lambda (code pos nslots-in nslots-out)
-                           (call-with-values
-                               (lambda ()
-                                 (disassemble-one code (/ pos 4)))
-                             (lambda (len elt)
-                               (match elt
-                                 ((_ dst . _)
-                                  #,(case (syntax->datum #'arg0)
-                                      ((X8_F24 X8_F12_F12)
-                                       #'(list dst))
-                                      (else
-                                       #'(if nslots-out
-                                             (list (- nslots-out 1 dst))
-                                             '()))))))))))
-              (vector-set! clobber-parsers opcode parse)))
-         (else (error "unexpected instruction kind" #'kind)))))))
-
-(define clobber-parsers
-  (make-vector 256 (lambda (code pos nslots-in nslots-out) '())))
-(visit-opcodes define-clobber-parser)
+(define-op-handlers clobber-parsers
+  (lambda (name kind word-types)
+    (match kind
+      ('!
+       (case name
+         ((call call-label)
+          #'(lambda (code pos nslots-in nslots-out)
+              (call-with-values
+                  (lambda ()
+                    (disassemble-one code (/ pos 4)))
+                (lambda (len elt)
+                  (define frame-size 3)
+                  (match elt
+                    ((_ proc . _)
+                     (let lp ((slot (- proc frame-size)))
+                       (if (and nslots-in (< slot nslots-in))
+                           (cons slot (lp (1+ slot)))
+                           '()))))))))
+         (else #f)))
+      ('<-
+       #`(lambda (code pos nslots-in nslots-out)
+           (call-with-values (lambda ()
+                               (disassemble-one code (/ pos 4)))
+             (lambda (len elt)
+               (match elt
+                 ((_ dst . _)
+                  #,(match word-types
+                      (((or 'X8_F24 'X8_F12_F12) . _)
+                       #'(list dst))
+                      (else
+                       #'(if nslots-out
+                             (list (- nslots-out 1 dst))
+                             '()))))))))))))
 
 (define (instruction-slot-clobbers code pos nslots-in nslots-out)
   (let ((opcode (logand (bytevector-u32-native-ref code pos) #xff)))
-    ((vector-ref clobber-parsers opcode) code pos nslots-in nslots-out)))
+    (match (vector-ref clobber-parsers opcode)
+      (#f '())
+      (proc (proc code pos nslots-in nslots-out)))))

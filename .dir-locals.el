@@ -6,6 +6,7 @@
                      (indent-tabs-mode . nil)))
  (scheme-mode
   . ((indent-tabs-mode . nil)
+     (eval . (put 'with-syntax         'scheme-indent-function 1))
      (eval . (put 'let/ec              'scheme-indent-function 1))
      (eval . (put 'pass-if             'scheme-indent-function 1))
      (eval . (put 'pass-if-exception   'scheme-indent-function 2))

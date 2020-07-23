@@ -4340,6 +4340,22 @@ compile_jnge_slow (scm_jit_state *j, const uint32_t *vcode)
 }
 
 static void
+compile_jtable (scm_jit_state *j, uint32_t idx, uint32_t len,
+                const uint32_t *offsets)
+{
+  // Not yet implemented.
+  UNREACHABLE ();
+  //jit_reloc_t jmp;
+  //jmp = jit_jmp (j->jit);
+  //add_inter_instruction_patch (j, jmp, vcode);
+}
+static void
+compile_jtable_slow (scm_jit_state *j, uint32_t idx, uint32_t len,
+                     const uint32_t *offsets)
+{
+}
+
+static void
 compile_heap_numbers_equal (scm_jit_state *j, uint16_t a, uint16_t b)
 {
   jit_reloc_t k;
@@ -5338,6 +5354,15 @@ compile_s64_to_f64_slow (scm_jit_state *j, uint16_t dst, uint16_t src)
 #define COMPILE_X8_S8_C8_S8__C32(j, comp)                               \
   COMPILE_X8_S8_S8_C8__C32(j, comp)
 
+#define COMPILE_X8_S24__V32_X8_L24(j, comp)                             \
+  {                                                                     \
+    uint32_t a, len;                                                    \
+    UNPACK_24 (j->ip[0], a);                                            \
+    len = j->ip[1];                                                     \
+    j->next_ip += len;                                                  \
+    comp (j, a, len, j->ip + 2);                                        \
+  }
+
 #define COMPILE_X32__LO32__L32(j, comp)                                 \
   {                                                                     \
     int32_t a = j->ip[1], b = j->ip[2];                                 \
@@ -5558,6 +5583,22 @@ analyze (scm_jit_state *j)
           target = j->ip + (((int32_t)j->ip[0]) >> 8);
           j->op_attrs[target - j->start] |= OP_ATTR_BLOCK;
           break;
+
+        case scm_op_jtable:
+          {
+            uint32_t len = j->ip[1];
+            const uint32_t *offsets = j->ip + 2;
+            for (uint32_t i = 0; i < len; i++)
+              {
+                int32_t offset = offsets[i];
+                offset >>= 8; /* Sign-extending shift.  */
+                target = j->ip + offset;
+                ASSERT(j->start <= target && target < j->end);
+                j->op_attrs[target - j->start] |= OP_ATTR_BLOCK;
+              }
+            j->next_ip += len;
+            break;
+          }
 
         case scm_op_call:
         case scm_op_call_label:

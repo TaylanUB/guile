@@ -1,4 +1,4 @@
-/* Copyright 2001,2009-2013,2017-2018
+/* Copyright 2001,2009-2013,2017-2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -74,7 +74,9 @@ SCM_SYMBOL (sym_bang, "!");
     M(B1_X7_S24)                                \
     M(B1_X7_F24)                                \
     M(B1_X31)                                   \
-    M(C16_C16)
+    M(C16_C16)                                  \
+    M(V32_X8_L24) /* Length-prefixed array of X8_L24. */ \
+    /**/
 
 #define TYPE_WIDTH 6
 

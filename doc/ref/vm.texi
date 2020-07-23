@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Guile Reference Manual.
-@c Copyright (C)  2008-2011, 2013, 2015, 2018, 2019
+@c Copyright (C)  2008-2011, 2013, 2015, 2018, 2019, 2020
 @c   Free Software Foundation, Inc.
 @c See the file guile.texi for copying conditions.
 
@@ -607,6 +607,12 @@ virtual machine.  The difference is that an assembler might want to
 allow an @code{lo32} address to be specified as a label and then some
 number of words offset from that label, for example when patching a
 field of a statically allocated object.
+@item v32:x8-l24
+Almost all VM instructions have a fixed size.  The @code{jtable}
+instruction used to perform optimized @code{case} branches is an
+exception, which uses a @code{v32} trailing word to indicate the number
+of additional words in the instruction, which themselves are encoded as
+@code{x8-l24} values.
 @item b1
 A boolean value: 1 for true, otherwise 0.
 @item x@var{n}
@@ -1853,6 +1859,16 @@ This is intended for use after a @code{<?} comparison, and is different
 from @code{jl} in the way it handles not-a-number (NaN) values:
 @code{<?} sets @code{INVALID} instead of @code{NONE} if either value is
 a NaN.  For exact numbers, @code{jnge} is the same as @code{jl}.
+@end deftypefn
+
+@deftypefn Instruction {} jtable s24:@var{idx} v32:@var{length} [x8:_ l24:@var{offset}]...
+Branch to an entry in a table, as in C's @code{switch} statement.
+@var{idx} is a @code{u64} local indicating which entry to branch to.
+The immediate @var{len} indicates the number of entries in the table,
+and should be greater than or equal to 1.  The last entry in the table
+is the "catch-all" entry.  The @var{offset}... values are signed 24-bit
+immediates (@code{l24} encoding), indicating a memory address as a
+number of 32-bit words away from the current instruction pointer.
 @end deftypefn
 
 
