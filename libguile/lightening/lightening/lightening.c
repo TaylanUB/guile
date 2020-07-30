@@ -53,7 +53,7 @@ union jit_pc
 struct jit_literal_pool_entry
 {
   jit_reloc_t reloc;
-  int64_t value;
+  uintptr_t value;
 };
 
 struct jit_literal_pool
@@ -101,7 +101,7 @@ static jit_bool_t add_pending_literal(jit_state_t *_jit, jit_reloc_t src,
                                       uint8_t max_offset_bits);
 static void remove_pending_literal(jit_state_t *_jit, jit_reloc_t src);
 static void patch_pending_literal(jit_state_t *_jit, jit_reloc_t src,
-                                  uint64_t value);
+                                  uintptr_t value);
 enum guard_pool { GUARD_NEEDED, NO_GUARD_NEEDED };
 static void emit_literal_pool(jit_state_t *_jit, enum guard_pool guard);
 
@@ -347,6 +347,13 @@ static inline void emit_u64(jit_state_t *_jit, uint64_t u64) {
   }
 }
 
+static inline void emit_uintptr(jit_state_t *_jit, uintptr_t u) {
+  if (sizeof(u) == 4)
+    emit_u32 (_jit, u);
+  else
+    emit_u64 (_jit, u);
+}
+
 static inline jit_reloc_t
 jit_reloc(jit_state_t *_jit, enum jit_reloc_kind kind,
           uint8_t inst_start_offset, uint8_t *loc, uint8_t *pc_base,
@@ -371,10 +378,7 @@ static inline jit_reloc_t
 emit_abs_reloc (jit_state_t *_jit, uint8_t inst_start)
 {
   uint8_t *loc = _jit->pc.uc;
-  if (sizeof(intptr_t) == 4)
-    emit_u32 (_jit, 0);
-  else
-    emit_u64 (_jit, 0);
+  emit_uintptr (_jit, 0);
   return jit_reloc(_jit, JIT_RELOC_ABSOLUTE, inst_start, loc, _jit->pc.uc, 0);
 }
 
@@ -484,12 +488,16 @@ jit_patch_there(jit_state_t* _jit, jit_reloc_t reloc, jit_pointer_t addr)
 }
 
 void
-jit_begin_data(jit_state_t *j)
+jit_begin_data(jit_state_t *j, size_t max_size_or_zero)
 {
 #ifdef JIT_NEEDS_LITERAL_POOL
-  if (j->pool->size)
-    emit_literal_pool(j, NO_GUARD_NEEDED);
-  ASSERT(j->overflow || j->pool->size == 0);
+  if (j->pool->size) {
+    uint8_t *deadline = j->start + j->pool->deadline;
+    // Emit a literal pool now if the data might overwrite the deadline.
+    // Emitting data won't add entries to the pool.
+    if (max_size_or_zero == 0 || j->pc.uc + max_size_or_zero >= deadline)
+      emit_literal_pool(j, NO_GUARD_NEEDED);
+  }
 #endif
 
   ASSERT(!j->emitting_data);
@@ -499,10 +507,6 @@ jit_begin_data(jit_state_t *j)
 void
 jit_end_data(jit_state_t *j)
 {
-#ifdef JIT_NEEDS_LITERAL_POOL
-  ASSERT(j->overflow || j->pool->size == 0);
-#endif
-
   ASSERT(j->emitting_data);
   j->emitting_data = 0;
 }
@@ -1405,7 +1409,7 @@ remove_pending_literal(jit_state_t *_jit, jit_reloc_t src)
 }
 
 static void
-patch_pending_literal(jit_state_t *_jit, jit_reloc_t src, uint64_t value)
+patch_pending_literal(jit_state_t *_jit, jit_reloc_t src, uintptr_t value)
 {
   for (size_t i = _jit->pool->size; i--; ) {
     if (_jit->pool->entries[i].reloc.offset == src.offset) {
@@ -1432,10 +1436,12 @@ emit_literal_pool(jit_state_t *_jit, enum guard_pool guard)
 
   // FIXME: Could de-duplicate constants.
   for (size_t i = 0; i < _jit->pool->size; i++) {
-    // Align to 8-byte boundary without emitting pool.
+    // Align to word boundary without emitting pool.
     if (_jit->pc.w & 1) emit_u8(_jit, 0);
     if (_jit->pc.w & 2) emit_u16(_jit, 0);
-    if (_jit->pc.w & 4) emit_u32(_jit, 0);
+    if (sizeof(uintptr_t) > 4 && (_jit->pc.w & 4))
+      emit_u32(_jit, 0);
+    ASSERT((_jit->pc.w & (sizeof(uintptr_t) - 1)) == 0);
     struct jit_literal_pool_entry *entry = &_jit->pool->entries[i];
     uint8_t *loc = _jit->start + entry->reloc.offset;
     uint8_t *pc_base =
@@ -1449,15 +1455,15 @@ emit_literal_pool(jit_state_t *_jit, enum guard_pool guard)
     switch (entry->reloc.kind & JIT_RELOC_MASK) {
     case JIT_RELOC_JMP_WITH_VENEER:
       patch_veneer_jmp_offset((uint32_t*) loc, diff);
-      emit_veneer(_jit, (void*) (uintptr_t) entry->value);
+      emit_veneer(_jit, (void*) entry->value);
       break;
     case JIT_RELOC_JCC_WITH_VENEER:
       patch_veneer_jcc_offset((uint32_t*) loc, diff);
-      emit_veneer(_jit, (void*) (uintptr_t) entry->value);
+      emit_veneer(_jit, (void*) entry->value);
       break;
     case JIT_RELOC_LOAD_FROM_POOL:
       patch_load_from_pool_offset((uint32_t*) loc, diff);
-      emit_u64(_jit, entry->value);
+      emit_uintptr(_jit, entry->value);
       break;
     default:
       abort();

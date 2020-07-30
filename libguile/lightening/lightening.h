@@ -661,7 +661,7 @@ FOR_EACH_INSTRUCTION(DECLARE_INSTRUCTION)
 #  define jit_truncr_f(j,u,v)	jit_truncr_f_l(j,u,v)
 #endif
 
-void jit_begin_data(jit_state_t *);
+void jit_begin_data(jit_state_t *, size_t max_size_or_zero);
 void jit_end_data(jit_state_t *);
 void jit_emit_u8(jit_state_t *, uint8_t);
 void jit_emit_u16(jit_state_t *, uint16_t);
