@@ -17,7 +17,7 @@ run_test(jit_state_t *j, uint8_t *arena_base, size_t arena_size)
   jit_ldxr(j, JIT_R1, JIT_R1, JIT_R0);
   jit_jmpr(j, JIT_R1);
 
-  jit_begin_data (j);
+  jit_begin_data (j, (NTARGETS + 1) * sizeof(intptr_t));
   jit_align(j, sizeof(intptr_t));
   jit_patch_here(j, table);
   jit_reloc_t targets[NTARGETS];
