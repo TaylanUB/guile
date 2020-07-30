@@ -2365,6 +2365,25 @@ integer."
                           (make-const src #t)
                           (make-const src #f)))
 
+       ;; Specialize eq?.
+       (($ <primcall> src 'eq? (a b))
+        (define (reify-branch test args)
+          ;; No need to reduce as test is a branching primitive.
+          (make-conditional src (make-primcall src test args)
+                            (make-const src #t)
+                            (make-const src #f)))
+        (let ((a (if (const? b) a b))
+              (b (if (const? b) b a)))
+          (define (simplify test) (reify-branch test (list a)))
+          (match b
+            (($ <const> _ '()) (simplify 'eq-null?))
+            (($ <const> _ #f) (simplify 'eq-false?))
+            (($ <const> _ #t) (simplify 'eq-true?))
+            (($ <const> _ #nil) (simplify 'eq-nil?))
+            (($ <const> _ (? unspecified?)) (simplify 'unspecified?))
+            (($ <const> _ (? eof-object?)) (simplify 'eof-object?))
+            (_ (reify-branch 'eq? (list a b))))))
+
        (($ <primcall> src (? branching-primitive? name) args)
         ;; No need to reduce because test is not reducible: reifying
         ;; #t/#f is the right thing.

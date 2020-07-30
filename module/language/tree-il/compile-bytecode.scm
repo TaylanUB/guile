@@ -422,6 +422,20 @@
        (($ <primcall> src '>= (a b)) (reify-branch src '<= (list b a)))
        (($ <primcall> src '>  (a b)) (reify-branch src '<  (list b a)))
 
+       ;; Specialize eq?.
+       (($ <primcall> src 'eq? (a b))
+        (let ((a (if (const? b) a b))
+              (b (if (const? b) b a)))
+          (define (simplify test) (reify-branch src test (list a)))
+          (match b
+            (($ <const> _ '()) (simplify 'eq-null?))
+            (($ <const> _ #f) (simplify 'eq-false?))
+            (($ <const> _ #t) (simplify 'eq-true?))
+            (($ <const> _ #nil) (simplify 'eq-nil?))
+            (($ <const> _ (? unspecified?)) (simplify 'unspecified?))
+            (($ <const> _ (? eof-object?)) (simplify 'eof-object?))
+            (_ (reify-branch src 'eq? (list a b))))))
+
        ;; Simplify "not".
        (($ <primcall> src 'not (x))
         (finish-conditional
