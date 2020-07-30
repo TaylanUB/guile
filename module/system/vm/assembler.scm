@@ -682,6 +682,10 @@ later by the linker."
             (emit asm opcode))
            ((X8_S8_I16 a imm)
             (emit asm (pack-u8-u8-u16 opcode a (immediate-bits asm imm))))
+           ((X8_S8_ZI16 a imm)
+            (emit asm (pack-u8-u8-u16 opcode a
+                                      (signed-bits asm (immediate-bits asm imm)
+                                                   16))))
            ((X8_S12_S12 a b)
             (emit asm (pack-u8-u12-u12 opcode a b)))
            ((X8_S12_C12 a b)
@@ -906,6 +910,15 @@ later by the linker."
     (emit-push asm dst)
     (encode-X8_S8_I16 asm 0 imm opcode)
     (emit-pop asm dst))))
+(define (encode-X8_S8_ZI16<-/shuffle asm dst imm opcode)
+  (cond
+   ((< dst (ash 1 8))
+    (encode-X8_S8_ZI16 asm dst imm opcode))
+   (else
+    ;; Push garbage value to make space for dst.
+    (emit-push asm dst)
+    (encode-X8_S8_ZI16 asm 0 imm opcode)
+    (emit-pop asm dst))))
 (define (encode-X8_S8_S8_S8!/shuffle asm a b c opcode)
   (cond
    ((< (logior a b c) (ash 1 8))
@@ -1030,6 +1043,7 @@ later by the linker."
       (('<- 'X8_S12_C12)         #'encode-X8_S12_C12<-/shuffle)
       (('! 'X8_S12_Z12)          #'encode-X8_S12_Z12!/shuffle)
       (('<- 'X8_S8_I16)          #'encode-X8_S8_I16<-/shuffle)
+      (('<- 'X8_S8_ZI16)         #'encode-X8_S8_ZI16<-/shuffle)
       (('! 'X8_S8_S8_S8)         #'encode-X8_S8_S8_S8!/shuffle)
       (('<- 'X8_S8_S8_S8)        #'encode-X8_S8_S8_S8<-/shuffle)
       (('<- 'X8_S8_S8_C8)        #'encode-X8_S8_S8_C8<-/shuffle)
@@ -1076,6 +1090,7 @@ later by the linker."
           ('X8_C24 #'(arg))
           ('X8_L24 #'(label))
           ('X8_S8_I16 #'(a imm))
+          ('X8_S8_ZI16 #'(a imm))
           ('X8_S12_S12 #'(a b))
           ('X8_S12_C12 #'(a b))
           ('X8_S12_Z12 #'(a b))
@@ -1208,6 +1223,21 @@ immediate, and @code{#f} otherwise."
       (let ((bits (object-address x)))
         (and (not (zero? (logand bits 6)))
              bits))))
+
+(define (signed-bits asm uimm n)
+  "Given the immediate-bits encoding @var{uimm}, return its bit pattern
+if it can be restricted to a sign-extended bitfield of @var{n} bits, or
+@code{#f} otherwise."
+  (let* ((all-bits (1- (ash 1 (* (asm-word-size asm) 8))))
+         (fixed-bits (1- (ash 1 n)))
+         (sign-bits (lognot (ash fixed-bits -1))))
+    (cond
+     ((eqv? (logand all-bits sign-bits) (logand uimm sign-bits))
+      (logand uimm fixed-bits))
+     ((zero? (logand uimm sign-bits))
+      uimm)
+     (else
+      #f))))
 
 (define-record-type <stringbuf>
   (make-stringbuf string)
@@ -1368,6 +1398,8 @@ returned instead."
    ((immediate-bits asm obj)
     => (lambda (bits)
          (cond
+          ((and (< dst 256) (signed-bits asm bits 16))
+           (emit-make-immediate asm dst obj))
           ((and (< dst 256) (zero? (ash bits -16)))
            (emit-make-short-immediate asm dst obj))
           ((zero? (ash bits -32))

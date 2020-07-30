@@ -95,7 +95,7 @@
            #'((ash word -8)))
           ((X8_L24)
            #'((unpack-s24 (ash word -8))))
-          ((X8_S8_I16)
+          ((X8_S8_I16 X8_S8_ZI16)
            #'((logand (ash word -8) #xff)
               (ash word -16)))
           ((X8_S12_S12
@@ -205,6 +205,14 @@ address of that offset."
 
 (visit-heap-tags define-heap-tag-annotation)
 
+(define (sign-extended-immediate uimm n)
+  (unpack-scm
+   (if (>= uimm (ash 1 (- n 1)))
+       (let ((word-bits (* (sizeof '*) 8))) ; FIXME
+         (logand (1- (ash 1 word-bits))
+                 (- uimm (ash 1 n))))
+       uimm)))
+
 (define (code-annotation code len offset start labels context push-addr!)
   ;; FIXME: Print names for register loads and stores that correspond to
   ;; access to named locals.
@@ -227,6 +235,8 @@ address of that offset."
     (('prompt tag escape-only? proc-slot handler)
      ;; The H is for handler.
      (list "H -> ~A" (vector-ref labels (- (+ offset handler) start))))
+    (('make-immediate _ imm)
+     (list "~S" (sign-extended-immediate imm 16)))
     (((or 'make-short-immediate 'make-long-immediate) _ imm)
      (list "~S" (unpack-scm imm)))
     (('make-long-long-immediate _ high low)

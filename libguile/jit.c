@@ -2817,6 +2817,17 @@ compile_call_u64_from_scm_slow (scm_jit_state *j, uint16_t dst, uint16_t a, uint
 }
 
 static void
+compile_make_immediate (scm_jit_state *j, uint8_t dst, SCM a)
+{
+  emit_movi (j, T0, SCM_UNPACK (a));
+  emit_sp_set_scm (j, dst, T0);
+}
+static void
+compile_make_immediate_slow (scm_jit_state *j, uint8_t dst, SCM a)
+{
+}
+
+static void
 compile_make_short_immediate (scm_jit_state *j, uint8_t dst, SCM a)
 {
   emit_movi (j, T0, SCM_UNPACK (a));
@@ -5272,6 +5283,14 @@ compile_s64_to_f64_slow (scm_jit_state *j, uint16_t dst, uint16_t src)
     scm_t_bits b;                                                       \
     UNPACK_8_16 (j->ip[0], a, b);                                       \
     comp (j, a, SCM_PACK (b));                                          \
+  }
+
+#define COMPILE_X8_S8_ZI16(j, comp)                                     \
+  {                                                                     \
+    uint8_t a;                                                          \
+    int16_t b;                                                          \
+    UNPACK_8_16 (j->ip[0], a, b);                                       \
+    comp (j, a, SCM_PACK ((scm_t_signed_bits) b));                      \
   }
 
 #define COMPILE_X32__C32(j, comp)                                       \

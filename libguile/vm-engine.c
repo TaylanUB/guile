@@ -1,4 +1,4 @@
-/* Copyright 2001,2009-2015,2017-2019
+/* Copyright 2001,2009-2015,2017-2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -3401,7 +3401,21 @@ VM_NAME (scm_thread *thread)
       NEXT (offset);
     }
 
-  VM_DEFINE_OP (164, unused_164, NULL, NOP)
+  /* make-immediate dst:8 low-bits:16
+   *
+   * Make an immediate whose low bits are LOW-BITS, and whose top bits
+   * are sign-extended.
+   */
+  VM_DEFINE_OP (164, make_immediate, "make-immediate", DOP1 (X8_S8_ZI16))
+    {
+      uint8_t dst;
+      int16_t val;
+
+      UNPACK_8_16 (op, dst, val);
+      SP_SET (dst, SCM_PACK ((scm_t_signed_bits) val));
+      NEXT (1);
+    }
+
   VM_DEFINE_OP (165, unused_165, NULL, NOP)
   VM_DEFINE_OP (166, unused_166, NULL, NOP)
   VM_DEFINE_OP (167, unused_167, NULL, NOP)

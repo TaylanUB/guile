@@ -579,10 +579,12 @@ An unsigned @var{n}-bit integer, indicating a constant value.
 @item l24
 An offset from the current @code{ip}, in 32-bit units, as a signed
 24-bit value.  Indicates a bytecode address, for a relative jump.
-@item i16
+@item zi16
+@itemx i16
 @itemx i32
 An immediate Scheme value (@pxref{Immediate Objects}), encoded directly
-in 16 or 32 bits.
+in 16 or 32 bits.  @code{zi16} is sign-extended; the others are
+zero-extended.
 @item a32
 @itemx b32
 An immediate Scheme value, encoded as a pair of 32-bit words.
@@ -1357,6 +1359,10 @@ two kinds.
 
 The first set of instructions loads immediate values.  These
 instructions encode the immediate directly into the instruction stream.
+
+@deftypefn Instruction {} make-immediate s8:@var{dst} zi16:@var{low-bits}
+Make an immediate whose low bits are @var{low-bits}, sign-extended.
+@end deftypefn
 
 @deftypefn Instruction {} make-short-immediate s8:@var{dst} i16:@var{low-bits}
 Make an immediate whose low bits are @var{low-bits}, and whose top bits are
