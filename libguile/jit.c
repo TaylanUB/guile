@@ -4279,6 +4279,31 @@ compile_eq_slow (scm_jit_state *j, uint16_t a, uint16_t b)
 }
 
 static void
+compile_eq_immediate (scm_jit_state *j, uint16_t a, SCM b)
+{
+  jit_reloc_t k;
+  uint32_t *target;
+
+  emit_sp_ref_scm (j, T0, a);
+  switch (fuse_conditional_branch (j, &target))
+    {
+    case scm_op_je:
+      k = jit_beqi (j->jit, T0, SCM_UNPACK (b));
+      break;
+    case scm_op_jne:
+      k = jit_bnei (j->jit, T0, SCM_UNPACK (b));
+      break;
+    default:
+      UNREACHABLE ();
+    }
+  add_inter_instruction_patch (j, k, target);
+}
+static void
+compile_eq_immediate_slow (scm_jit_state *j, uint16_t a, SCM b)
+{
+}
+
+static void
 compile_j (scm_jit_state *j, const uint32_t *vcode)
 {
   jit_reloc_t jmp;
@@ -5618,6 +5643,7 @@ analyze (scm_jit_state *j)
         case scm_op_immediate_tag_equals:
         case scm_op_heap_tag_equals:
         case scm_op_eq:
+        case scm_op_eq_immediate:
         case scm_op_heap_numbers_equal:
         case scm_op_s64_imm_numerically_equal:
         case scm_op_u64_imm_less:

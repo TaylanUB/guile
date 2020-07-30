@@ -3416,7 +3416,27 @@ VM_NAME (scm_thread *thread)
       NEXT (1);
     }
 
-  VM_DEFINE_OP (165, unused_165, NULL, NOP)
+  /* eq-immediate? a:8 low-bits:16
+   *
+   * Set the comparison result to EQUAL if the SCM value A is equal to
+   * the immediate whose low bits are LOW-BITS, and whose top bits are
+   * sign-extended.
+   */
+  VM_DEFINE_OP (165, eq_immediate, "eq-immediate?", OP1 (X8_S8_ZI16))
+    {
+      uint8_t a;
+      int16_t val;
+
+      UNPACK_8_16 (op, a, val);
+
+      if (scm_is_eq (SP_REF (a), SCM_PACK ((scm_t_signed_bits) val)))
+        VP->compare_result = SCM_F_COMPARE_EQUAL;
+      else
+        VP->compare_result = SCM_F_COMPARE_NONE;
+
+      NEXT (1);
+    }
+
   VM_DEFINE_OP (166, unused_166, NULL, NOP)
   VM_DEFINE_OP (167, unused_167, NULL, NOP)
   VM_DEFINE_OP (168, unused_168, NULL, NOP)

@@ -235,7 +235,7 @@ address of that offset."
     (('prompt tag escape-only? proc-slot handler)
      ;; The H is for handler.
      (list "H -> ~A" (vector-ref labels (- (+ offset handler) start))))
-    (('make-immediate _ imm)
+    (((or 'make-immediate 'eq-immediate?) _ imm)
      (list "~S" (sign-extended-immediate imm 16)))
     (((or 'make-short-immediate 'make-long-immediate) _ imm)
      (list "~S" (unpack-scm imm)))

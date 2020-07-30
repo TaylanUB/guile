@@ -1756,6 +1756,12 @@ Set the comparison result to @var{EQUAL} if the SCM values @var{a} and
 @var{b} are @code{eq?}, or @code{NONE} otherwise.
 @end deftypefn
 
+@deftypefn Instruction {} eq-immediate? s8:@var{a} zi16:@var{b}
+Set the comparison result to @var{EQUAL} if the SCM value @var{a} is
+equal to the immediate SCM value @var{b} (sign-extended), or @code{NONE}
+otherwise.
+@end deftypefn
+
 There are a set of macro-instructions for @code{immediate-tag=?} and
 @code{heap-tag=?} as well that abstract away the precise type tag
 values.  @xref{The SCM Type in Guile}.

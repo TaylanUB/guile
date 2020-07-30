@@ -81,6 +81,7 @@
             emit-immediate-tag=?
             emit-heap-tag=?
             emit-eq?
+            emit-eq-immediate?
             emit-heap-numbers-equal?
             emit-j
             emit-jl
@@ -910,6 +911,14 @@ later by the linker."
     (emit-push asm dst)
     (encode-X8_S8_I16 asm 0 imm opcode)
     (emit-pop asm dst))))
+(define (encode-X8_S8_ZI16!/shuffle asm a imm opcode)
+  (cond
+   ((< a (ash 1 8))
+    (encode-X8_S8_ZI16 asm a imm opcode))
+   (else
+    (emit-push asm a)
+    (encode-X8_S8_ZI16 asm 0 imm opcode)
+    (emit-drop asm 1))))
 (define (encode-X8_S8_ZI16<-/shuffle asm dst imm opcode)
   (cond
    ((< dst (ash 1 8))
@@ -1043,6 +1052,7 @@ later by the linker."
       (('<- 'X8_S12_C12)         #'encode-X8_S12_C12<-/shuffle)
       (('! 'X8_S12_Z12)          #'encode-X8_S12_Z12!/shuffle)
       (('<- 'X8_S8_I16)          #'encode-X8_S8_I16<-/shuffle)
+      (('! 'X8_S8_ZI16)          #'encode-X8_S8_ZI16!/shuffle)
       (('<- 'X8_S8_ZI16)         #'encode-X8_S8_ZI16<-/shuffle)
       (('! 'X8_S8_S8_S8)         #'encode-X8_S8_S8_S8!/shuffle)
       (('<- 'X8_S8_S8_S8)        #'encode-X8_S8_S8_S8<-/shuffle)
