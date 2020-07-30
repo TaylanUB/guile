@@ -484,12 +484,16 @@ jit_patch_there(jit_state_t* _jit, jit_reloc_t reloc, jit_pointer_t addr)
 }
 
 void
-jit_begin_data(jit_state_t *j)
+jit_begin_data(jit_state_t *j, size_t max_size_or_zero)
 {
 #ifdef JIT_NEEDS_LITERAL_POOL
-  if (j->pool->size)
-    emit_literal_pool(j, NO_GUARD_NEEDED);
-  ASSERT(j->overflow || j->pool->size == 0);
+  if (j->pool->size) {
+    uint8_t *deadline = j->start + j->pool->deadline;
+    // Emit a literal pool now if the data might overwrite the deadline.
+    // Emitting data won't add entries to the pool.
+    if (max_size_or_zero == 0 || j->pc.uc + max_size_or_zero >= deadline)
+      emit_literal_pool(j, NO_GUARD_NEEDED);
+  }
 #endif
 
   ASSERT(!j->emitting_data);
@@ -499,10 +503,6 @@ jit_begin_data(jit_state_t *j)
 void
 jit_end_data(jit_state_t *j)
 {
-#ifdef JIT_NEEDS_LITERAL_POOL
-  ASSERT(j->overflow || j->pool->size == 0);
-#endif
-
   ASSERT(j->emitting_data);
   j->emitting_data = 0;
 }
