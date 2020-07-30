@@ -721,21 +721,26 @@ static void
 abi_gpr_to_mem(jit_state_t *_jit, enum jit_operand_abi abi,
                jit_gpr_t base, ptrdiff_t offset, jit_gpr_t src)
 {
+  // Invariant: GPR memory destination operand sizes are rounded up to words.
+  // True for ARM, AArch64, IA32, and X86-64.  Some ABIs expect to be able to
+  // load operands from the stack via a full-word read, so we need to make sure
+  // we don't leave garbage in the high bytes of (for example) the stack slot
+  // for a uint8_t arg.
   switch (abi) {
   case JIT_OPERAND_ABI_UINT8:
   case JIT_OPERAND_ABI_INT8:
-    jit_stxi_c(_jit, offset, base, src);
+    jit_stxi(_jit, offset, base, src);
     break;
   case JIT_OPERAND_ABI_UINT16:
   case JIT_OPERAND_ABI_INT16:
-    jit_stxi_s(_jit, offset, base, src);
+    jit_stxi(_jit, offset, base, src);
     break;
   case JIT_OPERAND_ABI_UINT32:
   case JIT_OPERAND_ABI_INT32:
 #if __WORDSIZE == 32
   case JIT_OPERAND_ABI_POINTER:
 #endif
-    jit_stxi_i(_jit, offset, base, src);
+    jit_stxi(_jit, offset, base, src);
     break;
 #if __WORDSIZE == 64
   case JIT_OPERAND_ABI_UINT64:
