@@ -4343,11 +4343,42 @@ static void
 compile_jtable (scm_jit_state *j, uint32_t idx, uint32_t len,
                 const uint32_t *offsets)
 {
-  // Not yet implemented.
-  UNREACHABLE ();
-  //jit_reloc_t jmp;
-  //jmp = jit_jmp (j->jit);
-  //add_inter_instruction_patch (j, jmp, vcode);
+  ASSERT (len > 0);
+
+  int32_t default_offset = offsets[len - 1];
+  default_offset >>= 8; /* Sign-extending shift.  */
+  uint32_t *default_target = j->ip + default_offset;
+
+#if SIZEOF_UINTPTR_T >= 8
+  emit_sp_ref_u64 (j, T0, idx);
+#else
+  emit_sp_ref_u64 (j, T0, T1, idx);
+  jit_reloc_t high_word_nonzero = jit_bnei (j->jit, T1, 0);
+  add_inter_instruction_patch (j, high_word_nonzero, default_target);
+#endif
+
+  jit_reloc_t out_of_range = jit_bgei_u (j->jit, T0, len);
+  add_inter_instruction_patch (j, out_of_range, default_target);
+
+  /* Now that we know that the u64 at IDX is in the table, load the
+     table address, look up the target, and branch.  */
+  emit_lshi (j, T0, T0, log2_sizeof_uintptr_t);
+  jit_reloc_t table = emit_mov_addr (j, T1);
+  jit_ldxr (j->jit, T0, T1, T0);
+  jit_jmpr (j->jit, T0);
+
+  /* Here's the table itself.  */
+  jit_begin_data (j->jit);
+  jit_align (j->jit, sizeof(intptr_t));
+  jit_patch_here (j->jit, table);
+  for (size_t i = 0; i + 1 < len; i++) {
+    int32_t offset = offsets[i];
+    offset >>= 8; /* Sign-extending shift.  */
+    uint32_t *target = j->ip + offset;
+    jit_reloc_t addr = jit_emit_addr (j->jit);
+    add_inter_instruction_patch (j, addr, target);
+  }
+  jit_end_data (j->jit);
 }
 static void
 compile_jtable_slow (scm_jit_state *j, uint32_t idx, uint32_t len,
