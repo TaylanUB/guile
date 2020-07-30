@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2019  Free Software Foundation, Inc.
+ * Copyright (C) 2012-2020  Free Software Foundation, Inc.
  *
  * This file is part of GNU lightning.
  *
@@ -660,5 +660,14 @@ FOR_EACH_INSTRUCTION(DECLARE_INSTRUCTION)
 #  define jit_truncr_d(j,u,v)	jit_truncr_d_l(j,u,v)
 #  define jit_truncr_f(j,u,v)	jit_truncr_f_l(j,u,v)
 #endif
+
+void jit_begin_data(jit_state_t *);
+void jit_end_data(jit_state_t *);
+void jit_emit_u8(jit_state_t *, uint8_t);
+void jit_emit_u16(jit_state_t *, uint16_t);
+void jit_emit_u32(jit_state_t *, uint32_t);
+void jit_emit_u64(jit_state_t *, uint64_t);
+void jit_emit_ptr(jit_state_t *, void *);
+jit_reloc_t jit_emit_addr(jit_state_t *);
 
 #endif /* _jit_h */

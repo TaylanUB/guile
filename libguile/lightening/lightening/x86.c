@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2019  Free Software Foundation, Inc.
+ * Copyright (C) 2012-2020  Free Software Foundation, Inc.
  *
  * This file is part of GNU lightning.
  *
@@ -74,17 +74,6 @@ emit_rel32_reloc (jit_state_t *_jit, uint8_t inst_start)
   uint8_t *loc = _jit->pc.uc;
   emit_u32 (_jit, 0);
   return jit_reloc(_jit, JIT_RELOC_REL32, inst_start, loc, _jit->pc.uc, 0);
-}
-
-static inline jit_reloc_t
-emit_abs_reloc (jit_state_t *_jit, uint8_t inst_start)
-{
-  uint8_t *loc = _jit->pc.uc;
-  if (sizeof(intptr_t) == 4)
-    emit_u32 (_jit, 0);
-  else
-    emit_u64 (_jit, 0);
-  return jit_reloc(_jit, JIT_RELOC_ABSOLUTE, inst_start, loc, _jit->pc.uc, 0);
 }
 
 #include "x86-cpu.c"
@@ -374,6 +363,9 @@ jit_try_shorten(jit_state_t *_jit, jit_reloc_t reloc, jit_pointer_t addr)
   uint8_t *loc = _jit->start + reloc.offset;
   uint8_t *start = loc - reloc.inst_start_offset;
   jit_imm_t i0 = (jit_imm_t)addr;
+
+  if (loc == start)
+    return;
 
   switch (reloc.kind)
     {

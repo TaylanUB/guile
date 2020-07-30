@@ -74,6 +74,7 @@ struct jit_state
   uint8_t temp_gpr_saved;
   uint8_t temp_fpr_saved;
   uint8_t overflow;
+  uint8_t emitting_data;
   int frame_size; // Used to know when to align stack.
 #ifdef JIT_NEEDS_LITERAL_POOL
   struct jit_literal_pool *pool;
@@ -171,7 +172,8 @@ jit_pointer_t
 jit_address(jit_state_t *_jit)
 {
   ASSERT (_jit->start);
-  return jit_address_to_function_pointer (_jit->pc.uc);
+  jit_pointer_t ret = _jit->pc.uc;
+  return _jit->emitting_data ? ret : jit_address_to_function_pointer (ret);
 }
 
 void
@@ -183,6 +185,7 @@ jit_begin(jit_state_t *_jit, uint8_t* buf, size_t length)
   _jit->limit = buf + length;
   _jit->overflow = 0;
   _jit->frame_size = 0;
+  _jit->emitting_data = 0;
 #if JIT_NEEDS_LITERAL_POOL
   ASSERT(_jit->pool->size == 0);
   _jit->pool->deadline = length;
@@ -203,6 +206,7 @@ jit_reset(jit_state_t *_jit)
   _jit->pc.uc = _jit->start = _jit->limit = NULL;
   _jit->overflow = 0;
   _jit->frame_size = 0;
+  _jit->emitting_data = 0;
 #ifdef JIT_NEEDS_LITERAL_POOL
   reset_literal_pool(_jit, _jit->pool);
 #endif
@@ -228,9 +232,10 @@ jit_end(jit_state_t *_jit, size_t *length)
   uint8_t *start = _jit->start;
   uint8_t *end = _jit->pc.uc;
 
-  ASSERT (start);
-  ASSERT (start <= end);
-  ASSERT (end <= _jit->limit);
+  ASSERT(start);
+  ASSERT(start <= end);
+  ASSERT(end <= _jit->limit);
+  ASSERT(!_jit->emitting_data);
 
   jit_flush (start, end);
 
@@ -343,9 +348,9 @@ static inline void emit_u64(jit_state_t *_jit, uint64_t u64) {
 }
 
 static inline jit_reloc_t
-jit_reloc (jit_state_t *_jit, enum jit_reloc_kind kind,
-           uint8_t inst_start_offset, uint8_t *loc, uint8_t *pc_base,
-           uint8_t rsh)
+jit_reloc(jit_state_t *_jit, enum jit_reloc_kind kind,
+          uint8_t inst_start_offset, uint8_t *loc, uint8_t *pc_base,
+          uint8_t rsh)
 {
   jit_reloc_t ret;
 
@@ -360,6 +365,17 @@ jit_reloc (jit_state_t *_jit, enum jit_reloc_kind kind,
   ret.offset = loc - _jit->start;
   
   return ret;
+}
+
+static inline jit_reloc_t
+emit_abs_reloc (jit_state_t *_jit, uint8_t inst_start)
+{
+  uint8_t *loc = _jit->pc.uc;
+  if (sizeof(intptr_t) == 4)
+    emit_u32 (_jit, 0);
+  else
+    emit_u64 (_jit, 0);
+  return jit_reloc(_jit, JIT_RELOC_ABSOLUTE, inst_start, loc, _jit->pc.uc, 0);
 }
 
 void
@@ -465,6 +481,66 @@ jit_patch_there(jit_state_t* _jit, jit_reloc_t reloc, jit_pointer_t addr)
 
   if (end == _jit->pc.uc)
     jit_try_shorten (_jit, reloc, addr);
+}
+
+void
+jit_begin_data(jit_state_t *j)
+{
+#ifdef JIT_NEEDS_LITERAL_POOL
+  if (j->pool->size)
+    emit_literal_pool(j, NO_GUARD_NEEDED);
+  ASSERT(j->overflow || j->pool->size == 0);
+#endif
+
+  ASSERT(!j->emitting_data);
+  j->emitting_data = 1;
+}
+
+void
+jit_end_data(jit_state_t *j)
+{
+#ifdef JIT_NEEDS_LITERAL_POOL
+  ASSERT(j->overflow || j->pool->size == 0);
+#endif
+
+  ASSERT(j->emitting_data);
+  j->emitting_data = 0;
+}
+
+void
+jit_emit_u8(jit_state_t *j, uint8_t u8)
+{
+  ASSERT(j->emitting_data);
+  emit_u8(j, u8);
+}
+
+void
+jit_emit_u16(jit_state_t *j, uint16_t u16)
+{
+  ASSERT(j->emitting_data);
+  emit_u16(j, u16);
+}
+
+void
+jit_emit_u32(jit_state_t *j, uint32_t u32)
+{
+  ASSERT(j->emitting_data);
+  emit_u32(j, u32);
+}
+
+void
+jit_emit_u64(jit_state_t *j, uint64_t u64)
+{
+  ASSERT(j->emitting_data);
+  emit_u64(j, u64);
+}
+
+jit_reloc_t
+jit_emit_addr(jit_state_t *j)
+{
+  ASSERT(j->emitting_data);
+  uint8_t inst_start = 0;
+  return emit_abs_reloc(j, inst_start);
 }
 
 #if defined(__i386__) || defined(__x86_64__)
