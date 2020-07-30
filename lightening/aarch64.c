@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2019  Free Software Foundation, Inc.
+ * Copyright (C) 2013-2020  Free Software Foundation, Inc.
  *
  * This file is part of GNU lightning.
  *
@@ -132,7 +132,7 @@ struct veneer
 static void
 patch_veneer(uint32_t *loc, jit_pointer_t addr)
 {
-  struct veneer *v = (struct veneer*) v;
+  struct veneer *v = (struct veneer*) loc;
   v->addr = (uint64_t) addr;
 }
 
