@@ -4368,7 +4368,7 @@ compile_jtable (scm_jit_state *j, uint32_t idx, uint32_t len,
   jit_jmpr (j->jit, T0);
 
   /* Here's the table itself.  */
-  jit_begin_data (j->jit);
+  jit_begin_data (j->jit, sizeof(intptr_t) * len);
   jit_align (j->jit, sizeof(intptr_t));
   jit_patch_here (j->jit, table);
   for (size_t i = 0; i + 1 < len; i++) {
