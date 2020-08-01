@@ -1,5 +1,5 @@
 ;;; Details on internal value representation.
-;;; Copyright (C) 2014, 2015, 2017, 2018 Free Software Foundation, Inc.
+;;; Copyright (C) 2014, 2015, 2017, 2018, 2020 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU Lesser General Public License as published by
@@ -61,7 +61,12 @@
             %tc16-flonum
             %tc16-complex
             %tc16-fraction
-            visit-heap-tags))
+            visit-heap-tags
+
+            scm->immediate-bits
+            immediate-bits->scm
+            truncate-bits
+            sign-extend))
 
 ;;; Commentary:
 ;;;
@@ -181,6 +186,50 @@
 
 (visit-immediate-tags define-tag)
 (visit-heap-tags define-tag)
+
+(define (scm->immediate-bits x)
+  "If @var{x} is of a type that could be encoded as an immediate, return
+that bit pattern, or @code{#f} otherwise..  Note that the immediate bits
+may not fit into a word on the target platform."
+  (cond
+   ((exact-integer? x) (logior %tc2-fixnum (ash x 2)))
+   ((char? x)          (logior %tc8-char (ash (char->integer x) 8)))
+   ((eq? x #f)         %tc16-false)
+   ((eq? x #nil)       %tc16-nil)
+   ((eq? x '())        %tc16-null)
+   ((eq? x #t)         %tc16-true)
+   ((unspecified? x)   %tc16-unspecified)
+   ;; FIXME: %tc16-undefined.
+   ((eof-object? x)  %tc16-eof)
+   (else #f)))
+
+(define (immediate-bits->scm imm)
+  "Return the SCM object corresponding to the immediate encoding
+@code{imm}.  Note that this value should be sign-extended already."
+  (define-syntax-rule (define-predicate name pred mask tag)
+    (define (pred) (eqv? (logand imm mask) tag)))
+  (visit-immediate-tags define-predicate)
+  (cond
+   ((fixnum?)      (ash imm -2))
+   ((char?)        (integer->char (ash imm -8)))
+   ((eq-false?)    #f)
+   ((eq-nil?)      #nil)
+   ((eq-null?)     '())
+   ((eq-true?)     #t)
+   ((unspecified?) (if #f #f))
+   ((eof-object?)  the-eof-object)
+   (else (error "invalid immediate" imm))) )
+
+(define (sign-extend x bits)
+  (case (ash x (- 1 bits))
+    ((0) x)
+    ((1) (- x (ash 1 bits)))
+    (else (error "value does not fit in bits" x bits))))
+
+(define (truncate-bits x bits signed?)
+  (let ((x' (logand x (1- (ash 1 bits)))))
+    (and (eq? x (if signed? (sign-extend x' bits) x'))
+         x')))
 
 ;; See discussion in tags.h and boolean.h.
 (eval-when (expand)

@@ -640,6 +640,10 @@ later by the linker."
          (reloc (make-reloc 's32 label start (- pos start))))
     (set-asm-relocs! asm (cons reloc (asm-relocs asm)))))
 
+(define (immediate-bits asm x)
+  (let ((bits (scm->immediate-bits x)))
+    (and bits (truncate-bits bits (* 8 (asm-word-size asm)) #t))))
+
 
 
 
@@ -682,11 +686,11 @@ later by the linker."
             (record-label-reference asm label)
             (emit asm opcode))
            ((X8_S8_I16 a imm)
-            (emit asm (pack-u8-u8-u16 opcode a (immediate-bits asm imm))))
+            (let ((bits (truncate-bits (scm->immediate-bits imm) 16 #f)))
+              (emit asm (pack-u8-u8-u16 opcode a bits))))
            ((X8_S8_ZI16 a imm)
-            (emit asm (pack-u8-u8-u16 opcode a
-                                      (signed-bits asm (immediate-bits asm imm)
-                                                   16))))
+            (let ((bits (truncate-bits (scm->immediate-bits imm) 16 #t)))
+              (emit asm (pack-u8-u8-u16 opcode a bits))))
            ((X8_S12_S12 a b)
             (emit asm (pack-u8-u12-u12 opcode a b)))
            ((X8_S12_C12 a b)
@@ -1207,48 +1211,6 @@ lists.  This procedure can be called many times before calling
 ;;; to the table.
 ;;;
 
-(define (immediate-bits asm x)
-  "Return the bit pattern to write into the buffer if @var{x} is
-immediate, and @code{#f} otherwise."
-  (define tc2-int 2)
-  (if (exact-integer? x)
-      ;; Object is an immediate if it is a fixnum on the target.
-      (call-with-values (lambda ()
-                          (case (asm-word-size asm)
-                            ((4) (values    (- #x20000000)
-                                            #x1fffffff))
-                            ((8) (values    (- #x2000000000000000)
-                                            #x1fffffffFFFFFFFF))
-                            (else (error "unexpected word size"))))
-        (lambda (fixnum-min fixnum-max)
-          (and (<= fixnum-min x fixnum-max)
-               (let ((fixnum-bits (if (negative? x)
-                                      (+ fixnum-max 1 (logand x fixnum-max))
-                                      x)))
-                 (logior (ash fixnum-bits 2) tc2-int)))))
-      ;; Otherwise, the object will be immediate on the target if and
-      ;; only if it is immediate on the host.  Except for integers,
-      ;; which we handle specially above, any immediate value is an
-      ;; immediate on both 32-bit and 64-bit targets.
-      (let ((bits (object-address x)))
-        (and (not (zero? (logand bits 6)))
-             bits))))
-
-(define (signed-bits asm uimm n)
-  "Given the immediate-bits encoding @var{uimm}, return its bit pattern
-if it can be restricted to a sign-extended bitfield of @var{n} bits, or
-@code{#f} otherwise."
-  (let* ((all-bits (1- (ash 1 (* (asm-word-size asm) 8))))
-         (fixed-bits (1- (ash 1 n)))
-         (sign-bits (lognot (ash fixed-bits -1))))
-    (cond
-     ((eqv? (logand all-bits sign-bits) (logand uimm sign-bits))
-      (logand uimm fixed-bits))
-     ((zero? (logand uimm sign-bits))
-      uimm)
-     (else
-      #f))))
-
 (define-record-type <stringbuf>
   (make-stringbuf string)
   stringbuf?
@@ -1405,17 +1367,20 @@ returned instead."
 
 (define-macro-assembler (load-constant asm dst obj)
   (cond
-   ((immediate-bits asm obj)
+   ((scm->immediate-bits obj)
     => (lambda (bits)
          (cond
-          ((and (< dst 256) (signed-bits asm bits 16))
+          ((and (< dst 256) (truncate-bits bits 16 #t))
            (emit-make-immediate asm dst obj))
-          ((and (< dst 256) (zero? (ash bits -16)))
+          ((and (< dst 256) (truncate-bits bits 16 #f))
            (emit-make-short-immediate asm dst obj))
-          ((zero? (ash bits -32))
+          ((truncate-bits bits 32 (eqv? (asm-word-size asm) 4))
            (emit-make-long-immediate asm dst obj))
+          ((and (eqv? (asm-word-size asm) 8)
+                (truncate-bits bits 64 #t))
+           (emit-make-long-long-immediate asm dst obj))
           (else
-           (emit-make-long-long-immediate asm dst obj)))))
+           (emit-static-ref asm dst (intern-non-immediate asm obj))))))
    ((statically-allocatable? obj)
     (emit-make-non-immediate asm dst (intern-non-immediate asm obj)))
    (else
