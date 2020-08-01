@@ -295,7 +295,15 @@
 
   (eq?              #:nargs 2 #:predicate? #t  #:emit (lambda (asm a b kf)
                                                         (emit-eq? asm a b)
-                                                        (emit-jne asm kf)))
+                                                        (emit-jne asm kf))
+                    #:immediate-in-range? (lambda (x)
+                                            (and=>
+                                             (scm->immediate-bits x)
+                                             (lambda (bits)
+                                               (truncate-bits bits 16 x))))
+                    #:emit/immediate (lambda (asm a b kf)
+                                       (emit-eq-immediate? asm a b)
+                                       (emit-jne asm kf)))
   (<                #:nargs 2 #:predicate? #t  #:emit (lambda (asm a b kf)
                                                         (emit-<? asm a b)
                                                         (emit-jnl asm kf)))
@@ -422,19 +430,10 @@
        (($ <primcall> src '>= (a b)) (reify-branch src '<= (list b a)))
        (($ <primcall> src '>  (a b)) (reify-branch src '<  (list b a)))
 
-       ;; Specialize eq?.
-       (($ <primcall> src 'eq? (a b))
-        (let ((a (if (const? b) a b))
-              (b (if (const? b) b a)))
-          (define (simplify test) (reify-branch src test (list a)))
-          (match b
-            (($ <const> _ '()) (simplify 'eq-null?))
-            (($ <const> _ #f) (simplify 'eq-false?))
-            (($ <const> _ #t) (simplify 'eq-true?))
-            (($ <const> _ #nil) (simplify 'eq-nil?))
-            (($ <const> _ (? unspecified?)) (simplify 'unspecified?))
-            (($ <const> _ (? eof-object?)) (simplify 'eof-object?))
-            (_ (reify-branch src 'eq? (list a b))))))
+       ;; For eq? on constants, make the second arg the constant.
+       (($ <primcall> src 'eq? ((and a ($ <const>))
+                                (and b (not ($ <const>)))))
+        (reify-branch src 'eq? (list b a)))
 
        ;; Simplify "not".
        (($ <primcall> src 'not (x))
@@ -873,14 +872,26 @@ in the frame with for the lambda-case clause @var{clause}."
         (($ <conditional> src ($ <primcall> tsrc name args)
             consequent alternate)
          (maybe-emit-source tsrc)
-         (let ((emit (primitive-emitter (lookup-primitive name)))
-               (args (for-args args env))
+         (let ((prim (lookup-primitive name))
                (kf (gensym "false"))
                (kdone (gensym "done")))
-           (maybe-emit-source src)
+           (define (emit/immediate? val)
+             (and=> (primitive-immediate-in-range-predicate prim)
+                    (lambda (pred) (pred val))))
            (match args
-             ((a) (emit asm a kf))
-             ((a b) (emit asm a b kf)))
+             ((a ($ <const> _ (? emit/immediate? b)))
+              (let ((emit (primitive-emitter/immediate prim)))
+                (match (for-args (list a) env)
+                  ((a)
+                   (maybe-emit-source src)
+                   (emit asm a b kf)))))
+             (_
+              (let ((emit (primitive-emitter prim))
+                    (args (for-args args env)))
+                (maybe-emit-source src)
+                (match args
+                  ((a) (emit asm a kf))
+                  ((a b) (emit asm a b kf))))))
            (for-context consequent env ctx)
            (unless (eq? ctx 'tail)
              (emit-j asm kdone))
