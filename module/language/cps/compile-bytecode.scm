@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -476,13 +476,8 @@
         (#('fixnum? #f (a)) (unary emit-fixnum? a))
         (#('heap-object? #f (a)) (unary emit-heap-object? a))
         (#('char? #f (a)) (unary emit-char? a))
-        (#('eq-false? #f (a)) (unary emit-eq-false? a))
-        (#('eq-nil? #f (a)) (unary emit-eq-nil? a))
-        (#('eq-null? #f (a)) (unary emit-eq-null? a))
-        (#('eq-true? #f (a)) (unary emit-eq-true? a))
-        (#('unspecified? #f (a)) (unary emit-unspecified? a))
+        (#('eq-constant? imm (a)) (binary-test/imm emit-eq-immediate? a imm))
         (#('undefined? #f (a)) (unary emit-undefined? a))
-        (#('eof-object? #f (a)) (unary emit-eof-object? a))
         (#('null? #f (a)) (unary emit-null? a))
         (#('false? #f (a)) (unary emit-false? a))
         (#('nil? #f (a)) (unary emit-nil? a))

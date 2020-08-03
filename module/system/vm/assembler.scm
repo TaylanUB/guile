@@ -95,14 +95,7 @@
             emit-fixnum?
             emit-heap-object?
             emit-char?
-            emit-eq-null?
-            emit-eq-nil?
-            emit-eq-false?
-            emit-eq-true?
-            emit-unspecified?
             emit-undefined?
-            emit-eof-object?
-
             emit-null?
             emit-false?
             emit-nil?
@@ -1390,9 +1383,12 @@ returned instead."
   (let ((loc (intern-constant asm (make-static-procedure label))))
     (emit-make-non-immediate asm dst loc)))
 
-(define-syntax-rule (define-immediate-tag=?-macro-assembler name pred mask tag)
-  (define-macro-assembler (pred asm slot)
-    (emit-immediate-tag=? asm slot mask tag)))
+(define-syntax define-immediate-tag=?-macro-assembler
+  (syntax-rules ()
+    ((_ name #f mask tag) #f)
+    ((_ name pred mask tag)
+     (define-macro-assembler (pred asm slot)
+       (emit-immediate-tag=? asm slot mask tag)))))
 
 (visit-immediate-tags define-immediate-tag=?-macro-assembler)
 

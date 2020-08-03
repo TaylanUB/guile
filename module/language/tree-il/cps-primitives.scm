@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2015, 2017-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2015, 2017-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -160,8 +160,11 @@
 (define-syntax-rule (define-branching-primitive name nargs)
   (hashq-set! *branching-primitive-arities* 'name '(0 . nargs)))
 
-(define-syntax-rule (define-immediate-type-predicate name pred mask tag)
-  (define-branching-primitive pred 1))
+(define-syntax define-immediate-type-predicate
+  (syntax-rules ()
+    ((_ name #f mask tag) #f)
+    ((_ name pred mask tag)
+     (define-branching-primitive pred 1))))
 (define *heap-type-predicates* (make-hash-table))
 (define-syntax-rule (define-heap-type-predicate name pred mask tag)
   (begin

@@ -127,6 +127,7 @@
             type<=?
 
             ;; Interface for type inference.
+            constant-type
             infer-types
             lookup-pre-type
             lookup-post-type
@@ -342,8 +343,8 @@
 minimum, and maximum."
   (define (return type val)
     (if val
-        (make-type-entry type val val)
-        (make-type-entry type -inf.0 +inf.0)))
+        (values type val val)
+        (values type -inf.0 +inf.0)))
   (cond
    ((number? val)
     (cond
@@ -356,8 +357,8 @@ minimum, and maximum."
               val))
      ((eqv? (imag-part val) 0)
       (if (nan? val)
-          (make-type-entry &flonum -inf.0 +inf.0)
-          (make-type-entry
+          (values &flonum -inf.0 +inf.0)
+          (values
            (if (exact? val) &fraction &flonum)
            (if (rational? val) (inexact->exact (floor val)) val)
            (if (rational? val) (inexact->exact (ceiling val)) val))))
@@ -381,6 +382,13 @@ minimum, and maximum."
     (return &special-immediate &undefined))
 
    (else (error "unhandled constant" val))))
+
+(define (constant-type-entry val)
+  "Compute the type and range of VAL.  Return three values: the type,
+minimum, and maximum."
+  (call-with-values (lambda () (constant-type val))
+    (lambda (type min max)
+      (make-type-entry type min max))))
 
 (define *type-checkers* (make-hash-table))
 (define *type-inferrers* (make-hash-table))
@@ -570,25 +578,28 @@ minimum, and maximum."
 ;;; Generic effect-free predicates.
 ;;;
 
-(define-syntax-rule (define-special-immediate-predicate-inferrer pred imm)
-  (define-predicate-inferrer (pred val true?)
+(define-syntax-rule (infer-constant-comparison ctype cval val true?)
+  (let ()
     (define (range-subtract lo hi x)
       (values (if (eqv? lo x) (1+ lo) lo)
               (if (eqv? hi x) (1- hi) hi)))
-    (cond
-     (true? (restrict! val &special-immediate imm imm))
-     (else
-      (when (eqv? (&type val) &special-immediate)
-        (let-values (((lo hi) (range-subtract (&min val) (&max val) imm)))
-          (restrict! val &special-immediate lo hi)))))))
+   (cond
+    (true? (restrict! val ctype cval cval))
+    (else
+     (when (eqv? (&type val) ctype)
+       (let-values (((lo hi) (range-subtract (&min val) (&max val) cval)))
+         (restrict! val ctype lo hi)))))))
 
-(define-special-immediate-predicate-inferrer eq-nil? &nil)
-(define-special-immediate-predicate-inferrer eq-eol? &null)
-(define-special-immediate-predicate-inferrer eq-false? &false)
-(define-special-immediate-predicate-inferrer eq-true? &true)
-(define-special-immediate-predicate-inferrer unspecified? &unspecified)
-(define-special-immediate-predicate-inferrer undefined? &undefined)
-(define-special-immediate-predicate-inferrer eof-object? &eof)
+(define-predicate-inferrer/param (eq-constant? c val true?)
+  (call-with-values (lambda () (constant-type c))
+    (lambda (ctype cval cval*)
+      ;; Either (= cval cval*), or the value is meaningless for this type.
+      (infer-constant-comparison ctype cval val true?))))
+
+;; Can't usefully pass undefined as a parameter to eq-constant?, so we
+;; keep its special predicate.
+(define-predicate-inferrer (undefined? val true?)
+  (infer-constant-comparison &special-immediate &undefined val true?))
 
 ;; Various inferrers rely on these having contiguous values starting from 0.
 (eval-when (expand)
@@ -702,7 +713,7 @@ minimum, and maximum."
 
 
 (define-type-inferrer/param (load-const/unlikely param result)
-  (let ((ent (constant-type param)))
+  (let ((ent (constant-type-entry param)))
     (define! result (type-entry-type ent)
       (type-entry-min ent) (type-entry-max ent))))
 
@@ -1099,7 +1110,7 @@ minimum, and maximum."
                          (+ (&min a) (&min b))
                          (+ (&max a) (&max b))))
 (define-type-inferrer/param (add/immediate param a result)
-  (let ((b-type (type-entry-type (constant-type param))))
+  (let ((b-type (type-entry-type (constant-type-entry param))))
     (define-binary-result! (&type a) b-type result #t
       (+ (&min a) param)
       (+ (&max a) param))))
@@ -1143,7 +1154,7 @@ minimum, and maximum."
                          (- (&min a) (&max b))
                          (- (&max a) (&min b))))
 (define-type-inferrer/param (sub/immediate param a result)
-  (let ((b-type (type-entry-type (constant-type param))))
+  (let ((b-type (type-entry-type (constant-type-entry param))))
     (define-binary-result! (&type a) b-type result #t
       (- (&min a) param)
       (- (&max a) param))))
@@ -2027,7 +2038,7 @@ maximum, where type is a bitset as a fixnum."
          (($ $kargs (_) (var))
           (let ((entry (match exp
                          (($ $const val)
-                          (constant-type val))
+                          (constant-type-entry val))
                          ((or ($ $prim) ($ $fun) ($ $const-fun) ($ $code))
                           ;; Could be more precise here.
                           (make-type-entry &procedure -inf.0 +inf.0)))))

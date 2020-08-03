@@ -300,7 +300,7 @@
                                             (and=>
                                              (scm->immediate-bits x)
                                              (lambda (bits)
-                                               (truncate-bits bits 16 x))))
+                                               (truncate-bits bits 16 #t))))
                     #:emit/immediate (lambda (asm a b kf)
                                        (emit-eq-immediate? asm a b)
                                        (emit-jne asm kf)))
@@ -326,9 +326,12 @@
        #`(lambda (asm a kf)
            (#,(id-prepend 'emit- #'pred) asm a)
            (emit-jne asm kf))))))
-(define-syntax-rule (define-immediate-type-predicate name pred mask tag)
-  (define-primitive pred #:nargs 1 #:predicate? #t
-    #:emit (predicate-emitter pred)))
+(define-syntax define-immediate-type-predicate
+  (syntax-rules ()
+    ((_ name #f mask tag) #f)
+    ((_ name pred mask tag)
+     (define-primitive pred #:nargs 1 #:predicate? #t
+       #:emit (predicate-emitter pred)))))
 (define-syntax-rule (define-heap-type-predicate name pred mask tag)
   (define-primitive pred #:nargs 1 #:predicate? #t
     #:emit (lambda (asm a kf)

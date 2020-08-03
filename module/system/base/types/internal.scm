@@ -103,13 +103,16 @@
   (fixnum           fixnum?                     #b11            #b10)
   (heap-object      heap-object?               #b111           #b000)
   (char             char?                 #b11111111      #b00001100)
-  (false            eq-false?         #b111111111111  #b000000000100)
-  (nil              eq-nil?           #b111111111111  #b000100000100)
-  (null             eq-null?          #b111111111111  #b001100000100)
-  (true             eq-true?          #b111111111111  #b010000000100)
-  (unspecified      unspecified?      #b111111111111  #b100000000100)
   (undefined        undefined?        #b111111111111  #b100100000100)
-  (eof              eof-object?       #b111111111111  #b101000000100)
+
+  ;; To check for these values from Scheme, use eq?.  From assembler,
+  ;; use eq-immediate?.
+  (false            #f                #b111111111111  #b000000000100)
+  (nil              #f                #b111111111111  #b000100000100)
+  (null             #f                #b111111111111  #b001100000100)
+  (true             #f                #b111111111111  #b010000000100)
+  (unspecified      #f                #b111111111111  #b100000000100)
+  (eof              #f                #b111111111111  #b101000000100)
 
   ;;(nil            eq-nil?           #b111111111111  #b000100000100)
   ;;(eol            eq-null?          #b111111111111  #b001100000100)
@@ -200,24 +203,24 @@ may not fit into a word on the target platform."
    ((eq? x #t)         %tc16-true)
    ((unspecified? x)   %tc16-unspecified)
    ;; FIXME: %tc16-undefined.
-   ((eof-object? x)  %tc16-eof)
+   ((eof-object? x)    %tc16-eof)
    (else #f)))
 
 (define (immediate-bits->scm imm)
   "Return the SCM object corresponding to the immediate encoding
 @code{imm}.  Note that this value should be sign-extended already."
   (define-syntax-rule (define-predicate name pred mask tag)
-    (define (pred) (eqv? (logand imm mask) tag)))
+    (define (name) (eqv? (logand imm mask) tag)))
   (visit-immediate-tags define-predicate)
   (cond
-   ((fixnum?)      (ash imm -2))
-   ((char?)        (integer->char (ash imm -8)))
-   ((eq-false?)    #f)
-   ((eq-nil?)      #nil)
-   ((eq-null?)     '())
-   ((eq-true?)     #t)
-   ((unspecified?) (if #f #f))
-   ((eof-object?)  the-eof-object)
+   ((fixnum)      (ash imm -2))
+   ((char)        (integer->char (ash imm -8)))
+   ((false)       #f)
+   ((nil)         #nil)
+   ((null)        '())
+   ((true)        #t)
+   ((unspecified) (if #f #f))
+   ((eof)         the-eof-object)
    (else (error "invalid immediate" imm))) )
 
 (define (sign-extend x bits)

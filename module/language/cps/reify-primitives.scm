@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -557,8 +557,19 @@
          (define (u11? val) (<= 0 val #x7ff))
          (define (u12? val) (<= 0 val #xfff))
          (define (s12? val) (<= (- #x800) val #x7ff))
+         (define (imm16? val)
+           (and=> (scm->immediate-bits val)
+                  (lambda (bits)
+                    (truncate-bits bits 16 #t))))
+         (define (load-u64 k param)
+           (build-term ($continue k src ($primcall 'load-u64 param ()))))
+         (define (load-s64 k param)
+           (build-term ($continue k src ($primcall 'load-s64 param ()))))
+         (define (load-const k param)
+           (build-term ($continue k src ($const param))))
+
          (define-syntax-rule (reify-constants ((op (pred? c) in ...)
-                                               wrap-op (op* out ...))
+                                               wrap (op* out ...))
                                               ...
                                               (_ default))
            (match name
@@ -573,9 +584,7 @@
                              ($kargs ('c) (c)
                                ($branch kf kt src 'op* #f (out ...))))
                        (setk label
-                             ($kargs names vars
-                               ($continue kconst src
-                                 ($primcall 'wrap-op param ())))))))))
+                             ($kargs names vars ,(wrap kconst param))))))))
              ...
              (_ default)))
          (reify-constants
@@ -585,6 +594,7 @@
           ((s64-imm-= (s12? b) a) load-s64 (s64-= a b))
           ((s64-imm-< (s12? b) a) load-s64 (s64-< a b))
           ((imm-s64-< (s12? a) b) load-s64 (s64-< a b))
+          ((eq-constant? (imm16? b) a) load-const (eq? a b))
           (_ cps))))
       (($ $kargs names vars ($ $continue k src ($ $call proc args)))
        (with-cps cps

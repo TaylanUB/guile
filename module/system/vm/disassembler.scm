@@ -195,7 +195,11 @@ address of that offset."
 (define immediate-tag-annotations '())
 (define-syntax-rule (define-immediate-tag-annotation name pred mask tag)
   (set! immediate-tag-annotations
-        (cons `((,mask ,tag) ,(symbol->string 'pred)) immediate-tag-annotations)))
+        (cons `((,mask ,tag)
+                ,(cond
+                  ('pred => symbol->string)
+                  (else (string-append "eq-" (symbol->string 'name) "?"))))
+              immediate-tag-annotations)))
 (visit-immediate-tags define-immediate-tag-annotation)
 
 (define heap-tag-annotations '())
