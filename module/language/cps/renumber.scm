@@ -93,6 +93,10 @@
                         (if (visit-kf-first? kf kt)
                             (visit2 kf kt order visited)
                             (visit2 kt kf order visited)))
+                       (($ $switch kf kt*)
+                        (fold2 visit
+                               (stable-sort (cons kf kt*) visit-kf-first?)
+                               order visited))
                        (($ $prompt k kh)
                         (visit2 k kh order visited))
                        (($ $throw)
@@ -211,6 +215,9 @@
                  (($ $branch kf kt src op param args)
                   ($branch (rename-label kf) (rename-label kt) src
                     op param ,(map rename-var args)))
+                 (($ $switch kf kt* src arg)
+                  ($switch (rename-label kf) (map rename-label kt*) src
+                    (rename-var arg)))
                  (($ $prompt k kh src escape? tag)
                   ($prompt (rename-label k) (rename-label kh) src
                     escape? (rename-var tag)))

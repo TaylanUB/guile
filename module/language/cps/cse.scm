@@ -114,12 +114,19 @@ false.  It could be that both true and false proofs are available."
                        (propagate boolv succ1
                                   (intset-add in (true-idx label)))))
           (values (append changed0 changed1) boolv)))
+      (define (propagate* succs)
+        (fold2 (lambda (succ changed boolv)
+                 (call-with-values (lambda () (propagate boolv succ in))
+                   (lambda (changed* boolv)
+                     (values (append changed* changed) boolv))))
+               succs '() boolv))
 
       (match (intmap-ref conts label)
         (($ $kargs names vars term)
          (match term
            (($ $continue k)   (propagate1 k))
            (($ $branch kf kt) (propagate-branch kf kt))
+           (($ $switch kf kt*) (propagate* (cons kf kt*)))
            (($ $prompt k kh)  (propagate2 k kh))
            (($ $throw)        (propagate0))))
         (($ $kreceive arity k)
@@ -179,6 +186,8 @@ false.  It could be that both true and false proofs are available."
      ($kargs names vals ($continue (rename k) src ,exp)))
     (($ $kargs names vals ($ $branch kf kt src op param args))
      ($kargs names vals ($branch (rename kf) (rename kt) src op param args)))
+    (($ $kargs names vals ($ $switch kf kt* src arg))
+     ($kargs names vals ($switch (rename kf) (map rename kt*) src arg)))
     (($ $kargs names vals ($ $prompt k kh src escape? tag))
      ($kargs names vals ($prompt (rename k) (rename kh) src escape? tag)))
     (($ $kreceive ($ $arity req () rest () #f) kbody)
@@ -272,9 +281,12 @@ false.  It could be that both true and false proofs are available."
                         (intmap-replace truthy-labels label bool-in)))))))
 
 (define (term-successors term)
+  (define (list->intset ls)
+    (fold1 (lambda (elt set) (intset-add set elt)) ls empty-intset))
   (match term
     (($ $continue k) (intset k))
     (($ $branch kf kt) (intset kf kt))
+    (($ $switch kf kt*) (list->intset (cons kf kt*)))
     (($ $prompt k kh) (intset k kh))
     (($ $throw) empty-intset)))
 
@@ -346,6 +358,7 @@ false.  It could be that both true and false proofs are available."
     (match term
       (($ $continue k src exp)              (compute-expr-key exp))
       (($ $branch)                          (compute-branch-key term))
+      (($ $switch)                          #f)
       (($ $prompt)                          #f)
       (($ $throw)                           #f)))
 
@@ -424,6 +437,8 @@ false.  It could be that both true and false proofs are available."
     (rewrite-term term
       (($ $branch kf kt src op param args)
        ($branch kf kt src op param ,(map subst-var args)))
+      (($ $switch kf kt* src arg)
+       ($switch kf kt* src (subst-var arg)))
       (($ $continue k src exp)
        ($continue k src ,(rename-exp exp)))
       (($ $prompt k kh src escape? tag)
@@ -530,7 +545,7 @@ false.  It could be that both true and false proofs are available."
                                     ,(visit-exp label exp analysis)))))
                  substs
                  analysis))
-        ((or ($ $prompt) ($ $throw))
+        ((or ($ $switch) ($ $prompt) ($ $throw))
          (values (intmap-add! out label (build-cont ($kargs names vars ,term)))
                  substs
                  analysis)))))

@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -121,6 +121,8 @@ corresponding var from REPLACEMENTS; otherwise return VAR."
                   ($primcall name param ,(rename* args))))))
            (($ $branch kf kt src op param args)
             ($branch kf kt src op param ,(rename* args)))
+           (($ $switch kf kt* src arg)
+            ($switch kf kt* src (rename arg)))
            (($ $prompt k kh src escape? tag)
             ($prompt k kh src escape? (rename tag)))
            (($ $throw src op param args)
@@ -194,7 +196,7 @@ corresponding var from REPLACEMENTS; otherwise return VAR."
     (intset-fold (lambda (label rotate?)
                    (match (intmap-ref cps label)
                      (($ $kreceive) #f)
-                     (($ $kargs _ _ ($ $branch)) #f)
+                     (($ $kargs _ _ (or ($ $branch) ($ $switch))) #f)
                      (($ $kargs _ _ ($ $continue)) rotate?)))
                  edges #t))
   (let* ((succs (compute-successors cps kfun))

@@ -629,6 +629,7 @@ the LABELS that are clobbered by the effects of LABEL."
         (expression-effects exp))
        (($ $kargs names syms ($ $branch kf kt src op param args))
         (primitive-effects param op args))
+       (($ $kargs names syms ($ $switch)) &no-effects)
        (($ $kargs names syms ($ $prompt))
         ;; Although the "main" path just writes &prompt, we don't know
         ;; what nonlocal predecessors of the handler do, so we

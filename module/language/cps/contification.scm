@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -62,6 +62,8 @@ predecessor."
       (($ $kclause arity kbody kalt) (ref2 kbody kalt))
       (($ $kargs names syms ($ $continue k)) (ref1 k))
       (($ $kargs names syms ($ $branch kf kt)) (ref2 kf kt))
+      (($ $kargs names syms ($ $switch kf kt*))
+       (fold2 ref (cons kf kt*) single multiple))
       (($ $kargs names syms ($ $prompt k kh)) (ref2 k kh))
       (($ $kargs names syms ($ $throw)) (ref0))))
   (let*-values (((single multiple) (values empty-intset empty-intset))
@@ -193,6 +195,8 @@ $call, and are always called with a compatible arity."
             (exclude-vars functions args))))
         (($ $kargs _ _ ($ $branch kf kt src op param args))
          (exclude-vars functions args))
+        (($ $kargs _ _ ($ $switch kf kt* src arg))
+         (exclude-var functions arg))
         (($ $kargs _ _ ($ $prompt k kh src escape? tag))
          (exclude-var functions tag))
         (($ $kargs _ _ ($ $throw src op param args))
@@ -465,7 +469,7 @@ function set."
     (match term
       (($ $continue k src exp)
        (visit-exp cps k src exp))
-      ((or ($ $branch) ($ $prompt) ($ $throw))
+      ((or ($ $branch) ($ $switch) ($ $prompt) ($ $throw))
        (with-cps cps term))))
 
   ;; Renumbering is not strictly necessary but some passes may not be

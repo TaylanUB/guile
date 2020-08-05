@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2016, 2017, 2018 Free Software Foundation, Inc.
+;; Copyright (C) 2016, 2017, 2018, 2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -44,6 +44,10 @@
        (maybe-add-header label k headers))
       (($ $kargs names vars ($ $branch kf kt))
        (maybe-add-header label kf (maybe-add-header label kt headers)))
+      (($ $kargs names vars ($ $switch kf kt*))
+       (fold1 (lambda (k headers) (maybe-add-header label k headers))
+              (cons kf kt*)
+              headers))
       (_ headers)))
   (persistent-intset (intmap-fold visit-cont cps empty-intset)))
 

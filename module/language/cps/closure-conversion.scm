@@ -97,6 +97,8 @@ conts."
             (add-uses args uses))))
         (($ $kargs _ _ ($ $branch kf kt src op param args))
          (add-uses args uses))
+        (($ $kargs _ _ ($ $switch kf kt* src arg))
+         (add-use arg uses))
         (($ $kargs _ _ ($ $prompt k kh src escape? tag))
          (add-use tag uses))
         (($ $kargs _ _ ($ $throw src op param args))
@@ -118,6 +120,7 @@ conts."
           (let-values (((single multiple) (ref k single multiple)))
             (ref k* single multiple))
           (ref1 k)))
+    (define (ref* k*) (fold2 ref k* single multiple))
     (match (intmap-ref conts label)
       (($ $kreceive arity k) (ref1 k))
       (($ $kfun src meta self ktail kclause) (ref2 ktail kclause))
@@ -125,6 +128,7 @@ conts."
       (($ $kclause arity kbody kalt) (ref2 kbody kalt))
       (($ $kargs _ _ ($ $continue k)) (ref1 k))
       (($ $kargs _ _ ($ $branch kf kt)) (ref2 kf kt))
+      (($ $kargs _ _ ($ $switch kf kt*)) (ref* (cons kf kt*)))
       (($ $kargs _ _ ($ $prompt k kh)) (ref2 k kh))
       (($ $kargs _ _ ($ $throw)) (ref0))))
   (let*-values (((single multiple) (values empty-intset empty-intset))
@@ -259,6 +263,8 @@ shared closures to use the appropriate 'self' variable, if possible."
          ($continue k src ,(visit-exp exp)))
         (($ $branch kf kt src op param args)
          ($branch kf kt src op param ,(map subst args)))
+        (($ $switch kf kt* src arg)
+         ($switch kf kt* src (subst arg)))
         (($ $prompt k kh src escape? tag)
          ($prompt k kh src escape? (subst tag)))
         (($ $throw src op param args)
@@ -386,6 +392,8 @@ references."
                          (add-uses args uses))))
                      (($ $branch kf kt src op param args)
                       (add-uses args uses))
+                     (($ $switch kf kt* src arg)
+                      (add-use arg uses))
                      (($ $prompt k kh src escape? tag)
                       (add-use tag uses))
                      (($ $throw src op param args)
@@ -825,6 +833,13 @@ bound to @var{var}, and continue to @var{k}."
              (with-cps cps
                (build-term
                  ($branch kf kt src op param args))))))
+
+        (($ $switch kf kt* src arg)
+         (convert-arg cps arg
+           (lambda (cps arg)
+             (with-cps cps
+               (build-term
+                 ($switch kf kt* src arg))))))
 
         (($ $prompt k kh src escape? tag)
          (convert-arg cps tag

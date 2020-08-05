@@ -1,5 +1,5 @@
 ;;; Diagnostic checker for CPS
-;;; Copyright (C) 2014-2019 Free Software Foundation, Inc.
+;;; Copyright (C) 2014-2020 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software: you can redistribute it and/or modify
 ;;; it under the terms of the GNU Lesser General Public License as
@@ -97,6 +97,13 @@ definitions that are available at LABEL."
         (let*-values (((changed0 defs) (propagate defs succ0 out))
                       ((changed1 defs) (propagate defs succ1 out)))
           (values (append changed0 changed1) defs)))
+      (define (propagate* succs out)
+        (let lp ((succs succs) (changed '()) (defs defs))
+          (match succs
+            (() (values changed defs))
+            ((succ . succs)
+             (let-values (((changed* defs) (propagate defs succ out)))
+               (lp succs (append changed* changed) defs))))))
 
       (match (intmap-ref conts label)
         (($ $kargs names vars term)
@@ -106,6 +113,8 @@ definitions that are available at LABEL."
               (propagate1 k out))
              (($ $branch kf kt)
               (propagate2 kf kt out))
+             (($ $switch kf kt*)
+              (propagate* (cons kf kt*) out))
              (($ $prompt k kh)
               (propagate2 k kh out))
              (($ $throw)
@@ -208,6 +217,9 @@ definitions that are available at LABEL."
         (($ $branch kf kt src name param args)
          (for-each check-use args)
          first-order)
+        (($ $switch kf kt* src arg)
+         (check-use arg)
+         first-order)
         (($ $prompt k kh src escape? tag)
          (check-use tag)
          first-order)
@@ -290,20 +302,21 @@ definitions that are available at LABEL."
             (($ $primcall 'call-thunk/no-inline #f (thunk)) #t)
             (_ (cont (error "bad continuation" exp cont)))))))))
   (define (check-term term)
+    (define (assert-nullary k)
+      (match (intmap-ref conts k)
+        (($ $kargs () ()) #t)
+        (cont (error "expected nullary cont" cont))))
     (match term
       (($ $continue k src exp)
        (check-arity exp (intmap-ref conts k)))
       (($ $branch kf kt src op param args)
-       (match (intmap-ref conts kf)
-         (($ $kargs () ()) #t)
-         (cont (error "bad kf" cont)))
-       (match (intmap-ref conts kt)
-         (($ $kargs () ()) #t)
-         (cont (error "bad kt" cont))))
+       (assert-nullary kf)
+       (assert-nullary kt))
+      (($ $switch kf kt* src arg)
+       (assert-nullary kf)
+       (for-each assert-nullary kt*))
       (($ $prompt k kh src escape? tag)
-       (match (intmap-ref conts k)
-         (($ $kargs () ()) #t)
-         (cont (error "bad prompt body" cont)))
+       (assert-nullary k)
        (match (intmap-ref conts kh)
          (($ $kreceive) #t)
          (cont (error "bad prompt handler" cont))))

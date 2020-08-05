@@ -820,8 +820,8 @@ call target at run-time.
 
 To summarize: a @code{$continue} is a CPS term that continues to a
 single label.  But there are other kinds of CPS terms that can continue
-to a different number of labels: @code{$branch}, @code{$throw}, and
-@code{$prompt}.
+to a different number of labels: @code{$branch}, @code{$switch},
+@code{$throw}, and @code{$prompt}.
 
 @deftp {CPS Term} $branch kf kt src op param args
 Evaluate the branching primcall @var{op}, with arguments @var{args} and
@@ -838,6 +838,19 @@ in a @var{$branch} is limited.  In the general case, bind the result of
 a test expression to a variable, and then make a @code{$branch} on a
 @code{true?} op referencing that variable.  The optimizer should inline
 the branch if possible.
+@end deftp
+
+@deftp {CPS Term} $switch kf kt* src arg
+Continue to a label in the list @var{k*} according to the index argument
+@var{arg}, or to the default continuation @var{kf} if @var{arg} is
+greater than or equal to the length @var{k*}.  The index variable
+@var{arg} is an unboxed, unsigned 64-bit value.
+
+The @code{$switch} term is like C's @code{switch} statement.  The
+compiler to CPS can generate a @code{$switch} term directly, if the
+source language has such a concept, or it can rely on the CPS optimizer
+to turn appropriate chains of @code{$branch} statements to
+@code{$switch} instances, which is what the Scheme compiler does.
 @end deftp
 
 @deftp {CPS Term} $throw src op param args
@@ -967,6 +980,7 @@ below for full details.
 @deffnx {Scheme Syntax} build-exp ($prompt escape? tag handler)
 @deffnx {Scheme Syntax} build-term ($branch kf kt src op param (arg ...))
 @deffnx {Scheme Syntax} build-term ($branch kf kt src op param args)
+@deffnx {Scheme Syntax} build-term ($switch kf kt* src arg)
 @deffnx {Scheme Syntax} build-term ($throw src op param (arg ...))
 @deffnx {Scheme Syntax} build-term ($throw src op param args)
 @deffnx {Scheme Syntax} build-term ($prompt k kh src escape? tag)

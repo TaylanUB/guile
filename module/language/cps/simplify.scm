@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2015, 2017-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2015, 2017-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -80,6 +80,8 @@
           (ref* args))))
       (($ $kargs _ _ ($ $branch kf kt src op param args))
        (ref* args))
+      (($ $kargs _ _ ($ $switch kf kt* src arg))
+       (ref arg))
       (($ $kargs _ _ ($ $prompt k kh src escape? tag))
        (ref tag))
       (($ $kargs _ _ ($ $throw src op param args))
@@ -149,6 +151,9 @@
               (($ $kargs names syms ($ $branch kf kt src op param args))
                ($kargs names syms
                  ($branch (subst kf) (subst kt) src op param args)))
+              (($ $kargs names syms ($ $switch kf kt* src arg))
+               ($kargs names syms
+                 ($switch (subst kf) (map subst kt*) src arg)))
               (($ $kargs names syms ($ $prompt k kh src escape? tag))
                ($kargs names syms
                  ($prompt (subst k) (subst kh) src escape? tag)))
@@ -195,6 +200,8 @@
       (($ $kclause arity kbody kalt) (ref2 kbody kalt))
       (($ $kargs names syms ($ $continue k)) (ref1 k))
       (($ $kargs names syms ($ $branch kf kt)) (ref2 kf kt))
+      (($ $kargs names syms ($ $switch kf kt*))
+       (fold2 ref (cons kf kt*) single multiple))
       (($ $kargs names syms ($ $prompt k kh)) (ref2 k kh))
       (($ $kargs names syms ($ $throw)) (ref0))))
   (let*-values (((single multiple) (values empty-intset empty-intset))
@@ -266,6 +273,8 @@
                    ($values ,(map subst args))))))
             (($ $branch kf kt src op param args)
              ($branch kf kt src op param ,(map subst args)))
+            (($ $switch kf kt* src arg)
+             ($switch kf kt* src (subst arg)))
             (($ $prompt k kh src escape? tag)
              ($prompt k kh src escape? (subst tag)))
             (($ $throw src op param args)

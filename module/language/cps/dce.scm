@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -80,10 +80,11 @@ sites."
                                      (causes-effect? fx &allocation))
                                 (values (intset-add! known k) unknown)
                                 (values known (intset-add! unknown k)))))
-                         (($ $kargs _ _ (or ($ $branch) ($ $prompt) ($ $throw)))
-                          ;; Branches and prompts pass no values to
-                          ;; their continuations, and throw terms don't
-                          ;; continue at all.
+                         (($ $kargs _ _ (or ($ $branch) ($ $switch)
+                                            ($ $prompt) ($ $throw)))
+                          ;; Branches, switches, and prompts pass no
+                          ;; values to their continuations, and throw
+                          ;; terms don't continue at all.
                           (values known unknown))
                          (($ $kreceive arity kargs)
                           (values known (intset-add! unknown kargs)))
@@ -204,7 +205,8 @@ sites."
         ;; Still dead.
         (values live-labels live-vars))))
 
-    (define (visit-branch label kf kt args live-labels live-vars)
+    ;; Note, this is for $branch or $switch.
+    (define (visit-branch label kf kt* args live-labels live-vars)
       (define (next-live-term k)
         ;; FIXME: For a chain of dead branches, this is quadratic.
         (let lp ((seen empty-intset) (k k))
@@ -216,12 +218,23 @@ sites."
               (($ $kargs _ _ ($ $continue k*))
                (lp (intset-add seen k) k*))
               (_ k))))))
+      (define (distinct-continuations?)
+        (let ((kf' (next-live-term kf)))
+          (let lp ((kt* kt*))
+            (match kt*
+              (() #f)
+              ((kt . kt*)
+               (cond
+                ((or (eqv? kf kt)
+                     (eqv? kf' (next-live-term kt)))
+                 (lp kt*))
+                (else #t)))))))
       (cond
        ((intset-ref live-labels label)
         ;; Branch live already.
         (values live-labels (adjoin-vars args live-vars)))
        ((or (causes-effect? (intmap-ref effects label) &type-check)
-            (not (eqv? (next-live-term kf) (next-live-term kt))))
+            (distinct-continuations?))
         ;; The branch is live if its continuations are not the same, or
         ;; if the branch itself causes type checks.
         (values (intset-add live-labels label)
@@ -238,7 +251,9 @@ sites."
            (($ $kargs _ _ ($ $continue k src exp))
             (visit-exp label k exp live-labels live-vars))
            (($ $kargs _ _ ($ $branch kf kt src op param args))
-            (visit-branch label kf kt args live-labels live-vars))
+            (visit-branch label kf (list kt) args live-labels live-vars))
+           (($ $kargs _ _ ($ $switch kf kt* src arg))
+            (visit-branch label kf kt* (list arg) live-labels live-vars))
            (($ $kargs _ _ ($ $prompt k kh src escape? tag))
             ;; Prompts need special elision passes that would contify
             ;; aborts and remove corresponding "unwind" primcalls.
@@ -356,6 +371,11 @@ sites."
            (values cps term)
            ;; Dead branches continue to the same continuation
            ;; (eventually).
+           (values cps (build-term ($continue kf src ($values ()))))))
+      (($ $switch kf kt* src arg)
+       ;; Same as in $branch case.
+       (if (label-live? label)
+           (values cps term)
            (values cps (build-term ($continue kf src ($values ()))))))
       (($ $prompt)
        (values cps term))

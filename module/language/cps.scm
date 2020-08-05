@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013, 2014, 2015, 2017, 2018 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2015,2017-2018,2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -127,7 +127,7 @@
             $kreceive $kargs $kfun $ktail $kclause
 
             ;; Terms.
-            $continue $branch $prompt $throw
+            $continue $branch $switch $prompt $throw
 
             ;; Expressions.
             $const $prim $fun $rec $const-fun $code
@@ -180,6 +180,7 @@
 ;; Terms.
 (define-cps-type $continue k src exp)
 (define-cps-type $branch kf kt src op param args)
+(define-cps-type $switch kf kt* src arg)
 (define-cps-type $prompt k kh src escape? tag)
 (define-cps-type $throw src op param args)
 
@@ -221,7 +222,7 @@
      (make-$kclause (build-arity arity) kbody kalternate))))
 
 (define-syntax build-term
-  (syntax-rules (unquote $continue $branch $prompt $throw)
+  (syntax-rules (unquote $continue $branch $switch $prompt $throw)
     ((_ (unquote exp))
      exp)
     ((_ ($continue k src exp))
@@ -232,6 +233,8 @@
      (make-$branch kf kt src op param (list arg ...)))
     ((_ ($branch kf kt src op param args))
      (make-$branch kf kt src op param args))
+    ((_ ($switch kf kt* src arg))
+     (make-$switch kf kt* src arg))
     ((_ ($prompt k kh src escape? tag))
      (make-$prompt k kh src escape? tag))
     ((_ ($throw src op param (unquote args)))
@@ -299,6 +302,8 @@
      (build-term ($continue k (src exp) ,(parse-cps exp))))
     (('branch kf kt op param arg ...)
      (build-term ($branch kf kt (src exp) op param arg)))
+    (('switch kf (kt* ...) arg)
+     (build-term ($switch kf kt* (src exp) arg)))
     (('prompt k kh escape? tag)
      (build-term ($prompt k kh (src exp) escape? tag)))
     (('throw op param arg ...)
@@ -350,6 +355,8 @@
      `(continue ,k ,(unparse-cps exp)))
     (($ $branch kf kt src op param args)
      `(branch ,kf ,kt ,op ,param ,@args))
+    (($ $switch kf kt* src arg)
+     `(switch ,kf ,kt* ,arg))
     (($ $prompt k kh src escape? tag)
      `(prompt ,k ,kh ,escape? ,tag))
     (($ $throw src op param args)

@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013, 2014, 2015, 2017, 2018, 2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013, 2014, 2015, 2017, 2018, 2019, 2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -122,6 +122,8 @@
                (visit-cont k labels))
               (($ $branch kf kt)
                (visit-cont kf (visit-cont kt labels)))
+              (($ $switch kf kt*)
+               (visit-cont kf (fold1 visit-cont kt* labels)))
               (($ $prompt k kh)
                (visit-cont k (visit-cont kh labels)))
               (($ $throw)
@@ -176,6 +178,10 @@ intset."
       (define (propagate2 succ0 succ1)
         (let ((succs (intmap-add! succs label (intset succ0 succ1))))
           (visit succ1 (visit succ0 succs))))
+      (define (propagate* k*)
+        (define (list->intset ls)
+          (fold1 (lambda (elt set) (intset-add set elt)) ls empty-intset))
+        (fold1 visit k* (intmap-add! succs label (list->intset k*))))
       (if (intmap-ref succs label (lambda (_) #f))
           succs
           (match (intmap-ref conts label)
@@ -183,6 +189,7 @@ intset."
              (match term
                (($ $continue k) (propagate1 k))
                (($ $branch kf kt) (propagate2 kf kt))
+               (($ $switch kf kt*) (propagate* (cons kf kt*)))
                (($ $prompt k kh) (propagate2 k kh))
                (($ $throw) (propagate0))))
             (($ $kreceive arity k)
@@ -218,6 +225,7 @@ intset."
        (match term
          (($ $continue k)   (add-pred k preds))
          (($ $branch kf kt) (add-pred kf (add-pred kt preds)))
+         (($ $switch kf kt*) (fold1 add-pred (cons kf kt*) preds))
          (($ $prompt k kh)  (add-pred k (add-pred kh preds)))
          (($ $throw)        preds)))))
   (persistent-intmap

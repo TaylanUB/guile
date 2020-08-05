@@ -370,6 +370,8 @@ BITS indicating the significant bits needed for a variable.  BITS may be
                              (add-unknown-uses out args))))))
                    (($ $branch kf kt src op param args)
                     (add-unknown-uses out args))
+                   (($ $switch kf kt src arg)
+                    (add-unknown-use out arg))
                    (($ $prompt k kh src escape? tag)
                     (add-unknown-use out tag))
                    (($ $throw src op param args)

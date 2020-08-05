@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013, 2014, 2015, 2017, 2018 Free Software Foundation, Inc.
+;; Copyright (C) 2013, 2014, 2015, 2017, 2018, 2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -204,7 +204,7 @@
                                      ($values fresh-vars))))))
                     (values cps cont loop-vars loop-effects
                             pre-header-label always-reached?)))))))))
-         ((or ($ $branch) ($ $throw))
+         ((or ($ $branch) ($ $switch) ($ $throw))
           (let* ((cont (build-cont ($kargs names vars ,term)))
                  (always-reached? #f))
             (values cps cont loop-vars loop-effects
@@ -260,6 +260,9 @@
         (($ $kargs names vars ($ $branch kf kt src op param args))
          ($kargs names vars
            ($branch (rename kf) (rename kt) src op param args)))
+        (($ $kargs names vars ($ $switch kf kt* src arg))
+         ($kargs names vars
+           ($switch (rename kf) (map rename kt*) src arg)))
         (($ $kargs names vars ($ $prompt k kh src escape? tag))
          ($kargs names vars
            ($prompt (rename k) (rename kh) src escape? tag)))

@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2017-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -75,6 +75,8 @@
                (add-uses use-counts args))))
            (($ $branch kf kt src op param args)
             (add-uses use-counts args))
+           (($ $switch kf kt* src arg)
+            (add-use use-counts arg))
            (($ $prompt k kh src escape? tag)
             (add-use use-counts tag))
            (($ $throw src op param args)
@@ -191,6 +193,10 @@ the trace should be referenced outside of it."
                   label*))
                (else
                 (fail)))))
+           (($ $switch)
+            ;; Don't know how to peel past a switch.  The arg of a
+            ;; switch is unboxed anyway.
+            (fail))
            (($ $continue k src exp)
             (match exp
               (($ $const)

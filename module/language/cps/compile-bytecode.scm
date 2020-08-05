@@ -621,6 +621,12 @@
          (compile-test label (skip-elided-conts (1+ label))
                        (forward-label kf) (forward-label kt)
                        op param args))
+        (($ $switch kf kt* src arg)
+         (when src
+           (emit-source asm src))
+         (emit-jtable asm (from-sp (slot arg))
+                      (list->vector (map forward-label
+                                         (append kt* (list kf))))))
         (($ $prompt k kh src escape? tag)
          (when src
            (emit-source asm src))

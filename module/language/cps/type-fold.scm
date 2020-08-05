@@ -677,6 +677,11 @@
                              (with-cps cps
                                (setk label
                                      ($kargs names vars ,term)))))))))))))))
+    (define (branch-folded cps label names vars src k)
+      (with-cps cps
+        (setk label
+              ($kargs names vars
+                ($continue k src ($values ()))))))
     (define (fold-unary-branch cps label names vars kf kt src op param arg)
       (and=>
        (hashq-ref *branch-folders* op)
@@ -687,11 +692,8 @@
                (lambda (f? v)
                  ;; (when f? (pk 'folded-unary-branch label op arg v))
                  (and f?
-                      (with-cps cps
-                        (setk label
-                              ($kargs names vars
-                                ($continue (if v kt kf) src
-                                  ($values ())))))))))))))
+                      (branch-folded cps label names vars src
+                                     (if v kt kf))))))))))
     (define (fold-binary-branch cps label names vars kf kt src op param arg0 arg1)
       (and=>
        (hashq-ref *branch-folders* op)
@@ -705,11 +707,8 @@
                    (lambda (f? v)
                      ;; (when f? (pk 'folded-binary-branch label op arg0 arg1 v))
                      (and f?
-                          (with-cps cps
-                            (setk label
-                                  ($kargs names vars
-                                    ($continue (if v kt kf) src
-                                      ($values ())))))))))))))))
+                          (branch-folded cps label names vars src
+                                         (if v kt kf))))))))))))
     (define (fold-branch cps label names vars kf kt src op param args)
       (match args
         ((x)
@@ -729,6 +728,24 @@
       (or (fold-branch cps label names vars kf kt src op param args)
           (reduce-branch cps label names vars kf kt src op param args)
           cps))
+    (define (visit-switch cps label names vars kf kt* src arg)
+      ;; We might be able to fold or reduce a switch.
+      (let ((ntargets (length kt*)))
+        (call-with-values (lambda () (lookup-pre-type types label arg))
+          (lambda (type min max)
+            (cond
+             ((<= ntargets min)
+              (branch-folded cps label names vars src kf))
+             ((= min max)
+              (branch-folded cps label names vars src (list-ref kt* min)))
+             (else
+              ;; There are two more optimizations we could do here: one,
+              ;; if max is less than ntargets, we can prune targets at
+              ;; the end of the switch, and perhaps reduce the switch
+              ;; back to a branch; and two, if min is greater than 0,
+              ;; then we can subtract off min and prune targets at the
+              ;; beginning.  Not done yet though.
+              cps))))))
     (let lp ((label start) (cps cps))
       (if (<= label end)
           (lp (1+ label)
@@ -738,6 +755,8 @@
                  (visit-primcall cps label names vars k src op param args))
                 (($ $kargs names vars ($ $branch kf kt src op param args))
                  (visit-branch cps label names vars kf kt src op param args))
+                (($ $kargs names vars ($ $switch kf kt* src arg))
+                 (visit-switch cps label names vars kf kt* src arg))
                 (_ cps)))
           cps))))
 

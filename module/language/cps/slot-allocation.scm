@@ -159,6 +159,8 @@ by a label, respectively."
             (return (get-defs k) (vars->intset args)))))
         (($ $kargs _ _ ($ $branch kf kt src op param args))
          (return empty-intset (vars->intset args)))
+        (($ $kargs _ _ ($ $switch kf kt* src arg))
+         (return empty-intset (intset arg)))
         (($ $kargs _ _ ($ $prompt k kh src escape? tag))
          (return empty-intset (intset tag)))
         (($ $kargs _ _ ($ $throw src op param args))
@@ -236,6 +238,10 @@ body continuation in the prompt."
               (visit-cont k level labels))
              (($ $kargs names syms ($ $branch kf kt))
               (visit-cont kf level (visit-cont kt level labels)))
+             (($ $kargs names syms ($ $switch kf kt*))
+              (fold1 (lambda (label labels)
+                       (visit-cont label level labels))
+                     (cons kf kt*) labels))
              (($ $kargs names syms ($ $prompt k kh src escape? tag))
               (visit-cont kh level (visit-cont k (1+ level) labels)))
              (($ $kargs names syms ($ $throw)) labels))))))))
@@ -788,7 +794,7 @@ are comparable with eqv?.  A tmp slot may be used."
                       (intmap-add representations var
                                   (intmap-ref representations arg)))
                     representations args vars))))))
-       (($ $kargs _ _ (or ($ $branch) ($ $prompt) ($ $throw)))
+       (($ $kargs _ _ (or ($ $branch) ($ $switch) ($ $prompt) ($ $throw)))
         representations)
        (($ $kfun src meta self)
         (if self

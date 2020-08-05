@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -158,6 +158,9 @@
       (($ $branch kf kt src op param args)
        ($branch (rename-label kf) (rename-label kt) src
          op param ,(map rename-var args)))
+      (($ $switch kf kt* src arg)
+       ($switch (rename-label kf) (map rename-label kt*) src
+         (rename-var arg)))
       (($ $prompt k kh src escape? tag)
        ($prompt (rename-label k) (rename-label kh) src
          escape? (rename-var tag)))
