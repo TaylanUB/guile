@@ -4393,7 +4393,7 @@ compile_jtable (scm_jit_state *j, uint32_t idx, uint32_t len,
   add_inter_instruction_patch (j, high_word_nonzero, default_target);
 #endif
 
-  jit_reloc_t out_of_range = jit_bgei_u (j->jit, T0, len);
+  jit_reloc_t out_of_range = jit_bgei_u (j->jit, T0, len - 1);
   add_inter_instruction_patch (j, out_of_range, default_target);
 
   /* Now that we know that the u64 at IDX is in the table, load the
