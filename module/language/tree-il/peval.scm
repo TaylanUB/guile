@@ -26,6 +26,7 @@
   #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-11)
   #:use-module (srfi srfi-26)
+  #:use-module (system base target)
   #:use-module (ice-9 control)
   #:export (peval))
 
@@ -1352,8 +1353,15 @@ top-level bindings from ENV and return the resulting expression."
             ;; Already in a reduced state.
             (make-primcall src 'eq? (list a b)))
            ((or (memq v '(#f #t () #nil)) (symbol? v) (char? v)
+                ;; Only fold to eq? value is a fixnum on target and
+                ;; host, as constant folding may have us compare on host
+                ;; as well.
                 (and (exact-integer? v)
-                     (<= most-negative-fixnum v most-positive-fixnum)))
+                     (<= (max (target-most-negative-fixnum)
+                              most-negative-fixnum)
+                         v
+                         (min (target-most-positive-fixnum)
+                              most-positive-fixnum))))
             ;; Reduce to eq?.  Note that in Guile, characters are
             ;; comparable with eq?.
             (make-primcall src 'eq? (list a b)))
