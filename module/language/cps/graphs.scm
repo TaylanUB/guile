@@ -34,6 +34,7 @@
             intmap-keys
             invert-bijection invert-partition
             intset->intmap
+            intmap-select
             worklist-fold
             fixpoint
 
@@ -97,6 +98,12 @@ disjoint, an error will be signalled."
   (persistent-intmap
    (intset-fold (lambda (label preds)
                   (intmap-add! preds label (f label)))
+                set empty-intmap)))
+
+(define (intmap-select map set)
+  (persistent-intmap
+   (intset-fold (lambda (label out)
+                  (intmap-add! out label (intmap-ref map label)))
                 set empty-intmap)))
 
 (define worklist-fold

@@ -25,6 +25,7 @@
 (define-module (language cps utils)
   #:use-module (ice-9 match)
   #:use-module (srfi srfi-1)
+  #:use-module (srfi srfi-11)
   #:use-module (language cps)
   #:use-module (language cps intset)
   #:use-module (language cps intmap)
@@ -37,6 +38,7 @@
 
             ;; Graphs.
             compute-function-body
+            compute-singly-referenced-labels
             compute-reachable-functions
             compute-successors
             compute-predecessors
@@ -48,6 +50,7 @@
                intmap-keys
                invert-bijection invert-partition
                intset->intmap
+               intmap-select
                worklist-fold
                fixpoint
 
@@ -128,6 +131,37 @@
                (visit-cont k (visit-cont kh labels)))
               (($ $throw)
                labels))))))))))
+
+(define (compute-singly-referenced-labels conts)
+  "Compute the set of labels in CONTS that have exactly one
+predecessor."
+  (define (add-ref label cont single multiple)
+    (define (ref k single multiple)
+      (if (intset-ref single k)
+          (values single (intset-add! multiple k))
+          (values (intset-add! single k) multiple)))
+    (define (ref0) (values single multiple))
+    (define (ref1 k) (ref k single multiple))
+    (define (ref2 k k*)
+      (if k*
+          (let-values (((single multiple) (ref k single multiple)))
+            (ref k* single multiple))
+          (ref1 k)))
+    (match cont
+      (($ $kreceive arity k) (ref1 k))
+      (($ $kfun src meta self ktail kclause) (ref2 ktail kclause))
+      (($ $ktail) (ref0))
+      (($ $kclause arity kbody kalt) (ref2 kbody kalt))
+      (($ $kargs names syms ($ $continue k)) (ref1 k))
+      (($ $kargs names syms ($ $branch kf kt)) (ref2 kf kt))
+      (($ $kargs names syms ($ $switch kf kt*))
+       (fold2 ref (cons kf kt*) single multiple))
+      (($ $kargs names syms ($ $prompt k kh)) (ref2 k kh))
+      (($ $kargs names syms ($ $throw)) (ref0))))
+  (let*-values (((single multiple) (values empty-intset empty-intset))
+                ((single multiple) (intmap-fold add-ref conts single multiple)))
+    (intset-subtract (persistent-intset single)
+                     (persistent-intset multiple))))
 
 (define* (compute-reachable-functions conts #:optional (kfun 0))
   "Compute a mapping LABEL->LABEL..., where each key is a reachable

@@ -47,6 +47,7 @@
        (#:resolve-self-references? 2)
        (#:devirtualize-integers? 2)
        (#:specialize-numbers? 2)
+       (#:optimize-branch-chains? 2)
        (#:licm? 2)
        (#:rotate-loops? 2)
        ;; This one is used by the slot allocator.

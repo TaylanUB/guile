@@ -110,6 +110,10 @@ extern double floor();
         break;                                                          \
       }                                                                 \
                                                                         \
+    /* Scheme can access symbol-hash, which exposes this value.  For    \
+       cross-compilation reasons, we ensure that the high 32 bits of    \
+       the hash on a 64-bit system are equal to the hash on a 32-bit    \
+       system.  The low 32 bits just add more entropy.  */              \
     if (sizeof (ret) == 8)                                              \
       ret = (((unsigned long) c) << 32) | b;                            \
     else                                                                \

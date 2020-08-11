@@ -40,6 +40,7 @@
   #:use-module (language cps specialize-numbers)
   #:use-module (language cps specialize-primcalls)
   #:use-module (language cps split-rec)
+  #:use-module (language cps switch)
   #:use-module (language cps type-fold)
   #:use-module (language cps verify)
   #:use-module (system base optimize)
@@ -107,6 +108,7 @@
   (specialize-primcalls #:specialize-primcalls?)
   (eliminate-common-subexpressions #:cse?)
   (eliminate-dead-code #:eliminate-dead-code?)
+  (optimize-branch-chains #:optimize-branch-chains?)
   ;; Running simplify here enables rotate-loops to do a better job.
   (simplify #:simplify?)
   (rotate-loops #:rotate-loops?)

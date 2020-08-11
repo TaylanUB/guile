@@ -180,40 +180,12 @@
               (_ ,cont))))
      conts)))
 
-(define (compute-singly-referenced-labels conts body)
-  (define (add-ref label single multiple)
-    (define (ref k single multiple)
-      (if (intset-ref single k)
-          (values single (intset-add! multiple k))
-          (values (intset-add! single k) multiple)))
-    (define (ref0) (values single multiple))
-    (define (ref1 k) (ref k single multiple))
-    (define (ref2 k k*)
-      (if k*
-          (let-values (((single multiple) (ref k single multiple)))
-            (ref k* single multiple))
-          (ref1 k)))
-    (match (intmap-ref conts label)
-      (($ $kreceive arity k) (ref1 k))
-      (($ $kfun src meta self ktail kclause) (ref2 ktail kclause))
-      (($ $ktail) (ref0))
-      (($ $kclause arity kbody kalt) (ref2 kbody kalt))
-      (($ $kargs names syms ($ $continue k)) (ref1 k))
-      (($ $kargs names syms ($ $branch kf kt)) (ref2 kf kt))
-      (($ $kargs names syms ($ $switch kf kt*))
-       (fold2 ref (cons kf kt*) single multiple))
-      (($ $kargs names syms ($ $prompt k kh)) (ref2 k kh))
-      (($ $kargs names syms ($ $throw)) (ref0))))
-  (let*-values (((single multiple) (values empty-intset empty-intset))
-                ((single multiple) (intset-fold add-ref body single multiple)))
-    (intset-subtract (persistent-intset single)
-                     (persistent-intset multiple))))
-
 (define (compute-beta-reductions conts kfun)
   (define (visit-fun kfun body beta)
-    (let ((single (compute-singly-referenced-labels conts body)))
-      (define (visit-cont label beta)
-        (match (intmap-ref conts label)
+    (let* ((conts (intmap-select conts body))
+           (single (compute-singly-referenced-labels conts)))
+      (define (visit-cont label cont beta)
+        (match cont
           ;; A continuation's body can be inlined in place of a $values
           ;; expression if the continuation is a $kargs.  It should only
           ;; be inlined if it is used only once, and not recursively.
@@ -225,7 +197,7 @@
                                      (_ #f)))))
           (_
            beta)))
-      (intset-fold visit-cont body beta)))
+      (intmap-fold visit-cont conts beta)))
   (persistent-intset
    (intmap-fold visit-fun
                 (compute-reachable-functions conts kfun)

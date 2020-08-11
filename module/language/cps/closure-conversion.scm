@@ -107,35 +107,6 @@ conts."
     conts
     empty-intset)))
 
-(define (compute-singly-referenced-labels conts body)
-  (define (add-ref label single multiple)
-    (define (ref k single multiple)
-      (if (intset-ref single k)
-          (values single (intset-add! multiple k))
-          (values (intset-add! single k) multiple)))
-    (define (ref0) (values single multiple))
-    (define (ref1 k) (ref k single multiple))
-    (define (ref2 k k*)
-      (if k*
-          (let-values (((single multiple) (ref k single multiple)))
-            (ref k* single multiple))
-          (ref1 k)))
-    (define (ref* k*) (fold2 ref k* single multiple))
-    (match (intmap-ref conts label)
-      (($ $kreceive arity k) (ref1 k))
-      (($ $kfun src meta self ktail kclause) (ref2 ktail kclause))
-      (($ $ktail) (ref0))
-      (($ $kclause arity kbody kalt) (ref2 kbody kalt))
-      (($ $kargs _ _ ($ $continue k)) (ref1 k))
-      (($ $kargs _ _ ($ $branch kf kt)) (ref2 kf kt))
-      (($ $kargs _ _ ($ $switch kf kt*)) (ref* (cons kf kt*)))
-      (($ $kargs _ _ ($ $prompt k kh)) (ref2 k kh))
-      (($ $kargs _ _ ($ $throw)) (ref0))))
-  (let*-values (((single multiple) (values empty-intset empty-intset))
-                ((single multiple) (intset-fold add-ref body single multiple)))
-    (intset-subtract (persistent-intset single)
-                     (persistent-intset multiple))))
-
 (define (compute-function-names conts functions)
   "Compute a map of FUN-LABEL->BOUND-VAR... for each labelled function
 whose bound vars we know."
@@ -145,10 +116,11 @@ whose bound vars we know."
       (intmap-add out kfun (intset var self))))
   (intmap-fold
    (lambda (label body out)
-     (let ((single (compute-singly-referenced-labels conts body)))
-       (intset-fold
-        (lambda (label out)
-          (match (intmap-ref conts label)
+     (let* ((conts (intmap-select conts body))
+            (single (compute-singly-referenced-labels conts)))
+       (intmap-fold
+        (lambda (label cont out)
+          (match cont
             (($ $kargs _ _ ($ $continue k _ ($ $fun kfun)))
              (if (intset-ref single k)
                  (match (intmap-ref conts k)
@@ -160,7 +132,7 @@ whose bound vars we know."
                (error "$rec continuation has multiple predecessors??"))
              (fold add-named-fun out vars kfun))
             (_ out)))
-        body
+        conts
         out)))
    functions
    empty-intmap))
