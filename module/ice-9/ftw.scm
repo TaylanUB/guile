@@ -231,9 +231,6 @@
             (substring result 1 (string-length result)))
         (loop (cdr nodes) (string-append result "/" (car nodes))))))
 
-(define (abs? filename)
-  (char=? #\/ (string-ref filename 0)))
-
 ;; `visited?-proc' returns a test procedure VISITED? which when called as
 ;; (VISITED? stat-obj) returns #f the first time a distinct file is seen,
 ;; then #t on any subsequent sighting of it.
@@ -347,7 +344,7 @@
                         (lambda (s) #t)))
          (base-sub (lambda (name base) (substring name 0 base)))
          (maybe-cd (if (memq 'chdir control-flags)
-                       (if (abs? filename)
+                       (if (absolute-file-name? filename)
                            (lambda (fullname base)
                              (or (= 0 base)
                                  (chdir (base-sub fullname base))))
