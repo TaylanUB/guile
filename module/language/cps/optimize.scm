@@ -106,9 +106,9 @@
   (specialize-numbers #:specialize-numbers?)
   (hoist-loop-invariant-code #:licm?)
   (specialize-primcalls #:specialize-primcalls?)
+  (optimize-branch-chains #:optimize-branch-chains?)
   (eliminate-common-subexpressions #:cse?)
   (eliminate-dead-code #:eliminate-dead-code?)
-  (optimize-branch-chains #:optimize-branch-chains?)
   ;; Running simplify here enables rotate-loops to do a better job.
   (simplify #:simplify?)
   (rotate-loops #:rotate-loops?)

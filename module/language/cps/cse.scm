@@ -35,6 +35,9 @@
   #:use-module (language cps renumber)
   #:export (eliminate-common-subexpressions))
 
+(define (intset-intersect* out out*)
+  (if out (intset-intersect out out*) out*))
+
 (define (compute-available-expressions succs kfun clobbers)
   "Compute and return a map of LABEL->ANCESTOR..., where ANCESTOR... is
 an intset containing ancestor labels whose value is available at LABEL."
@@ -46,10 +49,7 @@ an intset containing ancestor labels whose value is available at LABEL."
                         (intset-subtract in-1 kill-1)
                         empty-intset)))
         (add intset-union)
-        (meet (lambda (in-1 in-1*)
-                (if in-1
-                    (intset-intersect in-1 in-1*)
-                    in-1*))))
+        (meet intset-intersect*))
     (let ((in (intmap-replace init kfun empty-intset))
           (out init)
           (worklist (intset kfun)))
@@ -145,14 +145,107 @@ false.  It could be that both true and false proofs are available."
                   (intset kfun)
                   (intmap-add empty-intmap kfun empty-intset)))
 
+(define (lset-unionq old new)
+  (lset-union eq? old new))
+(define (meet-constants out out*)
+  (if out (intmap-intersect out out* lset-unionq) out*))
+(define (adjoin-constant in k v)
+  (intmap-add in k (list v) lset-unionq))
+
+(define (set-constants consts k in)
+  (intmap-add consts k in (lambda (old new) new)))
+
+(define (compute-consts conts kfun)
+  "Compute a map of var to a list of constant values known to be bound
+to variables at each label in CONTS.  If a var isn't present in the map
+for a label, it isn't known to be constant at that label."
+  (define (propagate consts succ out)
+    (let* ((in (intmap-ref consts succ (lambda (_) #f)))
+           (in* (meet-constants in out)))
+      (if (eq? in in*)
+          (values '() consts)
+          (values (list succ) (set-constants consts succ in*)))))
+
+  (define (visit-cont label consts)
+    (let ((in (intmap-ref consts label)))
+      (define (propagate0)
+        (values '() consts))
+      (define (propagate1 succ)
+        (propagate consts succ in))
+      (define (propagate2 succ0 succ1)
+        (let*-values (((changed0 consts) (propagate consts succ0 in))
+                      ((changed1 consts) (propagate consts succ1 in)))
+          (values (append changed0 changed1) consts)))
+      (define (propagate-branch succ0 succ1)
+        (let*-values (((changed0 consts)
+                       (propagate consts succ0
+                                  (intset-add in (false-idx label))))
+                      ((changed1 consts)
+                       (propagate consts succ1
+                                  (intset-add in (true-idx label)))))
+          (values (append changed0 changed1) consts)))
+      (define (propagate* succs)
+        (fold2 (lambda (succ changed consts)
+                 (call-with-values (lambda () (propagate consts succ in))
+                   (lambda (changed* consts)
+                     (values (append changed* changed) consts))))
+               succs '() consts))
+      (define (get-def k)
+        (match (intmap-ref conts k)
+          (($ $kargs (_) (v)) v)))
+      (define (propagate-constant consts k v c)
+        (propagate consts k (adjoin-constant in v c)))
+
+      (match (intmap-ref conts label)
+        (($ $kargs names vars term)
+         (match term
+           (($ $continue k src ($ $const c))
+            (propagate-constant consts k (get-def k) c))
+           (($ $continue k)
+            (propagate1 k))
+           (($ $branch kf kt src 'eq-constant? c (v))
+            (let*-values (((changed0 consts) (propagate1 kf))
+                          ((changed1 consts)
+                           (propagate-constant consts kt v c)))
+              (values (append changed0 changed1) consts)))
+           (($ $branch kf kt)  (propagate2 kf kt))
+           (($ $switch kf kt* src v)
+            (let-values (((changed consts) (propagate1 kf)))
+              (let lp ((i 0) (kt* kt*) (changed changed) (consts consts))
+                (match kt*
+                  (() (values changed consts))
+                  ((k . kt*)
+                   (call-with-values (lambda ()
+                                       (propagate-constant consts k v i))
+                     (lambda (changed* consts)
+                       (lp (1+ i) kt* (append changed* changed) consts))))))))
+           (($ $prompt k kh)   (propagate2 k kh))
+           (($ $throw)         (propagate0))))
+        (($ $kreceive arity k)
+         (propagate1 k))
+        (($ $kfun src meta self tail clause)
+         (if clause
+             (propagate1 clause)
+             (propagate0)))
+        (($ $kclause arity kbody kalt)
+         (if kalt
+             (propagate2 kbody kalt)
+             (propagate1 kbody)))
+        (($ $ktail) (propagate0)))))
+
+  (worklist-fold* visit-cont
+                  (intset kfun)
+                  (intmap-add empty-intmap kfun empty-intmap)))
+
 (define-record-type <analysis>
-  (make-analysis effects clobbers preds avail truthy-labels)
+  (make-analysis effects clobbers preds avail truthy-labels consts)
   analysis?
   (effects analysis-effects)
   (clobbers analysis-clobbers)
   (preds analysis-preds)
   (avail analysis-avail)
-  (truthy-labels analysis-truthy-labels))
+  (truthy-labels analysis-truthy-labels)
+  (consts analysis-consts))
 
 ;; When we determine that we can replace an expression with
 ;; already-bound variables, we change the expression to a $values.  At
@@ -198,7 +291,7 @@ false.  It could be that both true and false proofs are available."
 
 (define (elide-predecessor label pred out analysis)
   (match analysis
-    (($ <analysis> effects clobbers preds avail truthy-labels)
+    (($ <analysis> effects clobbers preds avail truthy-labels consts)
      (let ((pred-preds (intmap-ref preds pred)))
        (and
         ;; Don't elide predecessors that are the targets of back-edges.
@@ -217,39 +310,43 @@ false.  It could be that both true and false proofs are available."
                         (intmap-add (intmap-add preds label pred intset-remove)
                                     label pred-preds intset-union)
                         avail
-                        truthy-labels)))))))
+                        truthy-labels
+                        consts)))))))
 
 (define (prune-branch analysis pred succ)
   (match analysis
-    (($ <analysis> effects clobbers preds avail truthy-labels)
+    (($ <analysis> effects clobbers preds avail truthy-labels consts)
      (make-analysis effects
                     clobbers
                     (intmap-add preds succ pred intset-remove)
                     avail
-                    truthy-labels))))
+                    truthy-labels
+                    consts))))
 
 (define (forward-branch analysis pred old-succ new-succ)
   (match analysis
-    (($ <analysis> effects clobbers preds avail truthy-labels)
+    (($ <analysis> effects clobbers preds avail truthy-labels consts)
      (make-analysis effects
                     clobbers
                     (let ((preds (intmap-add preds old-succ pred
                                              intset-remove)))
                       (intmap-add preds new-succ pred intset-add))
                     avail
-                    truthy-labels))))
+                    truthy-labels
+                    consts))))
 
 (define (prune-successors analysis pred succs)
   (intset-fold (lambda (succ analysis)
                  (prune-branch analysis pred succ))
                succs analysis))
 
-(define (compute-avail-and-bool-edge analysis pred succ out)
+(define (compute-out-edges analysis pred succ out)
   (match analysis
-    (($ <analysis> effects clobbers preds avail truthy-labels)
-     (let ((avail (intmap-ref avail pred))
-           (kill  (intmap-ref clobbers pred))
-           (bool  (intmap-ref truthy-labels pred)))
+    (($ <analysis> effects clobbers preds avail truthy-labels consts)
+     (let ((avail  (intmap-ref avail pred))
+           (kill   (intmap-ref clobbers pred))
+           (bool   (intmap-ref truthy-labels pred))
+           (consts (intmap-ref consts pred)))
        (values (intset-add (intset-subtract avail kill) pred)
                (match (and (< pred succ) (intmap-ref out pred))
                  (($ $kargs _ _ ($ $branch kf kt))
@@ -257,28 +354,34 @@ false.  It could be that both true and false proofs are available."
                     (if (eqv? k succ) (intset-add bool idx) bool))
                   (maybe-add (maybe-add bool kf (false-idx pred))
                              kt (true-idx pred)))
-                 (_ bool)))))))
+                 (_ bool))
+               (match (and (< pred succ) (intmap-ref out pred))
+                 (($ $kargs _ _ ($ $branch kf kt src 'eq-constant? c (v)))
+                  (if (eqv? kt succ)
+                      (adjoin-constant consts v c)
+                      consts))
+                 (_ consts)))))))
 
 (define (propagate-analysis analysis label out)
   (match analysis
-    (($ <analysis> effects clobbers preds avail truthy-labels)
+    (($ <analysis> effects clobbers preds avail truthy-labels consts)
      (call-with-values
          (lambda ()
            (intset-fold
-            (lambda (pred avail-in bool-in)
+            (lambda (pred avail-in bool-in consts-in)
               (call-with-values
                   (lambda ()
-                    (compute-avail-and-bool-edge analysis pred label out))
-                (lambda (avail-in* bool-in*)
-                  (values (if avail-in
-                              (intset-intersect avail-in avail-in*)
-                              avail-in*)
-                          (intset-union bool-in bool-in*)))))
-            (intmap-ref preds label) #f empty-intset))
-       (lambda (avail-in bool-in)
+                    (compute-out-edges analysis pred label out))
+                (lambda (avail-in* bool-in* consts-in*)
+                  (values (intset-intersect* avail-in avail-in*)
+                          (intset-union bool-in bool-in*)
+                          (meet-constants consts-in consts-in*)))))
+            (intmap-ref preds label) #f empty-intset #f))
+       (lambda (avail-in bool-in consts-in)
          (make-analysis effects clobbers preds
                         (intmap-replace avail label avail-in)
-                        (intmap-replace truthy-labels label bool-in)))))))
+                        (intmap-replace truthy-labels label bool-in)
+                        (intmap-replace consts label consts-in)))))))
 
 (define (term-successors term)
   (define (list->intset ls)
@@ -316,18 +419,33 @@ false.  It could be that both true and false proofs are available."
     (equiv (intmap-select equiv avail))))
 
 ;; return #(taken not-taken), or #f if can't decide.
-(define (fold-branch table key kf kt avail bool)
-  (let ((equiv (lookup-equivalent-expressions table key avail)))
-    (let lp ((candidate (intmap-prev equiv)))
-      (match candidate
-        (#f #f)
-        (_ (let ((t (intset-ref bool (true-idx candidate)))
-                 (f (intset-ref bool (false-idx candidate))))
-             (if (eqv? t f)
-                 (lp (intmap-prev equiv (1- candidate)))
-                 (if t
-                     (vector kt kf)
-                     (vector kf kt)))))))))
+(define (fold-branch table key kf kt avail bool consts)
+  (define (fold-constant-comparison)
+    (match key
+      (('eq-constant? c v)
+       (match (intmap-ref consts v (lambda (v) #f))
+         (#f   #f)
+         ((c') (if (eq? c c')
+                   (vector kt kf)
+                   (vector kf kt)))
+         (c*   (if (memq c c*)
+                   #f
+                   (vector kf kt)))))
+      (_ #f)))
+  (define (fold-redundant-branch)
+    (let ((equiv (lookup-equivalent-expressions table key avail)))
+      (let lp ((candidate (intmap-prev equiv)))
+        (match candidate
+          (#f #f)
+          (_ (let ((t (intset-ref bool (true-idx candidate)))
+                   (f (intset-ref bool (false-idx candidate))))
+               (if (eqv? t f)
+                   (lp (intmap-prev equiv (1- candidate)))
+                   (if t
+                       (vector kt kf)
+                       (vector kf kt)))))))))
+  (or (fold-constant-comparison)
+      (fold-redundant-branch)))
 
 (define (eliminate-common-subexpressions-in-fun kfun conts out substs)
   (define equivalent-expressions (make-equivalent-expression-table))
@@ -453,7 +571,7 @@ false.  It could be that both true and false proofs are available."
       (#f (residualize))
       (key
        (match analysis
-         (($ <analysis> effects clobbers preds avail truthy-labels)
+         (($ <analysis> effects clobbers preds avail truthy-labels consts)
           (match (lookup-equivalent-expressions equivalent-expressions
                                                 key (intmap-ref avail label))
             ((? (lambda (x) (eq? x empty-intmap)))
@@ -468,10 +586,10 @@ false.  It could be that both true and false proofs are available."
       (values out analysis))
      (else
       (call-with-values (lambda ()
-                          (compute-avail-and-bool-edge analysis pred label out))
-        (lambda (pred-avail pred-bool)
+                          (compute-out-edges analysis pred label out))
+        (lambda (pred-avail pred-bool pred-consts)
           (match (fold-branch equivalent-expressions key kf kt
-                              pred-avail pred-bool)
+                              pred-avail pred-bool pred-consts)
             (#(taken not-taken)
              (values (intmap-replace!
                       out pred
@@ -488,7 +606,7 @@ false.  It could be that both true and false proofs are available."
       (($ $branch kf kt)
        (let ((key (compute-branch-key term)))
          (match analysis
-           (($ <analysis> effects clobbers preds avail truthy-labels)
+           (($ <analysis> effects clobbers preds avail truthy-labels consts)
             (call-with-values
                 (lambda ()
                   (intset-fold
@@ -505,11 +623,13 @@ false.  It could be that both true and false proofs are available."
     (match term
       (($ $branch kf kt src)
        (match analysis
-         (($ <analysis> effects clobbers preds avail truthy-labels)
+         (($ <analysis> effects clobbers preds avail truthy-labels consts)
           (let ((key (compute-branch-key term))
                 (avail (intmap-ref avail label))
-                (bool (intmap-ref truthy-labels label)))
-            (match (fold-branch equivalent-expressions key kf kt avail bool)
+                (bool (intmap-ref truthy-labels label))
+                (consts (intmap-ref consts label)))
+            (match (fold-branch equivalent-expressions key kf kt avail bool
+                                consts)
               (#(taken not-taken)
                (values (build-term ($continue taken src ($values ())))
                        (prune-branch analysis label not-taken)))
@@ -556,7 +676,7 @@ false.  It could be that both true and false proofs are available."
        (define (visit-term-normally)
          (visit-term label names vars term out substs analysis))
        (match analysis
-         (($ <analysis> effects clobbers preds avail truthy-labels)
+         (($ <analysis> effects clobbers preds avail truthy-labels consts)
           (let ((preds (intmap-ref preds label)))
             (cond
              ((eq? preds empty-intset)
@@ -616,11 +736,13 @@ false.  It could be that both true and false proofs are available."
          (succs (compute-successors conts kfun))
          (preds (invert-graph succs))
          (avail (compute-available-expressions succs kfun clobbers))
-         (truthy-labels (compute-truthy-expressions conts kfun)))
+         (truthy-labels (compute-truthy-expressions conts kfun))
+         (consts (compute-consts conts kfun)))
     (call-with-values
         (lambda ()
           (intmap-fold visit-label conts out substs
-                       (make-analysis effects clobbers preds avail truthy-labels)))
+                       (make-analysis effects clobbers preds avail truthy-labels
+                                      consts)))
       (lambda (out substs analysis)
         (values out substs)))))
 
