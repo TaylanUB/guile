@@ -68,7 +68,7 @@
    result of 'guile -c "(display (assq-ref (gc-stats)
    'heap-total-allocated))"'.  */
 
-#define DEFAULT_INITIAL_HEAP_SIZE (200 * 1024 * SIZEOF_UINTPTR_T)
+#define DEFAULT_INITIAL_HEAP_SIZE (256 * 1024 * SIZEOF_UINTPTR_T)
 
 /* Set this to != 0 if every cell that is accessed shall be checked:
  */
@@ -464,7 +464,9 @@ scm_storage_prehistory ()
 
   GC_INIT ();
 
-  GC_expand_hp (DEFAULT_INITIAL_HEAP_SIZE);
+  size_t heap_size = GC_get_heap_size ();
+  if (heap_size < DEFAULT_INITIAL_HEAP_SIZE)
+    GC_expand_hp (DEFAULT_INITIAL_HEAP_SIZE - heap_size);
 
   /* We only need to register a displacement for those types for which the
      higher bits of the type tag are used to store a pointer (that is, a
