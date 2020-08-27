@@ -1,4 +1,4 @@
-/* Copyright 1995-2003,2006,2008-2014,2016-2018
+/* Copyright 1995-2003,2006,2008-2014,2016-2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -68,7 +68,7 @@
    result of 'guile -c "(display (assq-ref (gc-stats)
    'heap-total-allocated))"'.  */
 
-#define DEFAULT_INITIAL_HEAP_SIZE (128 * 1024 * SIZEOF_UINTPTR_T)
+#define DEFAULT_INITIAL_HEAP_SIZE (200 * 1024 * SIZEOF_UINTPTR_T)
 
 /* Set this to != 0 if every cell that is accessed shall be checked:
  */
@@ -144,10 +144,6 @@ run_before_gc_c_hook (void)
 unsigned long scm_gc_ports_collected = 0;
 static long gc_time_taken = 0;
 static long gc_start_time = 0;
-
-static unsigned long free_space_divisor;
-static unsigned long minimum_free_space_divisor;
-static double target_free_space_divisor;
 
 static unsigned long protected_obj_count = 0;
 
@@ -450,11 +446,6 @@ void
 scm_storage_prehistory ()
 {
   GC_set_all_interior_pointers (0);
-
-  free_space_divisor = scm_getenv_int ("GC_FREE_SPACE_DIVISOR", 3);
-  minimum_free_space_divisor = free_space_divisor;
-  target_free_space_divisor = free_space_divisor;
-  GC_set_free_space_divisor (free_space_divisor);
   GC_set_finalize_on_demand (1);
 
 #if (GC_VERSION_MAJOR == 7 && GC_VERSION_MINOR == 4	\
