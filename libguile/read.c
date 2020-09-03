@@ -81,8 +81,6 @@ SCM_SYMBOL (sym_bracket_apply, "$bracket-apply$");
 
 scm_t_option scm_read_opts[] =
   {
-    { SCM_OPTION_BOOLEAN, "copy", 0,
-      "Copy source code expressions." },
     { SCM_OPTION_BOOLEAN, "positions", 1,
       "Record positions of source code expressions." },
     { SCM_OPTION_BOOLEAN, "case-insensitive", 0,
@@ -116,7 +114,6 @@ enum t_keyword_style
 struct t_read_opts
 {
   enum t_keyword_style keyword_style;
-  unsigned int copy_source_p        : 1;
   unsigned int record_positions_p   : 1;
   unsigned int case_insensitive_p   : 1;
   unsigned int r6rs_escapes_p       : 1;
@@ -178,12 +175,7 @@ SCM_DEFINE (scm_read_options, "read-options-interface", 0, 1, 0,
 	    "@code{read-disable}, @code{read-set!} and @code{read-options}.")
 #define FUNC_NAME s_scm_read_options
 {
-  SCM ans = scm_options (setting,
-			 scm_read_opts,
-			 FUNC_NAME);
-  if (SCM_COPY_SOURCE_P)
-    SCM_RECORD_POSITIONS_P = 1;
-  return ans;
+  return scm_options (setting, scm_read_opts, FUNC_NAME);
 }
 #undef FUNC_NAME
 
@@ -413,20 +405,26 @@ flush_ws (SCM port, scm_t_read_opts *opts, const char *eoferr)
 
 static SCM scm_read_expression (SCM port, scm_t_read_opts *opts);
 static SCM scm_read_sharp (int chr, SCM port, scm_t_read_opts *opts,
-                           long line, int column);
+                           SCM line, SCM column);
 
 
 static SCM
 maybe_annotate_source (SCM x, SCM port, scm_t_read_opts *opts,
-                       long line, int column)
+                       SCM line, SCM column)
 {
-  /* This condition can be caused by a user calling
-     set-port-column!.  */
-  if (line < 0 || column < 0)
+  if ((SCM_I_INUMP (line) && SCM_I_INUM (line) < 0)
+      || (SCM_I_INUMP (column) && SCM_I_INUM (column) < 1))
+    /* This condition can be caused by a user calling
+       set-port-column!.  */
     return x;
 
   if (opts->record_positions_p)
-    scm_i_set_source_properties_x (x, line, column, SCM_FILENAME (port));
+    {
+      /* We always capture the column after one char of lookahead;
+         subtract off that lookahead value.  */
+      column = scm_oneminus (column);
+      scm_i_set_source_properties_x (x, line, column, SCM_FILENAME (port));
+    }
   return x;
 }
 
@@ -442,8 +440,8 @@ scm_read_sexp (scm_t_wchar chr, SCM port, scm_t_read_opts *opts)
                                    : ')'));
 
   /* Need to capture line and column numbers here. */
-  long line = scm_to_long (scm_port_line (port));
-  int column = scm_to_int (scm_port_column (port)) - 1;
+  SCM line = scm_port_line (port);
+  SCM column = scm_port_column (port);
 
   c = flush_ws (port, opts, FUNC_NAME);
   if (terminating_char == c)
@@ -620,8 +618,8 @@ scm_read_string_like_syntax (int chr, SCM port, scm_t_read_opts *opts)
   scm_t_wchar c, c_str[READER_STRING_BUFFER_SIZE];
 
   /* Need to capture line and column numbers here. */
-  long line = scm_to_long (scm_port_line (port));
-  int column = scm_to_int (scm_port_column (port)) - 1;
+  SCM line = scm_port_line (port);
+  SCM column = scm_port_column (port);
 
   while (chr != (c = scm_getc (port)))
     {
@@ -747,8 +745,8 @@ scm_read_number (scm_t_wchar chr, SCM port, scm_t_read_opts *opts)
   size_t bytes_read;
 
   /* Need to capture line and column numbers here. */
-  long line = scm_to_long (scm_port_line (port));
-  int column = scm_to_int (scm_port_column (port)) - 1;
+  SCM line = scm_port_line (port);
+  SCM column = scm_port_column (port);
 
   scm_ungetc (chr, port);
   buffer = read_complete_token (port, opts, local_buffer, sizeof local_buffer,
@@ -874,8 +872,8 @@ static SCM
 scm_read_quote (int chr, SCM port, scm_t_read_opts *opts)
 {
   SCM p;
-  long line = scm_to_long (scm_port_line (port));
-  int column = scm_to_int (scm_port_column (port)) - 1;
+  SCM line = scm_port_line (port);
+  SCM column = scm_port_column (port);
 
   switch (chr)
     {
@@ -921,8 +919,8 @@ static SCM
 scm_read_syntax (int chr, SCM port, scm_t_read_opts *opts)
 {
   SCM p;
-  long line = scm_to_long (scm_port_line (port));
-  int column = scm_to_int (scm_port_column (port)) - 1;
+  SCM line = scm_port_line (port);
+  SCM column = scm_port_column (port);
 
   switch (chr)
     {
@@ -1177,7 +1175,7 @@ scm_read_keyword (int chr, SCM port, scm_t_read_opts *opts)
 
 static SCM
 scm_read_vector (int chr, SCM port, scm_t_read_opts *opts,
-                 long line, int column)
+                 SCM line, SCM column)
 {
   /* Note: We call `scm_read_sexp ()' rather than READER here in order to
      guarantee that it's going to do what we want.  After all, this is an
@@ -1222,7 +1220,7 @@ read_decimal_integer (SCM port, int c, ssize_t *resp)
 
    C is the first character read after the '#'. */
 static SCM
-scm_read_array (int c, SCM port, scm_t_read_opts *opts, long line, int column)
+scm_read_array (int c, SCM port, scm_t_read_opts *opts, SCM line, SCM column)
 {
   ssize_t rank;
   scm_t_wchar tag_buf[8];
@@ -1353,14 +1351,14 @@ scm_read_array (int c, SCM port, scm_t_read_opts *opts, long line, int column)
 
 static SCM
 scm_read_srfi4_vector (int chr, SCM port, scm_t_read_opts *opts,
-                       long line, int column)
+                       SCM line, SCM column)
 {
   return scm_read_array (chr, port, opts, line, column);
 }
 
 static SCM
 scm_read_bytevector (scm_t_wchar chr, SCM port, scm_t_read_opts *opts,
-                     long line, int column)
+                     SCM line, SCM column)
 {
   chr = scm_getc (port);
   if (chr != 'u')
@@ -1387,7 +1385,7 @@ scm_read_bytevector (scm_t_wchar chr, SCM port, scm_t_read_opts *opts,
 
 static SCM
 scm_read_guile_bit_vector (scm_t_wchar chr, SCM port, scm_t_read_opts *opts,
-                           long line, int column)
+                           SCM line, SCM column)
 {
   /* Read the `#*10101'-style read syntax for bit vectors in Guile.  This is
      terribly inefficient but who cares?  */
@@ -1655,8 +1653,8 @@ scm_read_sharp_extension (int chr, SCM port, scm_t_read_opts *opts)
   proc = scm_get_hash_procedure (chr);
   if (scm_is_true (scm_procedure_p (proc)))
     {
-      long line = scm_to_long (scm_port_line (port));
-      int column = scm_to_int (scm_port_column (port)) - 2;
+      SCM line = scm_port_line (port);
+      SCM column = scm_oneminus (scm_port_column (port));
       SCM got;
 
       got = scm_call_2 (proc, SCM_MAKE_CHAR (chr), port);
@@ -1675,7 +1673,7 @@ scm_read_sharp_extension (int chr, SCM port, scm_t_read_opts *opts)
    among the above token readers.   */
 static SCM
 scm_read_sharp (scm_t_wchar chr, SCM port, scm_t_read_opts *opts,
-                long line, int column)
+                SCM line, SCM column)
 #define FUNC_NAME "scm_lreadr"
 {
   SCM result;
@@ -1808,8 +1806,8 @@ read_inner_expression (SCM port, scm_t_read_opts *opts)
                  be part of an unescaped symbol.  We might as well do
                  something useful with it, so we adopt Kawa's convention:
                  [...] => ($bracket-list$ ...) */
-              long line = scm_to_long (scm_port_line (port));
-              int column = scm_to_int (scm_port_column (port)) - 1;
+              SCM line = scm_port_line (port);
+              SCM column = scm_port_column (port);
               return maybe_annotate_source
                 (scm_cons (sym_bracket_list, scm_read_sexp (chr, port, opts)),
                  port, opts, line, column);
@@ -1831,8 +1829,8 @@ read_inner_expression (SCM port, scm_t_read_opts *opts)
 	  return (scm_read_quote (chr, port, opts));
 	case '#':
 	  {
-            long line = scm_to_long (scm_port_line (port));
-            int column = scm_to_int (scm_port_column (port)) - 1;
+            SCM line = scm_port_line (port);
+            SCM column = scm_port_column (port);
 	    SCM result = scm_read_sharp (chr, port, opts, line, column);
 	    if (scm_is_eq (result, SCM_UNSPECIFIED))
 	      /* We read a comment or some such.  */
@@ -1880,8 +1878,8 @@ scm_read_expression (SCM port, scm_t_read_opts *opts)
     return read_inner_expression (port, opts);
   else
     {
-      long line = 0;
-      int column = 0;
+      SCM line = SCM_INUM0;
+      SCM column = SCM_INUM1;
       SCM expr;
 
       if (opts->record_positions_p)
@@ -1896,8 +1894,8 @@ scm_read_expression (SCM port, scm_t_read_opts *opts)
           if (c == EOF)
             return SCM_EOF_VAL;
           scm_ungetc (c, port);
-          line = scm_to_long (scm_port_line (port));
-          column = scm_to_int (scm_port_column (port));
+          line = scm_port_line (port);
+          column = scm_port_column (port);
         }
 
       expr = read_inner_expression (port, opts);
@@ -2250,18 +2248,17 @@ SCM_DEFINE (scm_file_encoding, "file-encoding", 1, 0, 0,
 SCM_SYMBOL (sym_port_read_options, "port-read-options");
 
 /* Offsets of bit fields for each per-port override */
-#define READ_OPTION_COPY_SOURCE_P          0
-#define READ_OPTION_RECORD_POSITIONS_P     2
-#define READ_OPTION_CASE_INSENSITIVE_P     4
-#define READ_OPTION_KEYWORD_STYLE          6
-#define READ_OPTION_R6RS_ESCAPES_P         8
-#define READ_OPTION_SQUARE_BRACKETS_P     10
-#define READ_OPTION_HUNGRY_EOL_ESCAPES_P  12
-#define READ_OPTION_CURLY_INFIX_P         14
-#define READ_OPTION_R7RS_SYMBOLS_P        16
+#define READ_OPTION_RECORD_POSITIONS_P     0
+#define READ_OPTION_CASE_INSENSITIVE_P     2
+#define READ_OPTION_KEYWORD_STYLE          4
+#define READ_OPTION_R6RS_ESCAPES_P         6
+#define READ_OPTION_SQUARE_BRACKETS_P      8
+#define READ_OPTION_HUNGRY_EOL_ESCAPES_P  10
+#define READ_OPTION_CURLY_INFIX_P         12
+#define READ_OPTION_R7RS_SYMBOLS_P        14
 
 /* The total width in bits of the per-port overrides */
-#define READ_OPTIONS_NUM_BITS             18
+#define READ_OPTIONS_NUM_BITS             16
 
 #define READ_OPTIONS_INHERIT_ALL  ((1UL << READ_OPTIONS_NUM_BITS) - 1)
 #define READ_OPTIONS_MAX_VALUE    READ_OPTIONS_INHERIT_ALL
@@ -2377,7 +2374,6 @@ init_read_options (SCM port, scm_t_read_opts *opts)
     }                                                                   \
   while (0)
 
-  RESOLVE_BOOLEAN_OPTION (COPY_SOURCE_P,        copy_source_p);
   RESOLVE_BOOLEAN_OPTION (RECORD_POSITIONS_P,   record_positions_p);
   RESOLVE_BOOLEAN_OPTION (CASE_INSENSITIVE_P,   case_insensitive_p);
   RESOLVE_BOOLEAN_OPTION (R6RS_ESCAPES_P,       r6rs_escapes_p);

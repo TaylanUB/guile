@@ -1,4 +1,4 @@
-/* Copyright 1995-2002,2006,2008-2012,2018
+/* Copyright 1995-2002,2006,2008-2012,2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -51,19 +51,17 @@
 /* {Source Properties}
  *
  * Properties of source list expressions.
- * Four of these have special meaning:
+ * Three of these have special meaning:
  *
- * filename    string   The name of the source file.
- * copy        list     A copy of the list expression.
- * line	       integer	The source code line number.
- * column      integer	The source code column number.
+ * filename    The name of the source file.
+ * line	       The source code line number.
+ * column      The source code column number.
  *
  * Most properties above can be set by the reader.
  *
  */
 
 SCM_GLOBAL_SYMBOL (scm_sym_filename, "filename");
-SCM_GLOBAL_SYMBOL (scm_sym_copy, "copy");
 SCM_GLOBAL_SYMBOL (scm_sym_line, "line");
 SCM_GLOBAL_SYMBOL (scm_sym_column, "column");
 
@@ -74,30 +72,27 @@ static SCM scm_source_whash;
  *  Source properties are stored as double cells with the
  *  following layout:
   
- * car = tag
- * cbr = pos
- * ccr = copy
+ * car = tag | col (untagged)
+ * cbr = line
+ * ccr = filename
  * cdr = alist
  */
 
-#define SRCPROPSP(p) (SCM_SMOB_PREDICATE (scm_tc16_srcprops, (p)))
-#define SRCPROPPOS(p) (SCM_SMOB_DATA(p))
-#define SRCPROPLINE(p) (SRCPROPPOS(p) >> 12)
-#define SRCPROPCOL(p) (SRCPROPPOS(p) & 0x0fffL)
-#define SRCPROPCOPY(p) (SCM_SMOB_OBJECT_2(p))
-#define SRCPROPALIST(p) (SCM_SMOB_OBJECT_3(p))
-#define SRCPROPMAKPOS(l, c) (((l) << 12) + (c))
-#define SETSRCPROPPOS(p, l, c) (SCM_SET_SMOB_DATA_1 (p, SRCPROPMAKPOS (l, c)))
-#define SETSRCPROPLINE(p, l) SETSRCPROPPOS (p, l, SRCPROPCOL (p))
-#define SETSRCPROPCOL(p, c) SETSRCPROPPOS (p, SRCPROPLINE (p), c)
-#define SETSRCPROPCOPY(p, c) (SCM_SET_SMOB_OBJECT_2 (p, c))
-#define SETSRCPROPALIST(p, l) (SCM_SET_SMOB_OBJECT_3 (p, l))
+static scm_t_bits tc16_srcprops;
+
+#define SRCPROPSP(p) (SCM_SMOB_PREDICATE (tc16_srcprops, (p)))
+#define SRCPROPCOL(p) (scm_from_int (SCM_SMOB_FLAGS (p)))
+#define SRCPROPLINE(p) (SCM_SMOB_OBJECT_1 (p))
+#define SRCPROPFNAME(p) (SCM_SMOB_OBJECT_2 (p))
+#define SRCPROPALIST(p) (SCM_SMOB_OBJECT_3 (p))
+#define SETSRCPROPCOL(p, c) (SCM_SET_SMOB_FLAGS (p, scm_to_int (c)))
+#define SETSRCPROPLINE(p, l) (SCM_SET_SMOB_OBJECT_1 (p, l))
+#define SETSRCPROPFNAME(p, x) (SCM_SET_SMOB_OBJECT_2 (p, x))
+#define SETSRCPROPALIST(p, x) (SCM_SET_SMOB_OBJECT_3 (p, x))
 
 
 static SCM scm_srcprops_to_alist (SCM obj);
 
-
-scm_t_bits scm_tc16_srcprops;
 
 
 static int
@@ -120,56 +115,23 @@ srcprops_print (SCM obj, SCM port, scm_print_state *pstate)
 }
 
 
-/*
- * We remember the last file name settings, so we can share that alist
- * entry.  This works because scm_set_source_property_x does not use
- * assoc-set! for modifying the alist.
- *
- * This variable contains a protected cons, whose cdr is the cached
- * alist
- */
-static SCM scm_last_alist_filename;
-
 SCM
-scm_make_srcprops (long line, int col, SCM filename, SCM copy, SCM alist)
+scm_i_make_srcprops (SCM line, SCM col, SCM filename, SCM alist)
 {
-  if (!SCM_UNBNDP (filename))
-    {
-      SCM old_alist = alist;
-
-      /*
-	have to extract the acons, and operate on that, for
-	thread safety.
-       */
-      SCM last_acons = SCM_CDR (scm_last_alist_filename);
-      if (scm_is_null (old_alist)
-	  && scm_is_eq (SCM_CDAR (last_acons), filename))
-	{
-	  alist = last_acons;
-	}
-      else
-	{
-	  alist = scm_acons (scm_sym_filename, filename, alist);
-	  if (scm_is_null (old_alist))
-	    scm_set_cdr_x (scm_last_alist_filename, alist);
-	}
-    }
-  
-  SCM_RETURN_NEWSMOB3 (scm_tc16_srcprops,
-		       SRCPROPMAKPOS (line, col),
-		       SCM_UNPACK (copy),
-		       SCM_UNPACK (alist));
+  SCM_RETURN_NEWSMOB3 (tc16_srcprops | (scm_to_int (col) << 16),
+                       SCM_UNPACK (line),
+                       SCM_UNPACK (filename),
+                       SCM_UNPACK (alist));
 }
-
 
 static SCM
 scm_srcprops_to_alist (SCM obj)
 {
   SCM alist = SRCPROPALIST (obj);
-  if (!SCM_UNBNDP (SRCPROPCOPY (obj)))
-    alist = scm_acons (scm_sym_copy, SRCPROPCOPY (obj), alist);
-  alist = scm_acons (scm_sym_column, scm_from_int (SRCPROPCOL (obj)), alist);
-  alist = scm_acons (scm_sym_line, scm_from_int (SRCPROPLINE (obj)), alist);
+  if (scm_is_true (SRCPROPFNAME (obj)))
+    alist = scm_acons (scm_sym_filename, SRCPROPFNAME (obj), alist);
+  alist = scm_acons (scm_sym_column, SRCPROPCOL (obj), alist);
+  alist = scm_acons (scm_sym_line, SRCPROPLINE (obj), alist);
   return alist;
 }
 
@@ -235,17 +197,13 @@ scm_i_has_source_properties (SCM obj)
   
 
 void
-scm_i_set_source_properties_x (SCM obj, long line, int col, SCM fname)
+scm_i_set_source_properties_x (SCM obj, SCM line, SCM col, SCM fname)
 #define FUNC_NAME "%set-source-properties"
 {
   SCM_VALIDATE_NIM (1, obj);
 
   scm_weak_table_putq_x (scm_source_whash, obj,
-                         scm_make_srcprops (line, col, fname,
-                                            SCM_COPY_SOURCE_P
-                                            ? scm_copy_tree (obj)
-                                            : SCM_UNDEFINED,
-                                            SCM_EOL));
+                         scm_i_make_srcprops (line, col, fname, SCM_EOL));
 }
 #undef FUNC_NAME
 
@@ -265,11 +223,11 @@ SCM_DEFINE (scm_source_property, "source-property", 2, 0, 0,
   if (!SRCPROPSP (p))
     goto alist;
   if (scm_is_eq (scm_sym_line, key))
-    return scm_from_int (SRCPROPLINE (p));
+    return SRCPROPLINE (p);
   else if (scm_is_eq (scm_sym_column, key))
-    return scm_from_int (SRCPROPCOL (p));
-  else if (scm_is_eq (scm_sym_copy, key))
-    return SRCPROPCOPY (p);
+    return SRCPROPCOL (p);
+  else if (scm_is_eq (scm_sym_filename, key))
+    return SRCPROPFNAME (p);
   else
     {
       p = SRCPROPALIST (p);
@@ -280,6 +238,8 @@ SCM_DEFINE (scm_source_property, "source-property", 2, 0, 0,
 }
 #undef FUNC_NAME
 
+static scm_i_pthread_mutex_t source_mutex = SCM_I_PTHREAD_MUTEX_INITIALIZER;
+
 SCM_DEFINE (scm_set_source_property_x, "set-source-property!", 3, 0, 0,
             (SCM obj, SCM key, SCM datum),
 	    "Set the source property of object @var{obj}, which is specified by\n"
@@ -289,34 +249,35 @@ SCM_DEFINE (scm_set_source_property_x, "set-source-property!", 3, 0, 0,
   SCM p;
   SCM_VALIDATE_NIM (1, obj);
 
-  scm_i_pthread_mutex_lock (&scm_i_misc_mutex);
+  scm_i_pthread_mutex_lock (&source_mutex);
   p = scm_weak_table_refq (scm_source_whash, obj, SCM_EOL);
 
   if (scm_is_eq (scm_sym_line, key))
     {
       if (SRCPROPSP (p))
-	SETSRCPROPLINE (p, scm_to_int (datum));
+	SETSRCPROPLINE (p, datum);
       else
 	scm_weak_table_putq_x (scm_source_whash, obj,
-                               scm_make_srcprops (scm_to_int (datum), 0,
-                                                  SCM_UNDEFINED, SCM_UNDEFINED, p));
+                               scm_i_make_srcprops (datum, SCM_INUM0,
+                                                    SCM_BOOL_F, p));
     }
   else if (scm_is_eq (scm_sym_column, key))
     {
       if (SRCPROPSP (p))
-	SETSRCPROPCOL (p, scm_to_int (datum));
+	SETSRCPROPCOL (p, datum);
       else
 	scm_weak_table_putq_x (scm_source_whash, obj,
-                               scm_make_srcprops (0, scm_to_int (datum),
-                                                  SCM_UNDEFINED, SCM_UNDEFINED, p));
+                               scm_i_make_srcprops (SCM_INUM0, datum,
+                                                    SCM_BOOL_F, p));
     }
-  else if (scm_is_eq (scm_sym_copy, key))
+  else if (scm_is_eq (scm_sym_filename, key))
     {
       if (SRCPROPSP (p))
-	SETSRCPROPCOPY (p, datum);
+	SETSRCPROPFNAME (p, datum);
       else
 	scm_weak_table_putq_x (scm_source_whash, obj,
-                               scm_make_srcprops (0, 0, SCM_UNDEFINED, datum, p));
+                               scm_i_make_srcprops (SCM_INUM0, SCM_INUM0,
+                                                    datum, p));
     }
   else
     {
@@ -326,7 +287,7 @@ SCM_DEFINE (scm_set_source_property_x, "set-source-property!", 3, 0, 0,
 	scm_weak_table_putq_x (scm_source_whash, obj,
                                scm_acons (key, datum, p));
     }
-  scm_i_pthread_mutex_unlock (&scm_i_misc_mutex);
+  scm_i_pthread_mutex_unlock (&source_mutex);
 
   return SCM_UNSPECIFIED;
 }
@@ -354,14 +315,11 @@ SCM_DEFINE (scm_cons_source, "cons-source", 3, 0, 0,
 void
 scm_init_srcprop ()
 {
-  scm_tc16_srcprops = scm_make_smob_type ("srcprops", 0);
-  scm_set_smob_print (scm_tc16_srcprops, srcprops_print);
+  tc16_srcprops = scm_make_smob_type ("srcprops", 0);
+  scm_set_smob_print (tc16_srcprops, srcprops_print);
 
   scm_source_whash = scm_c_make_weak_table (0, SCM_WEAK_TABLE_KIND_KEY);
   scm_c_define ("source-whash", scm_source_whash);
-
-  scm_last_alist_filename = scm_cons (SCM_EOL,
-				      scm_acons (SCM_EOL, SCM_EOL, SCM_EOL));
 
 #include "srcprop.x"
 }

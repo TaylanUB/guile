@@ -131,6 +131,13 @@ SCM_DEPRECATED SCM scm_bit_position (SCM item, SCM v, SCM k);
 SCM_DEPRECATED SCM scm_bit_set_star_x (SCM v, SCM kv, SCM obj);
 SCM_DEPRECATED SCM scm_istr2bve (SCM str);
 
+#define SCM_SOURCE_PROPERTY_FLAG_BREAK 1
+
+SCM_DEPRECATED scm_t_bits scm_tc16_srcprops;
+SCM_DEPRECATED SCM scm_sym_copy;
+SCM_DEPRECATED SCM scm_make_srcprops (long line, int col, SCM filename,
+                                      SCM copy, SCM alist);
+
 void scm_i_init_deprecated (void);
 
 #endif

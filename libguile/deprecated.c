@@ -27,13 +27,17 @@
 
 #define SCM_BUILDING_DEPRECATED_CODE
 
+#include "alist.h"
 #include "boolean.h"
 #include "bitvectors.h"
 #include "deprecation.h"
 #include "gc.h"
 #include "gsubr.h"
+#include "procprop.h"
+#include "srcprop.h"
 #include "srfi-4.h"
 #include "strings.h"
+#include "symbols.h"
 
 #include "deprecated.h"
 
@@ -567,6 +571,19 @@ scm_istr2bve (SCM str)
   scm_array_handle_release (&handle);
   scm_remember_upto_here_1 (str);
   return res;
+}
+
+SCM_GLOBAL_SYMBOL (scm_sym_copy, "copy");
+
+SCM
+scm_make_srcprops (long line, int col, SCM filename, SCM copy, SCM alist)
+{
+  scm_c_issue_deprecation_warning
+    ("scm_make_srcprops is deprecated; use set-source-properties! instead");
+
+  alist = SCM_UNBNDP (copy) ? alist : scm_acons (scm_sym_copy, copy, alist);
+  return scm_i_make_srcprops (scm_from_long (line), scm_from_int (col),
+                              filename, alist);
 }
 
 

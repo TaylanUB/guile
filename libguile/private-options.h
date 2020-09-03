@@ -1,4 +1,4 @@
-/* Copyright 2007,2009-2011,2014,2018
+/* Copyright 2007,2009-2011,2014,2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -56,16 +56,15 @@ SCM_INTERNAL scm_t_option scm_print_opts[];
  */
 SCM_INTERNAL scm_t_option scm_read_opts[];
 
-#define SCM_COPY_SOURCE_P      scm_read_opts[0].val
-#define SCM_RECORD_POSITIONS_P scm_read_opts[1].val
-#define SCM_CASE_INSENSITIVE_P scm_read_opts[2].val
-#define SCM_KEYWORD_STYLE      scm_read_opts[3].val
-#define SCM_R6RS_ESCAPES_P     scm_read_opts[4].val
-#define SCM_SQUARE_BRACKETS_P  scm_read_opts[5].val
-#define SCM_HUNGRY_EOL_ESCAPES_P scm_read_opts[6].val
-#define SCM_CURLY_INFIX_P      scm_read_opts[7].val
-#define SCM_R7RS_SYMBOLS_P     scm_read_opts[8].val
+#define SCM_RECORD_POSITIONS_P scm_read_opts[0].val
+#define SCM_CASE_INSENSITIVE_P scm_read_opts[1].val
+#define SCM_KEYWORD_STYLE      scm_read_opts[2].val
+#define SCM_R6RS_ESCAPES_P     scm_read_opts[3].val
+#define SCM_SQUARE_BRACKETS_P  scm_read_opts[4].val
+#define SCM_HUNGRY_EOL_ESCAPES_P scm_read_opts[5].val
+#define SCM_CURLY_INFIX_P      scm_read_opts[6].val
+#define SCM_R7RS_SYMBOLS_P     scm_read_opts[7].val
 
-#define SCM_N_READ_OPTIONS 9
+#define SCM_N_READ_OPTIONS 8
 
 #endif  /* PRIVATE_OPTIONS */ 
