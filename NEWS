@@ -5,6 +5,27 @@ See the end for copying conditions.
 Please send Guile bug reports to bug-guile@gnu.org.
 
 
+Changes in 3.0.5 (since 3.0.4)
+
+* New interfaces and functionality
+
+** O(1) compilation of `case' and related expressions
+
+Guile now optimizes chains of eq? comparisons to constants, resulting in
+O(1) dispatch time, regardless of the length of the chain.  This
+optimization is also unlocked in many cases for `match' expressions with
+many similar clauses whose first differentiator are constants.
+
+* Incompatible changes
+
+** `copy' read-option removed
+
+This read option would include a copy of the source expression in the
+source-properties of each subexpression.  This option has always been
+off by default and lost most of its use value with the switch to a
+compiler in Guile 2.0.
+
+
 Changes in 3.0.4 (since 3.0.3)
 
 This release fixes the SONAME of libguile-3.0.so, which was erroneously

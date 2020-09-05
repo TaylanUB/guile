@@ -336,7 +336,6 @@ invoking @code{read-options} at the prompt.
 scheme@@(guile-user)> (read-options)
 (square-brackets keywords #f positions)
 scheme@@(guile-user)> (read-options 'help)
-copy              no    Copy source code expressions.
 positions         yes   Record positions of source code expressions.
 case-insensitive  no    Convert symbols to lower case.
 keywords          #f    Style of keyword recognition: #f, 'prefix or 'postfix.
