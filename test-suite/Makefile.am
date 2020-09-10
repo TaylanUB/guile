@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in.
 ##
-## Copyright 2001-2019 Software Foundation, Inc.
+## Copyright 2001-2020 Software Foundation, Inc.
 ##
 ## This file is part of GUILE.
 ##
@@ -38,6 +38,7 @@ SCM_TESTS = tests/00-initial-env.test		\
 	    tests/compiler.test			\
 	    tests/control.test			\
 	    tests/continuations.test		\
+	    tests/copy-tree.test		\
 	    tests/coverage.test			\
 	    tests/cross-compilation.test	\
 	    tests/curried-definitions.test	\

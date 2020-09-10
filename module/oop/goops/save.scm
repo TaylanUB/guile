@@ -1,6 +1,6 @@
 ;;; installed-scm-file
 
-;;;; Copyright (C) 2000,2001,2002, 2006, 2009, 2010, 2013, 2015 Free Software Foundation, Inc.
+;;;; Copyright (C) 2000,2001,2002, 2006, 2009, 2010, 2013, 2015, 2020 Free Software Foundation, Inc.
 ;;;; 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -19,11 +19,12 @@
 
 
 (define-module (oop goops save)
-  :use-module (oop goops internal)
-  :export (make-unbound save-objects load-objects restore
-	   enumerate! enumerate-component!
-	   write-readably write-component write-component-procedure
-	   literal? readable make-readable))
+  #:use-module (ice-9 copy-tree)
+  #:use-module (oop goops internal)
+  #:export (make-unbound save-objects load-objects restore
+	    enumerate! enumerate-component!
+	    write-readably write-component write-component-procedure
+	    literal? readable make-readable))
 
 (define (make-unbound)
   *unbound*)

@@ -1,4 +1,4 @@
-/* Copyright 1995-2004,2006,2009-2014,2016-2019
+/* Copyright 1995-2004,2006,2009-2014,2016-2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -137,7 +137,6 @@
 #include "symbols.h"
 #include "syntax.h"
 #include "throw.h"
-#include "trees.h"
 #include "unicode.h"
 #include "uniform.h"
 #include "values.h"
@@ -462,7 +461,6 @@ scm_i_init_guile (void *base)
   scm_init_srfi_14 ();  /* Requires smob_prehistory */
   scm_init_exceptions ();
   scm_init_throw ();    /* Requires smob_prehistory */
-  scm_init_trees ();
   scm_init_version ();
   scm_init_weak_set ();
   scm_init_weak_table ();

@@ -1,4 +1,4 @@
-;;;; Copyright (C) 2003, 2005, 2006, 2009, 2010, 2011, 2012, 2013 Free Software Foundation, Inc.
+;;;; Copyright (C) 2017, 2020 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -15,7 +15,9 @@
 ;;;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 ;;;;
 
-(define-module (ice-9 deprecated))
+(define-module (ice-9 deprecated)
+  #:use-module (ice-9 copy-tree)
+  #:export ((copy-tree* . copy-tree)))
 
 (define-syntax-rule (define-deprecated name message exp)
   (begin
@@ -31,3 +33,9 @@
   "allow-legacy-syntax-objects? is deprecated and has no effect.  Guile
 3.0 has no legacy syntax objects."
   %allow-legacy-syntax-objects?)
+
+(define (copy-tree* x)
+  (issue-deprecation-warning
+   "copy-tree in the default environment is deprecated.  Import it
+from (ice-9 copy-tree) instead.")
+  (copy-tree x))

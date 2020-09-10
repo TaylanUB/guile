@@ -225,7 +225,6 @@ libguile_@GUILE_EFFECTIVE_VERSION@_la_SOURCES =				\
 	syntax.c				\
 	threads.c				\
 	throw.c					\
-	trees.c					\
 	unicode.c				\
 	uniform.c				\
 	values.c				\
@@ -336,7 +335,6 @@ DOT_X_FILES =					\
 	syntax.x				\
 	threads.x				\
 	throw.x					\
-	trees.x					\
 	unicode.x				\
 	uniform.x				\
 	values.x				\
@@ -440,7 +438,6 @@ DOT_DOC_FILES = 				\
 	syntax.doc				\
 	threads.doc				\
 	throw.doc				\
-	trees.doc				\
 	unicode.doc				\
 	uniform.doc				\
 	values.doc				\
@@ -702,7 +699,6 @@ modinclude_HEADERS =				\
 	tags.h					\
 	threads.h				\
 	throw.h					\
-	trees.h					\
 	validate.h				\
 	unicode.h				\
 	uniform.h				\

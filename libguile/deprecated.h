@@ -138,6 +138,8 @@ SCM_DEPRECATED SCM scm_sym_copy;
 SCM_DEPRECATED SCM scm_make_srcprops (long line, int col, SCM filename,
                                       SCM copy, SCM alist);
 
+SCM_DEPRECATED SCM scm_copy_tree (SCM obj);
+
 void scm_i_init_deprecated (void);
 
 #endif

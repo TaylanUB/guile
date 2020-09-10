@@ -104,6 +104,7 @@ SOURCES =					\
   ice-9/command-line.scm			\
   ice-9/common-list.scm				\
   ice-9/control.scm				\
+  ice-9/copy-tree.scm				\
   ice-9/curried-definitions.scm			\
   ice-9/deprecated.scm				\
   ice-9/documentation.scm			\

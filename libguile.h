@@ -1,7 +1,7 @@
 #ifndef SCM_LIBGUILE_H
 #define SCM_LIBGUILE_H
 
-/* Copyright 1995-1998,2000-2004,2006,2008-2014,2018
+/* Copyright 1995-1998,2000-2004,2006,2008-2014,2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -112,7 +112,6 @@ extern "C" {
 #include "libguile/struct.h"
 #include "libguile/symbols.h"
 #include "libguile/throw.h"
-#include "libguile/trees.h"
 #include "libguile/uniform.h"
 #include "libguile/values.h"
 #include "libguile/variable.h"

@@ -26,6 +26,7 @@
   #:use-module (system vm program)
   #:use-module (system vm loader)
   #:use-module (ice-9 control)
+  #:use-module (ice-9 copy-tree)
   #:use-module (ice-9 history)
   #:export (<repl> make-repl repl-language repl-options
             repl-tm-stats repl-gc-stats repl-debug

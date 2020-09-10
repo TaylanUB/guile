@@ -34,6 +34,7 @@
 (define-module (web client)
   #:use-module (rnrs bytevectors)
   #:use-module (ice-9 binary-ports)
+  #:use-module (ice-9 copy-tree)
   #:use-module (ice-9 iconv)
   #:use-module (ice-9 rdelim)
   #:use-module (web request)

@@ -5924,7 +5924,8 @@ that modifying the elements of the new list also modifies the elements
 of the old list.  On the other hand, applying procedures like
 @code{set-cdr!} or @code{delv!} to the new list will not alter the old
 list.  If you also need to copy the list elements (making a deep copy),
-use the procedure @code{copy-tree} (@pxref{Copying}).
+use the procedure @code{copy-tree} from @code{(ice-9 copy-tree)}
+(@pxref{Copying}).
 
 @node List Selection
 @subsubsection List Selection

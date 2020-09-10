@@ -31,8 +31,10 @@
 #include "boolean.h"
 #include "bitvectors.h"
 #include "deprecation.h"
+#include "eval.h"
 #include "gc.h"
 #include "gsubr.h"
+#include "modules.h"
 #include "procprop.h"
 #include "srcprop.h"
 #include "srfi-4.h"
@@ -584,6 +586,16 @@ scm_make_srcprops (long line, int col, SCM filename, SCM copy, SCM alist)
   alist = SCM_UNBNDP (copy) ? alist : scm_acons (scm_sym_copy, copy, alist);
   return scm_i_make_srcprops (scm_from_long (line), scm_from_int (col),
                               filename, alist);
+}
+
+SCM
+scm_copy_tree (SCM obj)
+{
+  scm_c_issue_deprecation_warning
+    ("scm_copy_tree is deprecated; use copy-tree from (ice-9 copy-tree) "
+     "instead.");
+
+  return scm_call_1 (scm_c_public_ref ("ice-9 copy-tree", "copy-tree"), obj);
 }
 
 
