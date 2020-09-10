@@ -1893,9 +1893,9 @@ scm_read_expression (SCM port, scm_t_read_opts *opts)
           int c = flush_ws (port, opts, (char *) NULL);
           if (c == EOF)
             return SCM_EOF_VAL;
-          scm_ungetc (c, port);
           line = scm_port_line (port);
           column = scm_port_column (port);
+          scm_ungetc (c, port);
         }
 
       expr = read_inner_expression (port, opts);
