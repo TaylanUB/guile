@@ -330,7 +330,7 @@ scm_string_to_list (SCM str)
 
 SCM_DEFINE (scm_reverse_list_to_string, "reverse-list->string", 1, 0, 0,
             (SCM chrs),
-	    "An efficient implementation of @code{(compose string->list\n"
+	    "An efficient implementation of @code{(compose list->string\n"
 	    "reverse)}:\n"
 	    "\n"
 	    "@smalllisp\n"
