@@ -1168,8 +1168,8 @@ SCM_DEFINE (scm_i_make_transcoded_port,
 
   if (scm_is_true (scm_output_port_p (port)))
     mode |= SCM_WRTNG;
-  else if (scm_is_true (scm_input_port_p (port)))
-    mode |=  SCM_RDNG;
+  if (scm_is_true (scm_input_port_p (port)))
+    mode |= SCM_RDNG;
   
   result = make_transcoded_port (port, mode);
 

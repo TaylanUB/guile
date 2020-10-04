@@ -919,6 +919,32 @@ not `set-port-position!'"
 
 (with-test-prefix "8.2.6  Input and output ports"
 
+  (define (check-transcoded-port-mode make-port pred)
+    (let ((p (make-port "/dev/null" (file-options no-fail))))
+      (dynamic-wind
+        (lambda () #t)
+        (lambda ()
+          (set! p (transcoded-port p (native-transcoder)))
+          (pred p))
+        (lambda () (close-port p)))))
+
+  (pass-if "transcoded-port preserves input mode"
+    (check-transcoded-port-mode open-file-input-port
+                                (lambda (p)
+                                  (and (input-port? p)
+                                       (not (output-port? p))))))
+
+  (pass-if "transcoded-port preserves output mode"
+    (check-transcoded-port-mode open-file-output-port
+                                (lambda (p)
+                                  (and (not (input-port? p))
+                                       (output-port? p)))))
+
+  (pass-if "transcoded-port preserves input/output mode"
+    (check-transcoded-port-mode open-file-input/output-port
+                                (lambda (p)
+                                  (and (input-port? p) (output-port? p)))))
+
   (pass-if "transcoded-port [output]"
     (let ((s "Hello\nÄÖÜ"))
       (bytevector=?
