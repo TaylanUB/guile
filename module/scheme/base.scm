@@ -129,9 +129,10 @@
     (unless (procedure? =)
       (error "not a procedure" =))
     (let lp ((ls ls))
-      (if (or (null? ls) (= (car ls) x))
-          ls
-          (lp (cdr ls)))))))
+      (cond
+       ((null? ls) #f)
+       ((= (car ls) x) ls)
+       (else (lp (cdr ls))))))))
 
 (define* (assoc x ls #:optional (= equal?))
   (cond

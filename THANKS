@@ -2,6 +2,7 @@ Contributors since the last release:
 
     Christopher Baines
            Greg Benison
+	    Rob Browning
         Tristan Colgate-McFarlane
           Aleix Conchillo Flaqué
         Ludovic Courtès
@@ -79,6 +80,7 @@ For fixes or providing information which led to a fix:
            Josh Datko
           David Diffenbaugh
           Hyper Division
+           Erik Dominikus
       Alexandre Duret-Lutz
            Nils Durner
          John W Eaton

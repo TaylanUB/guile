@@ -2171,7 +2171,7 @@
        (let ((out (open-output-string))
              (x (list 1)))
          (set-cdr! x x)
-         (write x out)
+         (write-shared x out)
          (get-output-string out))
        ;; labels not guaranteed to be 0 indexed, spacing may differ
        '("#0=(1 . #0#)" "#1=(1 . #1#)"))
