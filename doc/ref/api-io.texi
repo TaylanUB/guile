@@ -834,6 +834,17 @@ delimiter may be either a newline or the @var{eof-object}; if
 @code{(#<eof> . #<eof>)}.
 @end deffn
 
+@deffn {Scheme Procedure} write-line obj [port]
+@deffnx {C Function} scm_write_line (obj, port)
+Display @var{obj} and a newline character to @var{port}.  If
+@var{port} is not specified, @code{(current-output-port)} is
+used.  This procedure is equivalent to:
+@lisp
+(display obj [port])
+(newline [port])
+@end lisp
+@end deffn
+
 @node Default Ports
 @subsection Default Ports for Input, Output and Errors
 @cindex Default ports

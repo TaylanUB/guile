@@ -189,7 +189,7 @@ SCM_DEFINE (scm_write_line, "write-line", 1, 1, 0,
             (SCM obj, SCM port),
 	    "Display @var{obj} and a newline character to @var{port}.  If\n"
 	    "@var{port} is not specified, @code{(current-output-port)} is\n"
-	    "used.  This function is equivalent to:\n"
+	    "used.  This procedure is equivalent to:\n"
 	    "@lisp\n"
 	    "(display obj [port])\n"
 	    "(newline [port])\n"
