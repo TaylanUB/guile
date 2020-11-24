@@ -1,4 +1,4 @@
-/* Copyright 2001,2009-2015,2017-2018
+/* Copyright 2001,2009-2015,2017-2018,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -43,6 +43,7 @@
 #include "eval.h"
 #include "extensions.h"
 #include "gsubr.h"
+#include "list.h"
 #include "pairs.h"
 #include "programs.h"
 #include "strings.h"

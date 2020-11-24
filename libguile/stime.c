@@ -1,4 +1,4 @@
-/* Copyright 1995-2001,2003-2009,2011,2013-2014,2016-2019
+/* Copyright 1995-2001,2003-2009,2011,2013-2014,2016-2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -63,6 +63,7 @@
 #include "dynwind.h"
 #include "feature.h"
 #include "gsubr.h"
+#include "list.h"
 #include "modules.h"
 #include "numbers.h"
 #include "pairs.h"
