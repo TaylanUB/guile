@@ -1,4 +1,4 @@
-/* Copyright 2003-2013,2018
+/* Copyright 2003-2013,2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -20,7 +20,7 @@
 /**********************************************************************
 
   Description of Guile's public config header mechanics:
-  ----------------------------------------------------- 
+  -----------------------------------------------------
 
   Guile has three core headers:
 
@@ -153,7 +153,7 @@ main (int argc, char *argv[])
       "\n"
       "#ifndef SCM_SCMCONFIG_H\n"
       "#define SCM_SCMCONFIG_H\n");
-  
+
   /*** various important headers ***/
   pf ("\n");
   pf ("/* Important headers */\n");
@@ -288,6 +288,12 @@ main (int argc, char *argv[])
       "   (for IRIX with GCC)  */\n");
   pf ("#define SCM_NEED_BRACES_ON_PTHREAD_MUTEX_INITIALIZER %d /* 0 or 1 */\n",
       SCM_I_GSC_NEED_BRACES_ON_PTHREAD_MUTEX_INITIALIZER);
+
+#ifdef HAVE_PTHREAD_SIGMASK
+  pf ("#define SCM_HAVE_PTHREAD_SIGMASK 1 /* 0 or 1 */\n");
+#else
+  pf ("#define SCM_HAVE_PTHREAD_SIGMASK 0 /* 0 or 1 */\n");
+#endif
 
 #ifdef HAVE_GC_PTHREAD_CANCEL
   pf ("#define SCM_HAVE_GC_PTHREAD_CANCEL 1 /* 0 or 1 */\n");
