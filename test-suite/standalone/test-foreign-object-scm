@@ -35,6 +35,8 @@ exec guile -q -s "$0" "$@"
                          ;; needs to link to the core C library DLL
                          ;; explicitly.
                          (dynamic-link "cygwin1"))
+                        ((string-contains %host-type "mingw")
+                         (dynamic-link "msvcrt"))
                         (else
                          (dynamic-link)))))
     (lambda (k . args)

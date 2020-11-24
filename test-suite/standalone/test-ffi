@@ -269,6 +269,9 @@ exec guile -q -s "$0" "$@"
                  ;; into linked DLLs. Thus one needs to link to the core
                  ;; C library DLL explicitly.
                  (dynamic-link "cygwin1"))
+                ((string-contains %host-type "mingw")
+                 ;; Also, no recursive search into linked DLLs in MinGW.
+                 (dynamic-link "msvcrt"))
                 (else
                  (dynamic-link))))
 
