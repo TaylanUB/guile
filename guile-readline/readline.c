@@ -386,8 +386,11 @@ SCM_DEFINE (scm_filename_completion_function, "filename-completion-function", 2,
 #else
   s = filename_completion_function (c_text, scm_is_true (continuep));
 #endif
-  ans = scm_take_locale_string (s);
   free (c_text);
+  if (!s) {
+    return SCM_BOOL_F;
+  }
+  ans = scm_take_locale_string (s);
   return ans;
 }
 #undef FUNC_NAME
