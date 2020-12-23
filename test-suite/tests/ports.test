@@ -2,7 +2,7 @@
 ;;;; Jim Blandy <jimb@red-bean.com> --- May 1999
 ;;;;
 ;;;; 	Copyright (C) 1999, 2001, 2004, 2006, 2007, 2009, 2010,
-;;;;      2011, 2012, 2013, 2014, 2015, 2017, 2019, 2020 Free Software Foundation, Inc.
+;;;;      2011, 2012, 2013, 2014, 2015, 2017, 2019, 2020, 2021 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -1318,14 +1318,17 @@
       (set-port-encoding! p "does-not-exist")
       (read p)))
 
-  (let ((filename (test-file)))
-    (with-output-to-file filename (lambda () (write 'test)))
+  (let* ((filename (test-file))
+         (port (open-output-file filename)))
+    (write 'test port)
+    (close-port port)
 
     (pass-if-exception "%default-port-encoding, wrong encoding"
         exception:miscellaneous-error
-      (read (with-fluids ((%default-port-encoding "does-not-exist"))
-              (open-input-file filename))))
-
+      (with-fluids ((%default-port-encoding "does-not-exist"))
+                   (set! port (open-input-file filename))
+                   (read port)))
+    (false-if-exception (close-port port))
     (delete-file filename)))
 
 ;;;
