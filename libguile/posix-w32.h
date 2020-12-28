@@ -1,7 +1,7 @@
 #ifndef SCM_POSIX_W32_H
 #define SCM_POSIX_W32_H
 
-/* Copyright 2001,2006,2018
+/* Copyright 2001,2006,2018,2020
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -20,7 +20,14 @@
    License along with Guile.  If not, see
    <https://www.gnu.org/licenses/>.  */
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <Windows.h>
+#endif
 #include <string.h>
+#include "libguile/scm.h"
 
 #define _UTSNAME_LENGTH 65
 #define _UTSNAME_NODENAME_LENGTH _UTSNAME_LENGTH
