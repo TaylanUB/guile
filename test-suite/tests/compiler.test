@@ -368,3 +368,26 @@
 
   (pass-if-equal "test terminates without error" '(#t #t)
     (test-proc '((V X) (Y Z)))))
+
+(with-test-prefix "read-and-compile tree-il"
+  (let ((code
+         "\
+(seq
+  (define forty-two
+    (lambda ((name . forty-two))
+            (lambda-case ((() #f #f #f () ()) (const 42)))))
+  (toplevel forty-two))")
+        (bytecode #f)
+        (proc #f))
+    (pass-if "compiling tree-il works"
+      (begin
+        (set! bytecode
+          (call-with-input-string code
+            (lambda (port)
+              (read-and-compile port #:from 'tree-il))))
+        #t))
+    (pass-if "bytecode can be read"
+      (begin
+        (set! proc ((load-thunk-from-memory bytecode)))
+        (procedure? proc)))
+    (pass-if-equal "proc executes" 42 (proc))))

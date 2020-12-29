@@ -310,16 +310,20 @@
         (match (read-and-parse (current-language) port cenv)
           ((? eof-object?)
            (close-port port)
-           (compile ((or (language-joiner joint)
-                         (default-language-joiner joint))
-                     (reverse exps)
-                     env)
-                    #:from joint #:to to
-                    ;; env can be false if no expressions were read.
-                    #:env (or env (default-environment joint))
-                    #:optimization-level optimization-level
-                    #:warning-level warning-level
-                    #:opts opts))
+           (if joint
+               (compile ((or (language-joiner joint)
+                             (default-language-joiner joint))
+                         (reverse exps)
+                         env)
+                        #:from joint #:to to
+                        ;; env can be false if no expressions were read.
+                        #:env (or env (default-environment joint))
+                        #:optimization-level optimization-level
+                        #:warning-level warning-level
+                        #:opts opts)
+               ((default-language-joiner to)
+                (reverse exps)
+                env)))
           (exp
            (let with-compiler ((from from) (compile1 compile1))
              (cond
@@ -332,7 +336,7 @@
                (let ((from (current-language)))
                  (with-compiler
                   from
-                  (compute-compiler from joint optimization-level
+                  (compute-compiler from (or joint to) optimization-level
                                     warning-level opts))))))))))))
 
 (define* (compile x #:key
