@@ -160,7 +160,7 @@ TESTS += test-unwind
 # test-conversion
 test_conversion_SOURCES = test-conversion.c
 test_conversion_CFLAGS = ${test_cflags}
-test_conversion_LDADD = $(LIBGUILE_LDADD)
+test_conversion_LDADD = $(LIBGUILE_LDADD) $(top_builddir)/lib/libgnu.la
 check_PROGRAMS += test-conversion
 TESTS += test-conversion
 
@@ -208,28 +208,28 @@ TESTS += test-scm-take-u8vector
 # test-scm-take-u8vector
 test_scm_to_latin1_string_SOURCES = test-scm-to-latin1-string.c
 test_scm_to_latin1_string_CFLAGS = ${test_cflags}
-test_scm_to_latin1_string_LDADD = $(LIBGUILE_LDADD)
+test_scm_to_latin1_string_LDADD = $(LIBGUILE_LDADD) $(top_builddir)/lib/libgnu.la
 check_PROGRAMS += test-scm-to-latin1-string
 TESTS += test-scm-to-latin1-string
 
 # test-scm-values
 test_scm_values_SOURCES = test-scm-values.c
 test_scm_values_CFLAGS = ${test_cflags}
-test_scm_values_LDADD = $(LIBGUILE_LDADD)
+test_scm_values_LDADD = $(LIBGUILE_LDADD) $(top_builddir)/lib/libgnu.la
 check_PROGRAMS += test-scm-values
 TESTS += test-scm-values
 
 # test-scm-c-bind-keyword-arguments
 test_scm_c_bind_keyword_arguments_SOURCES = test-scm-c-bind-keyword-arguments.c
 test_scm_c_bind_keyword_arguments_CFLAGS = ${test_cflags}
-test_scm_c_bind_keyword_arguments_LDADD = $(LIBGUILE_LDADD)
+test_scm_c_bind_keyword_arguments_LDADD = $(LIBGUILE_LDADD) $(top_builddir)/lib/libgnu.la
 check_PROGRAMS += test-scm-c-bind-keyword-arguments
 TESTS += test-scm-c-bind-keyword-arguments
 
 # test-srfi-4
 test_srfi_4_SOURCES = test-srfi-4.c
 test_srfi_4_CFLAGS = ${test_cflags}
-test_srfi_4_LDADD = $(LIBGUILE_LDADD)
+test_srfi_4_LDADD = $(LIBGUILE_LDADD) $(top_builddir)/lib/libgnu.la
 check_PROGRAMS += test-srfi-4
 TESTS += test-srfi-4
 
@@ -240,7 +240,7 @@ noinst_LTLIBRARIES += libtest-extensions.la
 libtest_extensions_la_SOURCES = test-extensions-lib.c
 libtest_extensions_la_CFLAGS = ${test_cflags}
 libtest_extensions_la_LDFLAGS = -module -no-undefined -rpath `pwd` # so libtool will really build an .so
-libtest_extensions_la_LIBADD = $(LIBGUILE_LDADD)
+libtest_extensions_la_LIBADD = $(LIBGUILE_LDADD) $(top_builddir)/lib/libgnu.la
 check_SCRIPTS += test-extensions
 TESTS += test-extensions
 
@@ -250,27 +250,27 @@ if BUILD_PTHREAD_SUPPORT
 
 # test-with-guile-module
 test_with_guile_module_CFLAGS = ${test_cflags}
-test_with_guile_module_LDADD = $(LIBGUILE_LDADD)
+test_with_guile_module_LDADD = $(LIBGUILE_LDADD) $(top_builddir)/lib/libgnu.la
 check_PROGRAMS += test-with-guile-module
 TESTS += test-with-guile-module
 
 test_scm_with_guile_CFLAGS = ${test_cflags}
-test_scm_with_guile_LDADD = $(LIBGUILE_LDADD)
+test_scm_with_guile_LDADD = $(LIBGUILE_LDADD) $(top_builddir)/lib/libgnu.la
 check_PROGRAMS += test-scm-with-guile
 TESTS += test-scm-with-guile
 
 test_scm_spawn_thread_CFLAGS = ${test_cflags}
-test_scm_spawn_thread_LDADD = $(LIBGUILE_LDADD)
+test_scm_spawn_thread_LDADD = $(LIBGUILE_LDADD) $(top_builddir)/lib/libgnu.la
 check_PROGRAMS += test-scm-spawn-thread
 TESTS += test-scm-spawn-thread
 
 test_pthread_create_CFLAGS = ${test_cflags}
-test_pthread_create_LDADD = $(LIBGUILE_LDADD)
+test_pthread_create_LDADD = $(LIBGUILE_LDADD) $(top_builddir)/lib/libgnu.la
 check_PROGRAMS += test-pthread-create
 TESTS += test-pthread-create
 
 test_pthread_create_secondary_CFLAGS = ${test_cflags} $(BDW_GC_CFLAGS)
-test_pthread_create_secondary_LDADD = $(LIBGUILE_LDADD)
+test_pthread_create_secondary_LDADD = $(LIBGUILE_LDADD) $(top_builddir)/lib/libgnu.la
 check_PROGRAMS += test-pthread-create-secondary
 TESTS += test-pthread-create-secondary
 
@@ -282,13 +282,13 @@ endif
 
 test_smob_mark_SOURCES = test-smob-mark.c
 test_smob_mark_CFLAGS = ${test_cflags}
-test_smob_mark_LDADD = $(LIBGUILE_LDADD)
+test_smob_mark_LDADD = $(LIBGUILE_LDADD) $(top_builddir)/lib/libgnu.la
 check_PROGRAMS += test-smob-mark
 TESTS += test-smob-mark
 
 test_smob_mark_race_SOURCES = test-smob-mark-race.c
 test_smob_mark_race_CFLAGS = ${test_cflags}
-test_smob_mark_race_LDADD = $(LIBGUILE_LDADD)
+test_smob_mark_race_LDADD = $(LIBGUILE_LDADD) $(top_builddir)/lib/libgnu.la
 check_PROGRAMS += test-smob-mark-race
 TESTS += test-smob-mark-race
 
