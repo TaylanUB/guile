@@ -264,24 +264,25 @@
 
 	(force-output (current-output-port))
 	(force-output (current-error-port))
-	(if server-listening?
-            (let ((pid (primitive-fork-if-available)))
-	      ;; Spawn a server process.
-	      (case pid
-		((-1) (throw 'unresolved))
-		((0)   ;; the kid:  serve two connections and exit
-		 (let serve ((conn
-			      (false-if-exception (accept server-socket)))
-			     (count 1))
-		   (if (not conn)
-		       (exit 1)
-		       (if (> count 0)
-			   (serve (false-if-exception (accept server-socket))
-				  (- count 1)))))
-		 (exit 0))
-		(else  ;; the parent
-		 (set! server-pid pid)
-		 #t))))
+	(when server-listening?
+          (let ((pid (primitive-fork-if-available)))
+	    ;; Spawn a server process.
+	    (case pid
+	      ((-1)  ;; fork not available
+               #f)
+	      ((0)   ;; the kid:  serve two connections and exit
+	       (let serve ((conn
+			    (false-if-exception (accept server-socket)))
+			   (count 1))
+		 (if (not conn)
+		     (exit 1)
+		     (if (> count 0)
+			 (serve (false-if-exception (accept server-socket))
+				(- count 1)))))
+	       (exit 0))
+	      (else  ;; the parent
+	       (set! server-pid pid)
+	       #t))))
 
 	(pass-if "connect"
 	  (if (not server-pid)
