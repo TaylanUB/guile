@@ -1,4 +1,4 @@
-/* Copyright 1996-1998,2000-2007,2009,2011-2015,2018
+/* Copyright 1996-1998,2000-2007,2009,2011-2015,2018,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -493,6 +493,7 @@ SCM_DEFINE (scm_getsockopt, "getsockopt", 3, 0, 0,
   int ilevel;
   int ioptname;
 
+  memset (&optval, 0, optlen);
   sock = SCM_COERCE_OUTPORT (sock);
   SCM_VALIDATE_OPFPORT (1, sock);
   ilevel = scm_to_int (level);
