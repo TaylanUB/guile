@@ -660,7 +660,7 @@
            (close-fdes fdes)
            #t))))
 
-(when (provided? 'threads)
+(when (and (provided? 'threads) (provided? 'fcntl))
   (let* ((p (pipe))
          (r (car p))
          (w (cdr p)))
