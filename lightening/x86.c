@@ -362,9 +362,13 @@ jit_try_shorten(jit_state_t *_jit, jit_reloc_t reloc, jit_pointer_t addr)
 {
   uint8_t *loc = _jit->start + reloc.offset;
   uint8_t *start = loc - reloc.inst_start_offset;
+  uint8_t *end = _jit->pc.uc;
   jit_imm_t i0 = (jit_imm_t)addr;
 
   if (loc == start)
+    return;
+
+  if (start < (uint8_t*)addr && (uint8_t*)addr <= end)
     return;
 
   switch (reloc.kind)
