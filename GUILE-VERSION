@@ -3,7 +3,7 @@
 # Note: `GUILE_VERSION' is defined in `configure.ac' using `git-version-gen'.
 GUILE_MAJOR_VERSION=3
 GUILE_MINOR_VERSION=0
-GUILE_MICRO_VERSION=4
+GUILE_MICRO_VERSION=5
 
 GUILE_EFFECTIVE_VERSION=3.0
 
@@ -13,11 +13,12 @@ GUILE_EFFECTIVE_VERSION=3.0
 # in configure.in, add the right -version-info statement to your
 # Makefile.am.
 
-# See libtool info pages for more information on how and when to
-# change these.  Note: We consider the ABI of default builds, and not
-# that of '--disable-deprecated' builds.
+# See libtool info pages for more information on how and when to change
+# these.  Note: We consider the ABI of default builds, and not that of
+# '--disable-deprecated' builds.  Generally speaking, within a stable
+# series, you increment CURRENT and AGE and set REVISION to 0.
 
-LIBGUILE_INTERFACE_CURRENT=3
+LIBGUILE_INTERFACE_CURRENT=4
 LIBGUILE_INTERFACE_REVISION=0
-LIBGUILE_INTERFACE_AGE=2
+LIBGUILE_INTERFACE_AGE=3
 LIBGUILE_INTERFACE="${LIBGUILE_INTERFACE_CURRENT}:${LIBGUILE_INTERFACE_REVISION}:${LIBGUILE_INTERFACE_AGE}"
