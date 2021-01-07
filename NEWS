@@ -1,5 +1,5 @@
 Guile NEWS --- history of user-visible changes.
-Copyright (C) 1996-2020 Free Software Foundation, Inc.
+Copyright (C) 1996-2021 Free Software Foundation, Inc.
 See the end for copying conditions.
 
 Please send Guile bug reports to bug-guile@gnu.org.
@@ -15,6 +15,45 @@ Guile now optimizes chains of eq? comparisons to constants, resulting in
 O(1) dispatch time, regardless of the length of the chain.  This
 optimization is also unlocked in many cases for `match' expressions with
 many similar clauses whose first differentiator are constants.
+
+** New (ice-9 copy-tree) module
+
+This module includes the `copy-tree' procedure that was previously
+implemented in C and present in the default `(guile)' module.  See
+"Copying" in the manual.
+
+** New warning: use-before-definition
+
+This analysis, enabled at `-W1', issues warnings for programs that use
+top-level variables before they are defined.
+
+** New warning: non-idempotent-definition
+
+This analysis, enabled at `-W1', issues warnings for programs that whose
+use of a variable is ambiguous.  For example, in the program:
+
+  (define saved-add +)
+  (define + error)
+
+The intention would seem to be to "save" the value of the base `+'
+procedure, then override it locally.  However if this program is ever
+loaded twice, then the second time it is loaded, `+' will be taken from
+the local binding instead of the import.  Users that want this kind of
+behavior should either use lexical bindings instead of top-level
+bindings, or otherwise rename important clobbered bindings via modules.
+
+* New deprecations
+
+** `copy-tree' in the default environment, and `scm_copy_tree' from C
+
+Import the `(ice-9 copy-tree)' module instead.
+
+** `unbound-variable-analysis`, `macro-use-before-definition-analysis`
+
+These bindings from `(language tree-il analyze)' are replaced by the
+use-before-definition analysis, which powers a number of warnings.  Use
+`make-use-before-definition-analysis', but note that these interfaces
+are quite intimate parts of the compiler!
 
 * Incompatible changes
 
