@@ -1,6 +1,6 @@
 ;;; -*- mode: scheme; coding: utf-8; -*-
 
-;;;; Copyright (C) 1995-2014, 2016-2020  Free Software Foundation, Inc.
+;;;; Copyright (C) 1995-2014, 2016-2021  Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -4200,9 +4200,9 @@ but it fails to load."
 
 (define %auto-compilation-options
   ;; Default `compile-file' option when auto-compiling.
-  '(#:warnings (unbound-variable shadowed-toplevel
-                macro-use-before-definition arity-mismatch
-                format duplicate-case-datum bad-case-datum)))
+  '(#:warnings (shadowed-toplevel use-before-definition arity-mismatch
+                format duplicate-case-datum bad-case-datum
+                non-idempotent-definition)))
 
 (define* (load-in-vicinity dir file-name #:optional reader)
   "Load source file FILE-NAME in vicinity of directory DIR.  Use a

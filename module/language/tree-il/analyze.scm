@@ -1,6 +1,6 @@
-;;; TREE-IL -> GLIL compiler
+;;; Diagnostic warnings for Tree-IL
 
-;; Copyright (C) 2001,2008-2014,2016,2018-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2001,2008-2014,2016,2018-2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -34,8 +34,7 @@
             unused-variable-analysis
             unused-toplevel-analysis
             shadowed-toplevel-analysis
-            unbound-variable-analysis
-            macro-use-before-definition-analysis
+            make-use-before-definition-analysis
             arity-analysis
             format-analysis
             make-analyzer))
@@ -368,155 +367,300 @@ given `tree-il' element."
 
 
 ;;;
-;;; Unbound variable analysis.
+;;; Use before definition analysis.
+;;;
+;;; This analysis collects all definitions of top-level variables, and
+;;; references to top-level variables.  As it visits the term, it tries
+;;; to match uses to the definition that corresponds to that program
+;;; point.  For example, in this sample program:
+;;;
+;;;   (define a 42)
+;;;   (define b a)
+;;;
+;;; The analysis will be able to know that the definition of "a"
+;;; referred to when defining "b" is 42.
+;;;
+;;; In many cases this definition is conservative.  For example, in this
+;;; code:
+;;;
+;;;   (define a 42)
+;;;   (define b (lambda () a))
+;;;
+;;; We don't necessarily know that the "a" in the lambda is 42, as a
+;;; further top-level definition could provide a different value.
+;;; However, we do know that "a" is bound, unlike in this code:
+;;;
+;;;   (define b (lambda () a))
+;;;
+;;; Here we should issue a warning if no import provides an "a" binding.
+;;;
+;;; Use-before-def analysis also issues specialized warnings for some
+;;; less common errors.  One relates specifically to macro use before
+;;; definition.  If a compilation unit defines a macro and has some uses
+;;; of the macro, usually the uses will be expanded out by the
+;;; macro-expander.  If there is any reference to a macro as a value,
+;;; that usually indicates a bug in the user's program.  Like in this
+;;; program:
+;;;
+;;;   (define (a) (b))
+;;;   (define-syntax-rule (b) 42)
+;;;
+;;; If this program is expanded one top-level expression at a time,
+;;; which is Guile's default compilation mode, the expander will assume
+;;; that the reference to (b) is a call to a top-level procedure, only
+;;; to find out it's a macro later on.  Use-before-def analysis can warn
+;;; for this case.
+;;;
+;;; Similarly, if a compilation unit uses an imported binding, then
+;;; provides a local definition for the binding, this may cause problems
+;;; if the module is re-loaded.  Consider:
+;;;
+;;;   (define-module (foo))
+;;;   (define a +)
+;;;   (define + -)
+;;;
+;;; In this fragment, we see the intention of the programmer is to
+;;; locally redefine `+', but to preserve the previous definition in
+;;; `a'.
+;;;
+;;; However, if the module is loaded twice, `a' will be bound not to the
+;;; `(guile)' binding of `+', but rather to `-'.  This is because each
+;;; module has a single global instance, and the first definition
+;;; already bound `+' to `-'.  Use-before-def analysis can detect this
+;;; situation as well.
 ;;;
 
-;; <toplevel-info> records are used during tree traversal in search of
-;; possibly unbound variable.  They contain a list of references to
-;; potentially unbound top-level variables, and a list of the top-level
-;; defines that have been encountered.
-(define-record-type <toplevel-info>
-  (make-toplevel-info refs defs)
-  toplevel-info?
-  (refs  toplevel-info-refs)  ;; ((VARIABLE-NAME . LOCATION) ...)
-  (defs  toplevel-info-defs)) ;; (VARIABLE-NAME ...)
+;;; <use-before-def-info> records are used during tree traversal in
+;;; search of possible uses of values before they are defined.  They
+;;; contain a list of references to top-level variables, and a list of
+;;; the top-level definitions that have been encountered.  Any definition
+;;; which is a macro should in theory be expanded out already; if that's
+;;; not the case, the program likely has a bug.
+(define-record-type <use-before-def-info>
+  (make-use-before-def-info depth uses defs)
+  use-before-def-info?
+  ;; LOCAL-DEF := #(MACRO? DEPTH LOCATION)
+  ;; DEF := LOCAL-DEF           ; Defined in compilation unit already at use.
+  ;;      | import              ; Def provided by imported module.
+  ;;      | unknown-module      ; Module at use site not known.
+  ;;      | unknown-declarative ; Defined, but def not within compilation unit.
+  ;;      | unknown-imperative  ; Same as above, but in non-declarative module.
+  ;;      | unbound             ; No top-level definition known at use
+  ;; USE := #(MOD-NAME VAR-NAME DEPTH DEF LOCATION)
+  (depth use-before-def-info-depth) ;; Zero if definitely evaluated
+  (uses  use-before-def-info-uses)  ;; List of USE
+  (defs  use-before-def-info-defs))  ;; Vhash of ((MOD . NAME) . LOCAL-DEF)
 
 (define (goops-toplevel-definition proc args env)
-  ;; If call of PROC to ARGS is a GOOPS top-level definition, return
-  ;; the name of the variable being defined; otherwise return #f.  This
-  ;; assumes knowledge of the current implementation of `define-class' et al.
-  (define (toplevel-define-arg args)
-    (match args
-      ((($ <const> _ (and (? symbol?) exp)) _)
-       exp)
-      (_ #f)))
-
-  (match proc
-    (($ <module-ref> _ '(oop goops) 'toplevel-define! #f)
-     (toplevel-define-arg args))
-    (($ <toplevel-ref> _ _ 'toplevel-define!)
-     ;; This may be the result of expanding one of the GOOPS macros within
-     ;; `oop/goops.scm'.
-     (and (eq? env (resolve-module '(oop goops)))
-          (toplevel-define-arg args)))
+  ;; If call of PROC to ARGS is a GOOPS top-level definition, return the
+  ;; name of the variable being defined; otherwise return #f.  This
+  ;; assumes knowledge of the current implementation of `define-class'
+  ;; et al.
+  (match (cons proc args)
+    ((($ <module-ref> _ '(oop goops) 'toplevel-define! #f)
+      ($ <const> _ (? symbol? name))
+      exp)
+     ;; We don't know the precise module in which we are defining the
+     ;; variable :/  Guess that it's in `env'.
+     (vector (module-name env) name exp))
+    ((($ <toplevel-ref> _ '(oop goops) 'toplevel-define!)
+      ($ <const> _ (? symbol? name))
+      exp)
+     (vector '(oop goops) name exp))
     (_ #f)))
 
-(define unbound-variable-analysis
+(define* (make-use-before-definition-analysis #:key (warning-level 0)
+                                              (enabled-warnings '()))
   ;; Report possibly unbound variables in the given tree.
-  (make-tree-analysis
-   (lambda (x info env locs)
-     ;; Going down into X.
-     (let* ((refs (toplevel-info-refs info))
-            (defs (toplevel-info-defs info))
-            (src  (tree-il-src x)))
-       (define (bound? name)
-         (or (and (module? env)
-                  (module-variable env name))
-             (vhash-assq name defs)))
+  (define (enabled-for-level? level) (<= level warning-level))
+  (define-syntax-rule (define-warning enabled
+                        #:level level #:name warning-name)
+    (define enabled
+      (or (enabled-for-level? level)
+          (memq 'warning-name enabled-warnings))))
+  (define-warning use-before-definition-enabled
+    #:level 1 #:name use-before-definition)
+  (define-warning unbound-variable-enabled
+    #:level 1 #:name unbound-variable)
+  (define-warning macro-use-before-definition-enabled
+    #:level 1 #:name macro-use-before-definition)
+  (define-warning non-idempotent-definition-enabled
+    #:level 1 #:name non-idempotent-definition)
+  (define (resolve mod name defs)
+    (match (vhash-assoc (cons mod name) defs)
+      ((_ . local-def)
+       ;; Top-level def present in this compilation unit, before this
+       ;; use.
+       local-def)
+      (#f
+       (let ((mod (and mod (resolve-module mod #f #:ensure #f))))
+         (cond
+          ((not mod)
+           ;; We don't know the module with respect to which this var
+           ;; is being resolved.
+           'unknown-module)
+          ((module-local-variable mod name)
+           ;; The variable is locally bound in the module, but not by
+           ;; any definition in the compilation unit; perhaps by load
+           ;; or load-extension or something.
+           (if (module-declarative? mod)
+               'unknown-declarative
+               'unknown-imperative))
+          ((module-variable mod name)
+           ;; The variable is an import.  At the time of use, the
+           ;; name is bound to the import.
+           'import)
+          (else
+           ;; Variable unbound in the module.
+           'unbound))))))
 
-       (record-case x
-         ((<toplevel-ref> name src)
-          (if (bound? name)
-              info
-              (let ((src (or src (find pair? locs))))
-                (make-toplevel-info (vhash-consq name src refs)
-                                    defs))))
-         ((<toplevel-set> name src)
-          (if (bound? name)
-              (make-toplevel-info refs defs)
-              (let ((src (find pair? locs)))
-                (make-toplevel-info (vhash-consq name src refs)
-                                    defs))))
-         ((<toplevel-define> name)
-          (make-toplevel-info (vhash-delq name refs)
-                              (vhash-consq name #t defs)))
+  (and
+   (or use-before-definition-enabled
+       unbound-variable-enabled
+       macro-use-before-definition-enabled
+       non-idempotent-definition-enabled)
+   (make-tree-analysis
+    (lambda (x info env locs)
+      ;; Going down into X.
+      (define (make-use mod name depth def src)
+        (vector mod name depth def src))
+      (define (make-def is-macro? depth src)
+        (vector is-macro? depth src))
+      (define (nearest-loc src)
+        (or src (find pair? locs)))
+      (define (add-use mod name src)
+        (match info
+          (($ <use-before-def-info> depth uses defs)
+           (let* ((def (resolve mod name defs))
+                  (use (make-use mod name depth def src)))
+             (make-use-before-def-info depth (cons use uses) defs)))))
+      (define (add-def mod name src is-macro?)
+        (match info
+          (($ <use-before-def-info> depth uses defs)
+           (let ((def (make-def is-macro? depth src)))
+             (make-use-before-def-info depth uses
+                                       (vhash-cons (cons mod name) def
+                                                   defs))))))
+      (define (macro? x)
+        (match x
+          (($ <primcall> _ 'make-syntax-transformer) #t)
+          (_ #f)))
+      (match x
+        (($ <toplevel-ref> src mod name)
+         (add-use mod name (nearest-loc src)))
+        (($ <toplevel-set> src mod name)
+         (add-use mod name (nearest-loc src)))
+        (($ <toplevel-define> src mod name exp)
+         (add-def mod name (nearest-loc src) (macro? exp)))
+        (($ <call> src proc args)
+         ;; Check for a dynamic top-level definition, as is
+         ;; done by code expanded from GOOPS macros.
+         (match (goops-toplevel-definition proc args env)
+           (#f info)
+           (#(mod name exp) (add-def mod name (nearest-loc src) (macro? exp)))))
+        ((or ($ <lambda>) ($ <conditional>))
+         (match info
+           (($ <use-before-def-info> depth uses defs)
+            (make-use-before-def-info (1+ depth) uses defs))))
+        (_ info)))
 
-         ((<call> proc args)
-          ;; Check for a dynamic top-level definition, as is
-          ;; done by code expanded from GOOPS macros.
-          (let ((name (goops-toplevel-definition proc args
-                                                 env)))
-            (if (symbol? name)
-                (make-toplevel-info (vhash-delq name refs)
-                                    (vhash-consq name #t defs))
-                (make-toplevel-info refs defs))))
-         (else
-          (make-toplevel-info refs defs)))))
+    (lambda (x info env locs)
+      ;; Leaving X's scope.
+      (match x
+        ((or ($ <lambda>) ($ <conditional>))
+         (match info
+           (($ <use-before-def-info> depth uses defs)
+            (make-use-before-def-info (1- depth) uses defs))))
+        (_ info)))
 
-   (lambda (x info env locs)
-     ;; Leaving X's scope.
-     info)
+    (lambda (info env)
+      (define (compute-macros defs)
+        (let ((macros (make-hash-table)))
+          (vlist-for-each (match-lambda
+                           ((mod+name . #(is-macro? depth src))
+                            (when is-macro?
+                              (hash-set! macros mod+name src))))
+                          defs)
+          macros))
+      ;; Post-process the result.
+      ;; FIXME: What to do with defs at nonzero depth?
+      (match info
+        (($ <use-before-def-info> 0 uses defs)
+         ;; The way the traversal works is that we only add entries to
+         ;; `defs' as we go, corresponding to local bindings.
+         ;; Therefore the result of `resolve' can only go from being an
+         ;; import, unbound, or top-level definition to being a
+         ;; definition within the compilation unit.  It can't go from
+         ;; e.g. being an import to being a top-level definition, for
+         ;; the purposes of our analysis, without the definition being
+         ;; local to the compilation unit.
+         (let ((macros (compute-macros defs))
+               (issued-unbound-warnings (make-hash-table)))
+           (for-each
+            (match-lambda
+             (#(mod name use-depth def-at-use use-loc)
+              (cond
+               ((and (hash-ref macros (cons mod name))
+                     macro-use-before-definition-enabled)
+                ;; Something bound to this name is a macro, probably
+                ;; later in the compilation unit.  Probably the author
+                ;; made a mistake somewhere!
+                (warning 'macro-use-before-definition use-loc name))
+               (else
+                (let ((def-at-end (resolve mod name defs)))
+                  (match (cons def-at-use def-at-end)
+                    (('import . 'import) #t)
+                    (('import . #(is-macro? def-depth def-loc))
+                     ;; At use, the binding was an import, but later
+                     ;; had a local definition.  Warn as this could
+                     ;; pose a hazard when reloading the module, as the
+                     ;; initial binding wouldn't come from the import.
+                     ;; If depth nonzero though, use might happen later
+                     ;; as it might be in a lambda, so no warning in
+                     ;; that case.
+                     (when (and non-idempotent-definition-enabled
+                                (zero? use-depth) (zero? def-depth))
+                       (warning 'non-idempotent-definition use-loc name)))
+                    (('unbound . 'unbound)
+                     ;; No binding at all; probably an error at
+                     ;; run-time, but we just warn at compile-time.
+                     (when unbound-variable-enabled
+                       (unless (hash-ref issued-unbound-warnings
+                                         (cons mod name))
+                         (hash-set! issued-unbound-warnings (cons mod name) #t)
+                         (warning 'unbound-variable use-loc name))))
+                    (('unbound . _)
+                     ;; If the depth at the use is 0, then the use
+                     ;; definitely occurs before the definition.
+                     (when (and use-before-definition-enabled
+                                (zero? use-depth))
+                       (warning 'use-before-definition use-loc name)))
+                    (('unknown-module . _)
+                     ;; Could issue a warning here that for whatever
+                     ;; reason, we weren't able to reason about what
+                     ;; module was current!
+                     #t)
+                    (('unknown-declarative . 'unknown-declarative)
+                     ;; FIXME: Probably we should emit a warning as in
+                     ;; a declarative module perhaps this should not
+                     ;; happen.
+                     #t)
+                    (('unknown-declarative . _)
+                     ;; Def later in compilation unit than use; no
+                     ;; problem.  Can occur when reloading declarative
+                     ;; modules.
+                     #t)
+                    (('unknown-imperative . _)
+                     ;; Def present and although not visible at the
+                     ;; use, don't warn as use module is
+                     ;; non-declarative.
+                     #t)
+                    (((? vector) . (? vector?))
+                     ;; Def locally bound at use; no problem.
+                     #t)))))))
+            (reverse uses))))))
 
-   (lambda (toplevel env)
-     ;; Post-process the result.
-     (vlist-for-each (match-lambda
-                       ((name . loc)
-                        (warning 'unbound-variable loc name)))
-                     (vlist-reverse (toplevel-info-refs toplevel))))
-
-   (make-toplevel-info vlist-null vlist-null)))
-
-
-;;;
-;;; Macro use-before-definition analysis.
-;;;
-
-;; <macro-use-info> records are used during tree traversal in search of
-;; possibly uses of macros before they are defined.  They contain a list
-;; of references to top-level variables, and a list of the top-level
-;; macro definitions that have been encountered.  Any definition which
-;; is a macro should in theory be expanded out already; if that's not
-;; the case, the program likely has a bug.
-(define-record-type <macro-use-info>
-  (make-macro-use-info uses defs)
-  macro-use-info?
-  (uses  macro-use-info-uses)  ;; ((VARIABLE-NAME . LOCATION) ...)
-  (defs  macro-use-info-defs))  ;; ((VARIABLE-NAME . LOCATION) ...)
-
-(define macro-use-before-definition-analysis
-  ;; Report possibly unbound variables in the given tree.
-  (make-tree-analysis
-   (lambda (x info env locs)
-     ;; Going down into X.
-     (define (nearest-loc src)
-       (or src (find pair? locs)))
-     (define (add-use name src)
-       (match info
-         (($ <macro-use-info> uses defs)
-          (make-macro-use-info (vhash-consq name src uses) defs))))
-     (define (add-def name src)
-       (match info
-         (($ <macro-use-info> uses defs)
-          (make-macro-use-info uses (vhash-consq name src defs)))))
-     (define (macro? x)
-       (match x
-         (($ <primcall> _ 'make-syntax-transformer) #t)
-         (_ #f)))
-     (match x
-       (($ <toplevel-ref> src mod name)
-        (add-use name (nearest-loc src)))
-       (($ <toplevel-set> src mod name)
-        (add-use name (nearest-loc src)))
-       (($ <toplevel-define> src mod name (? macro?))
-        (add-def name (nearest-loc src)))
-       (_ info)))
-
-   (lambda (x info env locs)
-     ;; Leaving X's scope.
-     info)
-
-   (lambda (info env)
-     ;; Post-process the result.
-     (match info
-       (($ <macro-use-info> uses defs)
-        (vlist-for-each
-         (match-lambda
-           ((name . use-loc)
-            (when (vhash-assq name defs)
-              (warning 'macro-use-before-definition use-loc name))))
-         (vlist-reverse (macro-use-info-uses info))))))
-
-   (make-macro-use-info vlist-null vlist-null)))
+    (make-use-before-def-info 0 '() vlist-null))))
 
 
 ;;;
@@ -1088,22 +1232,59 @@ resort, return #t when EXP refers to the global variable SPECIAL-NAME."
 
    #t))
 
-(define %warning-passes
-  `(#(unused-variable             3 ,unused-variable-analysis)
-    #(unused-toplevel             2 ,unused-toplevel-analysis)
-    #(shadowed-toplevel           2 ,shadowed-toplevel-analysis)
-    #(unbound-variable            1 ,unbound-variable-analysis)
-    #(macro-use-before-definition 1 ,macro-use-before-definition-analysis)
-    #(arity-mismatch              1 ,arity-analysis)
-    #(format                      1 ,format-analysis)))
+(begin-deprecated
+ (define-syntax unbound-variable-analysis
+   (identifier-syntax
+    (begin
+      (issue-deprecation-warning
+       "`unbound-variable-analysis' is deprecated.  "
+       "Use `make-use-before-definition-analysis' instead.")
+      (make-use-before-definition-analysis
+       #:enabled-warnings '(unbound-variable)))))
+ (define-syntax macro-use-before-definition-analysis
+   (identifier-syntax
+    (begin
+      (issue-deprecation-warning
+       "`macro-use-before-definition-analysis' is deprecated.  "
+       "Use `make-use-before-definition-analysis' instead.")
+      (make-use-before-definition-analysis
+       #:enabled-warnings '(macro-use-before-definition)))))
+ (export unbound-variable-analysis
+         macro-use-before-definition-analysis))
+
+(define-syntax-rule (define-analysis make-analysis
+                      #:level level #:kind kind #:analysis analysis)
+  (define* (make-analysis #:key (warning-level 0) (enabled-warnings '()))
+    (and (or (<= level warning-level)
+             (memq 'kind enabled-warnings))
+         analysis)))
+
+(define-analysis make-unused-variable-analysis
+  #:level 3 #:kind unused-variable #:analysis unused-variable-analysis)
+(define-analysis make-unused-toplevel-analysis
+  #:level 2 #:kind unused-toplevel #:analysis unused-toplevel-analysis)
+(define-analysis make-shadowed-toplevel-analysis
+  #:level 2 #:kind shadowed-toplevel #:analysis shadowed-toplevel-analysis)
+(define-analysis make-arity-analysis
+  #:level 1 #:kind arity-mismatch #:analysis arity-analysis)
+(define-analysis make-format-analysis
+  #:level 1 #:kind format #:analysis format-analysis)
 
 (define (make-analyzer warning-level warnings)
-  (define (enabled-for-level? level) (<= level warning-level))
-  (let ((analyses (filter-map (match-lambda
-                               (#(kind level analysis)
-                                (and (or (enabled-for-level? level)
-                                         (memq kind warnings))
-                                     analysis)))
-                              %warning-passes)))
+  (define-syntax compute-analyses
+    (syntax-rules ()
+      ((_) '())
+      ((_ make-analysis . make-analysis*)
+       (let ((tail (compute-analyses . make-analysis*)))
+         (match (make-analysis #:warning-level warning-level
+                               #:enabled-warnings warnings)
+           (#f tail)
+           (analysis (cons analysis tail)))))))
+  (let ((analyses (compute-analyses make-unused-variable-analysis
+                                    make-unused-toplevel-analysis
+                                    make-shadowed-toplevel-analysis
+                                    make-arity-analysis
+                                    make-format-analysis
+                                    make-use-before-definition-analysis)))
     (lambda (exp env)
       (analyze-tree analyses exp env))))

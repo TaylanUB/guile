@@ -1,6 +1,6 @@
 ;;; User interface messages
 
-;; Copyright (C) 2009-2012,2016,2018,2020 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2012,2016,2018,2020-2021 Free Software Foundation, Inc.
 
 ;;; This library is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU Lesser General Public License as published by
@@ -126,6 +126,18 @@
             ,(lambda (port loc name)
                (emit port "~A: warning: macro `~A' used before definition~%"
                      loc name)))
+
+           (use-before-definition
+            "report uses of top-levels before they are defined"
+            ,(lambda (port loc name)
+               (emit port "~A: warning: `~A' used before definition~%"
+                     loc name)))
+
+           (non-idempotent-definition
+            "report names that can refer to imports on first load, but module definitions on second load"
+            ,(lambda (port loc name)
+               (emit port "~A: warning: non-idempotent binding for `~A'.  When first loaded, value for `~A` comes from imported binding, but later module-local definition overrides it; any module reload would capture module-local binding rather than import.~%"
+                     loc name name)))
 
            (arity-mismatch
             "report procedure arity mismatches (wrong number of arguments)"
