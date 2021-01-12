@@ -1,5 +1,5 @@
 ;;; R7RS compatibility libraries
-;;; Copyright (C) 2019-2020 Free Software Foundation, Inc.
+;;; Copyright (C) 2019-2021 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software: you can redistribute it and/or modify
 ;;; it under the terms of the GNU Lesser General Public License as
@@ -34,6 +34,7 @@
   #:use-module (srfi srfi-11)
   #:use-module (ice-9 exceptions)
   #:use-module ((srfi srfi-34) #:select (guard))
+  #:use-module (ice-9 ports)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 binary-ports)
   #:use-module (rnrs bytevectors)
@@ -65,7 +66,6 @@
             square
             (r7:expt . expt)
             boolean=? symbol=?
-            call-with-port
             features
             input-port-open? output-port-open?)
   #:re-export
@@ -75,7 +75,7 @@
    boolean?
    bytevector-length
    bytevector-u8-ref bytevector-u8-set! bytevector? caar cadr
-   call-with-current-continuation call-with-values
+   call-with-current-continuation call-with-port call-with-values
    call/cc car case cdar cddr cdr ceiling char->integer char-ready?
    char<=? char<? char=? char>=? char>? char? close-input-port
    close-output-port close-port complex? cond cons
@@ -564,15 +564,6 @@ defaults to 0 and SEND defaults to the length of SOURCE."
   (if (eqv? x 0.0)
       (exact->inexact (expt x y))
       (expt x y)))
-
-(define (call-with-port port proc)
-  "Call @var{proc}, passing it @var{port} and closing @var{port} upon exit of
-@var{proc}.  Return the return values of @var{proc}."
-  (call-with-values
-      (lambda () (proc port))
-    (lambda vals
-      (close-port port)
-      (apply values vals))))
 
 (define (features)
   (append

@@ -1,5 +1,5 @@
 ;;; Ports
-;;; Copyright (C) 2016, 2019 Free Software Foundation, Inc.
+;;; Copyright (C) 2016,2019,2021 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software: you can redistribute it and/or modify
 ;;; it under the terms of the GNU Lesser General Public License as
@@ -107,6 +107,7 @@
             open-input-file
             open-output-file
             open-io-file
+            call-with-port
             call-with-input-file
             call-with-output-file
             with-input-from-port
@@ -425,6 +426,15 @@ file with the given name already exists, the effect is unspecified."
   "Open file with name STR for both input and output."
   (open-file str OPEN_BOTH))
 
+(define (call-with-port port proc)
+  "Call @var{proc}, passing it @var{port} and closing @var{port} upon exit of
+@var{proc}.  Return the return values of @var{proc}."
+  (call-with-values
+      (lambda () (proc port))
+    (lambda vals
+      (close-port port)
+      (apply values vals))))
+
 (define* (call-with-input-file
           file proc #:key (binary #f) (encoding #f) (guess-encoding #f))
   "PROC should be a procedure of one argument, and FILE should be a
@@ -441,11 +451,7 @@ never again be used for a read or write operation."
                             #:binary binary
                             #:encoding encoding
                             #:guess-encoding guess-encoding)))
-    (call-with-values
-      (lambda () (proc p))
-      (lambda vals
-        (close-input-port p)
-        (apply values vals)))))
+    (call-with-port p proc)))
 
 (define* (call-with-output-file file proc #:key (binary #f) (encoding #f))
   "PROC should be a procedure of one argument, and FILE should be a
@@ -459,11 +465,7 @@ If the procedure does not return, then the port will not be closed
 automatically unless it is possible to prove that the port will
 never again be used for a read or write operation."
   (let ((p (open-output-file file #:binary binary #:encoding encoding)))
-    (call-with-values
-      (lambda () (proc p))
-      (lambda vals
-        (close-output-port p)
-        (apply values vals)))))
+    (call-with-port p proc)))
 
 (define (with-input-from-port port thunk)
   (parameterize ((current-input-port port))
@@ -525,9 +527,9 @@ procedures, their behavior is implementation dependent."
    #:encoding encoding))
 
 (define (call-with-input-string string proc)
-  "Calls the one-argument procedure @var{proc} with a newly created
-input port from which @var{string}'s contents may be read.  The value
-yielded by the @var{proc} is returned."
+  "Call the one-argument procedure @var{proc} with a newly created input
+port from which @var{string}'s contents may be read.  All values yielded
+by the @var{proc} are returned."
   (proc (open-input-string string)))
 
 (define (with-input-from-string string thunk)
@@ -543,12 +545,14 @@ procedures, their behavior is implementation dependent."
    (lambda (p) (with-input-from-port p thunk))))
 
 (define (call-with-output-string proc)
-  "Calls the one-argument procedure @var{proc} with a newly created output
-port.  When the function returns, the string composed of the characters
-written into the port is returned."
+  "Call the one-argument procedure @var{proc} with a newly created
+output port.  When the function returns, port is closed and the string
+composed of the characters written into the port is returned."
   (let ((port (open-output-string)))
     (proc port)
-    (get-output-string port)))
+    (let ((res (get-output-string port)))
+      (close-port port)
+      res)))
 
 (define (with-output-to-string thunk)
   "Calls THUNK and returns its output as a string."
