@@ -1,7 +1,7 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Guile Reference Manual.
 @c Copyright (C)  2010, 2011, 2012, 2013,
-@c   2014, 2019 Free Software Foundation, Inc.
+@c   2014, 2019, 2021 Free Software Foundation, Inc.
 @c See the file guile.texi for copying conditions.
 
 @node R6RS Support
@@ -1683,6 +1683,7 @@ Return the end-of-file (EOF) object.
 @deffn {Scheme Procedure} port? obj
 @deffnx {Scheme Procedure} input-port? obj
 @deffnx {Scheme Procedure} output-port? obj
+@deffnx {Scheme Procedure} call-with-port port proc
 @xref{Ports}, for documentation.
 @end deffn
 
@@ -1749,11 +1750,6 @@ Equivalent to @code{(seek @var{port} @var{offset} SEEK_SET)}.
 
 @deffn {Scheme Procedure} port-has-set-port-position!? port
 Return @code{#t} is @var{port} supports @code{set-port-position!}.
-@end deffn
-
-@deffn {Scheme Procedure} call-with-port port proc
-Call @var{proc}, passing it @var{port} and closing @var{port} upon exit
-of @var{proc}.  Return the return values of @var{proc}.
 @end deffn
 
 @deffn {Scheme Procedure} port-eof? input-port
