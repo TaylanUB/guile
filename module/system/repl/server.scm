@@ -1,6 +1,6 @@
 ;;; Repl server
 
-;; Copyright (C)  2003, 2010, 2011, 2014, 2016, 2019 Free Software Foundation, Inc.
+;; Copyright (C) 2003,2010,2011,2014,2016,2019,2021 Free Software Foundation, Inc.
 
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -27,7 +27,6 @@
   #:use-module (ice-9 iconv)
   #:use-module (rnrs bytevectors)
   #:use-module (ice-9 binary-ports)
-  #:use-module ((rnrs io ports) #:select (call-with-port))
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-26)           ; cut
   #:export (make-tcp-server-socket

@@ -331,15 +331,6 @@ read from/written to in @var{port}."
   (and (false-if-exception (set-port-position! port (port-position port)))
        #t))
 
-(define (call-with-port port proc)
-  "Call @var{proc}, passing it @var{port} and closing @var{port} upon exit of
-@var{proc}.  Return the return values of @var{proc}."
-  (call-with-values
-      (lambda () (proc port))
-    (lambda vals
-      (close-port port)
-      (apply values vals))))
-
 (define* (call-with-bytevector-output-port proc #:optional (transcoder #f))
   (receive (port extract) (open-bytevector-output-port transcoder)
     (call-with-port port proc)
