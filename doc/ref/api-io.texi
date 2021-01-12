@@ -1166,6 +1166,19 @@ the data accumulated by the port, as illustrated below.
 The @var{transcoder} argument is currently not supported.
 @end deffn
 
+@deffn {Scheme Procedure} call-with-output-bytevector proc
+Call the one-argument procedure @var{proc} with a newly created
+bytevector output port.  When the function returns, the bytevector
+composed of the characters written into the port is returned.
+@var{proc} should not close the port.
+@end deffn
+
+@deffn {Scheme Procedure} call-with-input-bytevector bytevector proc
+Call the one-argument procedure @var{proc} with a newly created input
+port from which @var{bytevector}'s contents may be read.  The values
+yielded by the @var{proc} is returned.
+@end deffn
+
 
 @node String Ports
 @subsubsection String Ports

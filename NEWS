@@ -5,6 +5,27 @@ See the end for copying conditions.
 Please send Guile bug reports to bug-guile@gnu.org.
 
 
+Changes in 3.0.6 (since 3.0.5)
+
+* New interfaces and functionality
+
+** `call-with-port'
+
+See "Ports" in the manual.
+
+** `call-with-input-bytevector', `call-with-output-bytevector'
+
+See "Bytevector Ports" in the manual.
+
+* Incompatible changes
+
+** `call-with-output-string' closes port on normal exit
+
+This procedure used to leave the port open, even though there was no
+useful way to access it.  Now we clean it up more promptly, disposing
+any possible associated iconv descriptor.
+
+
 Changes in 3.0.5 (since 3.0.4)
 
 * New interfaces and functionality
