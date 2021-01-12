@@ -1,6 +1,6 @@
 ;;;; (web uri) --- URI manipulation tools
 ;;;;
-;;;; Copyright (C) 1997,2001,2002,2010,2011,2012,2013,2014,2019,2020 Free Software Foundation, Inc.
+;;;; Copyright (C) 1997,2001,2002,2010,2011,2012,2013,2014,2019-2021 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -26,6 +26,7 @@
 
 (define-module (web uri)
   #:use-module (srfi srfi-9)
+  #:use-module (ice-9 iconv)
   #:use-module (ice-9 regex)
   #:use-module (ice-9 rdelim)
   #:use-module (ice-9 control)
@@ -364,49 +365,6 @@ serialization."
          ""))))
 
 
-;; like call-with-output-string, but actually closes the port (doh)
-(define (call-with-output-string* proc)
-  (let ((port (open-output-string)))
-    (proc port)
-    (let ((str (get-output-string port)))
-      (close-port port)
-      str)))
-
-(define (call-with-output-bytevector* proc)
-  (call-with-values
-      (lambda ()
-        (open-bytevector-output-port))
-    (lambda (port get-bytevector)
-      (proc port)
-      (let ((bv (get-bytevector)))
-        (close-port port)
-        bv))))
-
-(define (call-with-encoded-output-string encoding proc)
-  (if (string-ci=? encoding "utf-8")
-      (string->utf8 (call-with-output-string* proc))
-      (call-with-output-bytevector*
-       (lambda (port)
-         (set-port-encoding! port encoding)
-         (proc port)))))
-
-(define (encode-string str encoding)
-  (if (string-ci=? encoding "utf-8")
-      (string->utf8 str)
-      (call-with-encoded-output-string encoding
-                                       (lambda (port)
-                                         (display str port)))))
-
-(define (decode-string bv encoding)
-  (if (string-ci=? encoding "utf-8")
-      (utf8->string bv)
-      (let ((p (open-bytevector-input-port bv)))
-        (set-port-encoding! p encoding)
-        (let ((res (read-string p)))
-          (close-port p)
-          res))))
-
-
 ;; A note on characters and bytes: URIs are defined to be sequences of
 ;; characters in a subset of ASCII. Those characters may encode a
 ;; sequence of bytes (octets), which in turn may encode sequences of
@@ -444,7 +402,7 @@ Returns a string of the decoded characters, or a bytevector if
 ENCODING was ‘#f’."
   (let* ((len (string-length str))
          (bv
-          (call-with-output-bytevector*
+          (call-with-output-bytevector
            (lambda (port)
              (let lp ((i 0))
                (if (< i len)
@@ -469,7 +427,7 @@ ENCODING was ‘#f’."
                        (uri-error "Invalid character in encoded URI ~a: ~s"
                                   str ch))))))))))
     (if encoding
-        (decode-string bv encoding)
+        (bytevector->string bv encoding)
         ;; Otherwise return raw bytevector
         bv)))
 
@@ -506,13 +464,13 @@ uppercase hexadecimal representation of the byte."
   (define (needs-escaped? ch)
     (not (char-set-contains? unescaped-chars ch)))
   (if (string-index str needs-escaped?)
-      (call-with-output-string*
+      (call-with-output-string
        (lambda (port)
          (string-for-each
           (lambda (ch)
             (if (char-set-contains? unescaped-chars ch)
                 (display ch port)
-                (let* ((bv (encode-string (string ch) encoding))
+                (let* ((bv (string->bytevector (string ch) encoding))
                        (len (bytevector-length bv)))
                   (let lp ((i 0))
                     (if (< i len)

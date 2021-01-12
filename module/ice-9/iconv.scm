@@ -1,6 +1,6 @@
 ;;; Encoding and decoding byte representations of strings
 
-;; Copyright (C) 2013 Free Software Foundation, Inc.
+;; Copyright (C) 2013, 2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -26,22 +26,6 @@
             bytevector->string
             call-with-encoded-output-string))
 
-;; Like call-with-output-string, but actually closes the port.
-(define (call-with-output-string* proc)
-  (let ((port (open-output-string)))
-    (proc port)
-    (let ((str (get-output-string port)))
-      (close-port port)
-      str)))
-
-(define (call-with-output-bytevector* proc)
-  (call-with-values (lambda () (open-bytevector-output-port))
-    (lambda (port get-bytevector)
-      (proc port)
-      (let ((bv (get-bytevector)))
-        (close-port port)
-        bv))))
-
 (define* (call-with-encoded-output-string encoding proc
                                           #:optional
                                           (conversion-strategy 'error))
@@ -52,8 +36,8 @@ bytevector according to ENCODING, and return the bytevector."
       ;; I don't know why, but this appears to be faster; at least for
       ;; serving examples/debug-sxml.scm (1464 reqs/s versus 850
       ;; reqs/s).
-      (string->utf8 (call-with-output-string* proc))
-      (call-with-output-bytevector*
+      (string->utf8 (call-with-output-string proc))
+      (call-with-output-bytevector
        (lambda (port)
          (set-port-encoding! port encoding)
          (if conversion-strategy
