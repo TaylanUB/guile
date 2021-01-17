@@ -125,14 +125,14 @@ interrupts.
 
 @deffn macro make-thread proc arg @dots{}
 Apply @var{proc} to @var{arg} @dots{} in a new thread formed by
-@code{call-with-new-thread} using a default error handler that display
+@code{call-with-new-thread} using a default error handler that displays
 the error to the current error port.  The @var{arg} @dots{}
 expressions are evaluated in the new thread.
 @end deffn
 
 @deffn macro begin-thread expr1 expr2 @dots{}
 Evaluate forms @var{expr1} @var{expr2} @dots{} in a new thread formed by
-@code{call-with-new-thread} using a default error handler that display
+@code{call-with-new-thread} using a default error handler that displays
 the error to the current error port.
 @end deffn
 
