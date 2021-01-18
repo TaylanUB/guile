@@ -1,7 +1,7 @@
 #ifndef SCM_POSIX_H
 #define SCM_POSIX_H
 
-/* Copyright 1995-1998,2000-2001,2003,2006,2008-2011,2018
+/* Copyright 1995-1998,2000-2001,2003,2006,2008-2011,2018,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -65,7 +65,6 @@ SCM_API SCM scm_fork (void);
 SCM_API SCM scm_uname (void);
 SCM_API SCM scm_environ (SCM env);
 SCM_API SCM scm_tmpnam (void);
-SCM_API SCM scm_mkstemp (SCM tmpl);
 SCM_API SCM scm_tmpfile (void);
 SCM_API SCM scm_open_pipe (SCM pipestr, SCM modes);
 SCM_API SCM scm_close_pipe (SCM port);

@@ -1,7 +1,7 @@
 #ifndef SCM_FILESYS_H
 #define SCM_FILESYS_H
 
-/* Copyright 1995,1997-2001,2006,2008-2011,2013,2018
+/* Copyright 1995,1997-2001,2006,2008-2011,2013,2018,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -65,6 +65,7 @@ SCM_API SCM scm_symlink (SCM oldpath, SCM newpath);
 SCM_API SCM scm_readlink (SCM path);
 SCM_API SCM scm_lstat (SCM str);
 SCM_API SCM scm_copy_file (SCM oldfile, SCM newfile);
+SCM_API SCM scm_mkstemp (SCM tmpl);
 SCM_API SCM scm_dirname (SCM filename);
 SCM_API SCM scm_basename (SCM filename, SCM suffix);
 SCM_API SCM scm_canonicalize_path (SCM path);
