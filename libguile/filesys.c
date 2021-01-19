@@ -1,4 +1,4 @@
-/* Copyright 1996-2002,2004,2006,2009-2019
+/* Copyright 1996-2002,2004,2006,2009-2019,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -1543,6 +1543,46 @@ scm_mkstemp (SCM tmpl)
 {
   return scm_i_mkstemp (tmpl, SCM_UNDEFINED);
 }
+
+#if HAVE_MKDTEMP
+SCM_DEFINE (scm_mkdtemp_x, "mkdtemp!", 1, 0, 0,
+	    (SCM tmpl),
+            "Create a new unique directory in the file system named in\n"
+            "accordance with @var{tmpl}. The last 6 characters of the\n"
+            "template must be XXXXXX\n"
+            "\n"
+            "Upon success, the template string -- if mutable -- will be\n"
+            "modified in place with the name of the directory created.\n"
+            "The name will also be the return value.\n"
+            "\n"
+            "An error may be thrown if the template is incorrect or if\n"
+            "the directory could not be created.\n")
+#define FUNC_NAME s_scm_mkdtemp_x
+{
+  char *c_tmpl;
+  char *rv;
+
+  SCM_VALIDATE_STRING (SCM_ARG1, tmpl);
+
+  /* Ensure tmpl is mutable.  */
+  scm_i_string_start_writing (tmpl);
+  scm_i_string_stop_writing ();
+
+  scm_dynwind_begin (0);
+  c_tmpl = scm_to_locale_string (tmpl);
+  scm_dynwind_free (c_tmpl);
+  SCM_SYSCALL (rv = mkdtemp (c_tmpl));
+  if (rv == NULL)
+    SCM_SYSERROR;
+  scm_substring_move_x (scm_from_locale_string (c_tmpl),
+			SCM_INUM0, scm_string_length (tmpl),
+			tmpl, SCM_INUM0);
+  scm_dynwind_end ();
+
+  return SCM_UNSPECIFIED;
+}
+#undef FUNC_NAME
+#endif /* HAVE_MKDTEMP */
 
 
 /* Filename manipulation */

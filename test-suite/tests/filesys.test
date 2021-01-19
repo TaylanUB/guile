@@ -231,3 +231,42 @@
 (delete-file (test-file))
 (when (file-exists? (test-symlink))
   (delete-file (test-symlink)))
+
+
+(with-test-prefix "mkdtemp!"
+
+  (pass-if-exception "number arg" exception:wrong-type-arg
+    (if (not (defined? 'mkdtemp!))
+        (throw 'unresolved)
+        (mkdtemp! 123)))
+
+  (pass-if "directory name template prefix is unmodified"
+    (if (not (defined? 'mkdtemp!))
+        (throw 'unresolved)
+        (let ((template (string-copy "T-XXXXXX")))
+          (mkdtemp! template)
+          (false-if-exception (rmdir template))
+          (and
+           (string? template)
+           (string-contains template "T-")
+           (= (string-length template) 8)))))
+
+  (pass-if-exception "read-only template" exception:miscellaneous-error
+    (if (not (defined? 'mkdtemp!))
+        (throw 'unresolved)
+        (mkdtemp! (substring/read-only "T-XXXXXX" 0))))
+
+  (pass-if-exception "invalid template" exception:system-error
+    (if (not (defined? 'mkdtemp!))
+        (throw 'unresolved)
+        (mkdtemp! (string-copy "T-AAAAAA" 0))))
+
+  (pass-if "directory created"
+    (if (not (defined? 'mkdtemp!))
+        (throw 'unresolved)
+        (let ((template (string-copy "T-XXXXXX")))
+          (mkdtemp! template)
+          (let* ((_stat    (stat template))
+                 (result   (eqv? 'directory (stat:type _stat))))
+            (false-if-exception (rmdir template))
+            result)))))

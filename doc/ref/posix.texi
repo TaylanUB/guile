@@ -1,7 +1,7 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Guile Reference Manual.
 @c Copyright (C)  1996, 1997, 2000, 2001, 2002, 2003, 2004, 2006, 2007,
-@c   2008, 2009, 2010, 2011, 2012, 2013, 2014, 2017 Free Software Foundation, Inc.
+@c   2008, 2009, 2010, 2011, 2012, 2013, 2014, 2017, 2021 Free Software Foundation, Inc.
 @c See the file guile.texi for copying conditions.
 
 @node POSIX
@@ -1018,6 +1018,25 @@ named using the path prefix @code{P_tmpdir} defined in
 @file{stdio.h}.
 The file is automatically deleted when the port is closed
 or the program terminates.
+@end deffn
+
+@deffn {Scheme Procedure} mkdtemp! tmpl
+@deffnx {C Function} scm_mkdtemp_x (tmpl)
+@cindex temporary directory
+Create a new directory named in accordance with the template string
+@var{tmpl}.
+
+@var{tmpl} is a string specifying the directory's name. The last six
+characters of @var{tmpl} must be @samp{XXXXXX}, characters that will be
+modified to ensure the directory name is unique. Upon successful
+execution, those @samp{X}s will be changed to reflect the name of the
+unique directory created.
+
+The permissions of the directory created are OS dependent, but, are
+usually @code{#o700}.
+
+The return value is unspecified.  An error may be thrown if the template
+has the wrong format or if the directory cannot be created.
 @end deffn
 
 @deffn {Scheme Procedure} dirname filename

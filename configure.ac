@@ -3,7 +3,7 @@ dnl   Process this file with autoconf to produce configure.
 dnl
 
 define(GUILE_CONFIGURE_COPYRIGHT,[[
-Copyright 1998-2020 Free Software Foundation, Inc.
+Copyright 1998-2021 Free Software Foundation, Inc.
 
 This file is part of Guile.
 
@@ -484,16 +484,16 @@ AC_CHECK_HEADERS([assert.h crt_externs.h])
 #   sched_getaffinity, sched_setaffinity - GNU extensions (glibc)
 #   sendfile - non-POSIX, found in glibc
 #
-AC_CHECK_FUNCS([DINFINITY DQNAN cexp chsize clog clog10 ctermid		\
-  fesetround ftime ftruncate fchown fchmod getcwd geteuid getsid	\
-  gettimeofday getuid getgid gmtime_r ioctl lstat mkdir mknod nice	\
-  readlink rename rmdir setegid seteuid		                        \
-  setlocale setuid setgid setpgid setsid sigaction siginterrupt stat64	\
-  strptime symlink sync sysconf tcgetpgrp tcsetpgrp uname waitpid	\
-  strdup system usleep atexit on_exit chown link fcntl ttyname getpwent	\
-  getgrent kill getppid getpgrp fork setitimer getitimer strchr strcmp	\
-  index bcopy memcpy rindex truncate isblank _NSGetEnviron		\
-  strcoll strcoll_l strtod_l strtol_l newlocale uselocale utimensat	\
+AC_CHECK_FUNCS([DINFINITY DQNAN cexp chsize clog clog10 ctermid         \
+  fesetround ftime ftruncate fchown fchmod getcwd geteuid getsid        \
+  gettimeofday getuid getgid gmtime_r ioctl lstat mkdir mkdtemp mknod   \
+  nice readlink rename rmdir setegid seteuid                            \
+  setlocale setuid setgid setpgid setsid sigaction siginterrupt stat64  \
+  strptime symlink sync sysconf tcgetpgrp tcsetpgrp uname waitpid       \
+  strdup system usleep atexit on_exit chown link fcntl ttyname getpwent \
+  getgrent kill getppid getpgrp fork setitimer getitimer strchr strcmp  \
+  index bcopy memcpy rindex truncate isblank _NSGetEnviron              \
+  strcoll strcoll_l strtod_l strtol_l newlocale uselocale utimensat     \
   sched_getaffinity sched_setaffinity sendfile])
 
 # The newlib C library uses _NL_ prefixed locale langinfo constants.
