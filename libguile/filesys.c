@@ -1551,9 +1551,9 @@ SCM_DEFINE (scm_mkdtemp_x, "mkdtemp!", 1, 0, 0,
             "accordance with @var{tmpl}. The last 6 characters of the\n"
             "template must be XXXXXX\n"
             "\n"
-            "Upon success, the template string -- if mutable -- will be\n"
-            "modified in place with the name of the directory created.\n"
-            "The name will also be the return value.\n"
+            "Upon success, the template string, which must be mutable, will\n"
+            "be modified in place with the name of the directory created.\n"
+            "The return value is unspecified.\n"
             "\n"
             "An error may be thrown if the template is incorrect or if\n"
             "the directory could not be created.\n")
