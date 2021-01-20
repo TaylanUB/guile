@@ -1,5 +1,5 @@
 /* Accept a connection on a socket, with specific opening flags.
-   Copyright (C) 2009-2017 Free Software Foundation, Inc.
+   Copyright (C) 2009-2021 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Lesser General Public License as published by
@@ -12,7 +12,7 @@
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License along
-   with this program; if not, see <http://www.gnu.org/licenses/>.  */
+   with this program; if not, see <https://www.gnu.org/licenses/>.  */
 
 #include <config.h>
 
@@ -22,10 +22,17 @@
 #include <errno.h>
 #include <fcntl.h>
 #include "binary-io.h"
-#include "msvc-nothrow.h"
+#if GNULIB_MSVC_NOTHROW
+# include "msvc-nothrow.h"
+#else
+# include <io.h>
+#endif
 
 #ifndef SOCK_CLOEXEC
 # define SOCK_CLOEXEC 0
+#endif
+#ifndef SOCK_NONBLOCK
+# define SOCK_NONBLOCK 0
 #endif
 
 int
@@ -33,7 +40,7 @@ accept4 (int sockfd, struct sockaddr *addr, socklen_t *addrlen, int flags)
 {
   int fd;
 
-#if HAVE_ACCEPT4
+#if HAVE_DECL_ACCEPT4
 # undef accept4
   /* Try the system call first, if it exists.  (We may be running with a glibc
      that has the function but with an older kernel that lacks it.)  */
@@ -54,7 +61,7 @@ accept4 (int sockfd, struct sockaddr *addr, socklen_t *addrlen, int flags)
 #endif
 
   /* Check the supported flags.  */
-  if ((flags & ~(SOCK_CLOEXEC | O_TEXT | O_BINARY)) != 0)
+  if ((flags & ~(SOCK_CLOEXEC | SOCK_NONBLOCK | O_TEXT | O_BINARY)) != 0)
     {
       errno = EINVAL;
       return -1;
@@ -65,7 +72,7 @@ accept4 (int sockfd, struct sockaddr *addr, socklen_t *addrlen, int flags)
     return -1;
 
 #if SOCK_CLOEXEC
-# if (defined _WIN32 || defined __WIN32__) && ! defined __CYGWIN__
+# if defined _WIN32 && ! defined __CYGWIN__
 /* Native Windows API.  */
   if (flags & SOCK_CLOEXEC)
     {
@@ -115,6 +122,22 @@ accept4 (int sockfd, struct sockaddr *addr, socklen_t *addrlen, int flags)
         }
     }
 # endif
+#endif
+
+#if SOCK_NONBLOCK
+  if (flags & SOCK_NONBLOCK)
+    {
+      int fcntl_flags;
+
+      if ((fcntl_flags = fcntl (fd, F_GETFL, 0)) < 0
+          || fcntl (fd, F_SETFL, fcntl_flags | O_NONBLOCK) == -1)
+        {
+          int saved_errno = errno;
+          close (fd);
+          errno = saved_errno;
+          return -1;
+        }
+    }
 #endif
 
 #if O_BINARY

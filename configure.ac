@@ -22,7 +22,7 @@ License along with Guile.  If not, see
 <https://www.gnu.org/licenses/>.
 ]])
 
-AC_PREREQ(2.61)
+AC_PREREQ(2.64)
 
 AC_INIT([GNU Guile],
         m4_esyscmd([build-aux/git-version-gen --match v3.0.\* .tarball-version]),

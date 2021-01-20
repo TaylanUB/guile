@@ -1,7 +1,7 @@
 /* Emulation for select(2)
    Contributed by Paolo Bonzini.
 
-   Copyright 2008-2017 Free Software Foundation, Inc.
+   Copyright 2008-2021 Free Software Foundation, Inc.
 
    This file is part of gnulib.
 
@@ -16,15 +16,18 @@
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License along
-   with this program; if not, see <http://www.gnu.org/licenses/>.  */
+   with this program; if not, see <https://www.gnu.org/licenses/>.  */
 
 #include <config.h>
-#include <alloca.h>
-#include <assert.h>
 
-#if (defined _WIN32 || defined __WIN32__) && ! defined __CYGWIN__
+/* Specification.  */
+#include <sys/select.h>
+
+#if defined _WIN32 && ! defined __CYGWIN__
 /* Native Windows.  */
 
+#include <alloca.h>
+#include <assert.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <limits.h>
@@ -39,9 +42,29 @@
 /* Get the overridden 'struct timeval'.  */
 #include <sys/time.h>
 
-#include "msvc-nothrow.h"
+#if GNULIB_MSVC_NOTHROW
+# include "msvc-nothrow.h"
+#else
+# include <io.h>
+#endif
 
 #undef select
+
+/* Don't assume that UNICODE is not defined.  */
+#undef GetModuleHandle
+#define GetModuleHandle GetModuleHandleA
+#undef PeekConsoleInput
+#define PeekConsoleInput PeekConsoleInputA
+#undef CreateEvent
+#define CreateEvent CreateEventA
+#undef PeekMessage
+#define PeekMessage PeekMessageA
+#undef DispatchMessage
+#define DispatchMessage DispatchMessageA
+
+/* Avoid warnings from gcc -Wcast-function-type.  */
+#define GetProcAddress \
+  (void *) GetProcAddress
 
 struct bitset {
   unsigned char in[FD_SETSIZE / CHAR_BIT];
@@ -533,7 +556,6 @@ restart:
 
 #else /* ! Native Windows.  */
 
-#include <sys/select.h>
 #include <stddef.h> /* NULL */
 #include <errno.h>
 #include <unistd.h>

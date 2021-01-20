@@ -112,9 +112,7 @@ INSTALL
 /lib/arpa/inet.h
 /lib/stdio.h
 /lib/sys/stat.h
-/lib/arg-nonnull.h
 /lib/link-warning.h
-/lib/c++defs.h
 /lib/iconv.h
 /lib/netdb.h
 /GPATH
@@ -129,14 +127,12 @@ INSTALL
 /doc/ref/standard-libraryscmfiles
 /lib/wchar.h
 /lib/sys/socket.h
-/lib/warn-on-use.h
 /lib/unused-parameter.h
 /.version
 /lib/iconv.h
 /lib/netdb.h
 /lib/unistr.h
 /lib/unitypes.h
-/lib/c++defs.h
 /.sc-start-*
 /lib/math.h
 /lib/sys/time.h

@@ -1,7 +1,7 @@
 /* Emulation for poll(2)
    Contributed by Paolo Bonzini.
 
-   Copyright 2001-2003, 2006-2017 Free Software Foundation, Inc.
+   Copyright 2001-2003, 2006-2021 Free Software Foundation, Inc.
 
    This file is part of gnulib.
 
@@ -16,7 +16,7 @@
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License along
-   with this program; if not, see <http://www.gnu.org/licenses/>.  */
+   with this program; if not, see <https://www.gnu.org/licenses/>.  */
 
 /* Tell gcc not to warn about the (nfd < 0) tests, below.  */
 #if (__GNUC__ == 4 && 3 <= __GNUC_MINOR__) || 4 < __GNUC__
@@ -34,14 +34,18 @@
 #include <errno.h>
 #include <limits.h>
 
-#if (defined _WIN32 || defined __WIN32__) && ! defined __CYGWIN__
+#if defined _WIN32 && ! defined __CYGWIN__
 # define WINDOWS_NATIVE
 # include <winsock2.h>
 # include <windows.h>
 # include <io.h>
 # include <stdio.h>
 # include <conio.h>
-# include "msvc-nothrow.h"
+# if GNULIB_MSVC_NOTHROW
+#  include "msvc-nothrow.h"
+# else
+#  include <io.h>
+# endif
 #else
 # include <sys/time.h>
 # include <unistd.h>
@@ -71,6 +75,41 @@
 #endif
 
 #ifdef WINDOWS_NATIVE
+
+/* Don't assume that UNICODE is not defined.  */
+# undef GetModuleHandle
+# define GetModuleHandle GetModuleHandleA
+# undef PeekConsoleInput
+# define PeekConsoleInput PeekConsoleInputA
+# undef CreateEvent
+# define CreateEvent CreateEventA
+# undef PeekMessage
+# define PeekMessage PeekMessageA
+# undef DispatchMessage
+# define DispatchMessage DispatchMessageA
+
+/* Do *not* use the function WSAPoll
+   <https://docs.microsoft.com/en-us/windows/desktop/api/winsock2/nf-winsock2-wsapoll>
+   because there is a bug named “Windows 8 Bugs 309411 - WSAPoll does not
+   report failed connections” that Microsoft won't fix.
+   See Daniel Stenberg: "WASPoll is broken"
+   <https://daniel.haxx.se/blog/2012/10/10/wsapoll-is-broken/>.  */
+
+/* Here we need the recv() function from Windows, that takes a SOCKET as
+   first argument, not any possible gnulib override.  */
+# undef recv
+
+/* Here we need the select() function from Windows, because we pass bit masks
+   of SOCKETs, not bit masks of FDs.  */
+# undef select
+
+/* Here we need timeval from Windows since this is what the select() function
+   from Windows requires.  */
+# undef timeval
+
+/* Avoid warnings from gcc -Wcast-function-type.  */
+# define GetProcAddress \
+   (void *) GetProcAddress
 
 static BOOL IsConsoleHandle (HANDLE h)
 {
@@ -335,13 +374,13 @@ poll (struct pollfd *pfd, nfds_t nfd, int timeout)
   int maxfd, rc;
   nfds_t i;
 
-  if (nfd < 0)
+  if (nfd > INT_MAX)
     {
       errno = EINVAL;
       return -1;
     }
-  /* Don't check directly for NFD too large.  Any practical use of a
-     too-large NFD is caught by one of the other checks below, and
+  /* Don't check directly for NFD greater than OPEN_MAX.  Any practical use
+     of a too-large NFD is caught by one of the other checks below, and
      checking directly for getdtablesize is too much of a portability
      and/or performance and/or correctness hassle.  */
 
@@ -433,7 +472,7 @@ poll (struct pollfd *pfd, nfds_t nfd, int timeout)
   int rc = 0;
   nfds_t i;
 
-  if (nfd < 0 || timeout < -1)
+  if (nfd > INT_MAX || timeout < -1)
     {
       errno = EINVAL;
       return -1;

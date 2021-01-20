@@ -1,6 +1,6 @@
 /* Detect the number of processors.
 
-   Copyright (C) 2009-2017 Free Software Foundation, Inc.
+   Copyright (C) 2009-2021 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Lesser General Public License as published by
@@ -13,7 +13,7 @@
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with this program; if not, see <http://www.gnu.org/licenses/>.  */
+   along with this program; if not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Glen Lenker and Bruno Haible.  */
 
@@ -26,7 +26,7 @@ extern "C" {
    - an execution core in a (possibly multi-core) chip, in a (possibly multi-
      chip) module, in a single computer, or
    - a thread execution unit inside a core
-     (hyper-threading, see <http://en.wikipedia.org/wiki/Hyper-threading>).
+     (hyper-threading, see <https://en.wikipedia.org/wiki/Hyper-threading>).
    Which of the two definitions is used, is unspecified.  */
 
 enum nproc_query

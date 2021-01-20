@@ -1,6 +1,6 @@
 /* socket.c --- wrappers for Windows socket function
 
-   Copyright (C) 2008-2017 Free Software Foundation, Inc.
+   Copyright (C) 2008-2021 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU Lesser General Public License as published by
@@ -13,7 +13,7 @@
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Paolo Bonzini */
 
@@ -27,6 +27,10 @@
 #include "w32sock.h"
 
 #include "sockets.h"
+
+/* Don't assume that UNICODE is defined.  */
+#undef WSASocket
+#define WSASocket WSASocketW
 
 int
 rpl_socket (int domain, int type, int protocol)

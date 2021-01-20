@@ -1,5 +1,5 @@
 /* Character set conversion.
-   Copyright (C) 2007, 2009-2017 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2009-2021 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Lesser General Public License as published by
@@ -12,7 +12,7 @@
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License along
-   with this program; if not, see <http://www.gnu.org/licenses/>.  */
+   with this program; if not, see <https://www.gnu.org/licenses/>.  */
 
 #include <config.h>
 
@@ -36,6 +36,7 @@
 #define ICONV_FLAVOR_IRIX "iconv_open-irix.h"
 #define ICONV_FLAVOR_OSF "iconv_open-osf.h"
 #define ICONV_FLAVOR_SOLARIS "iconv_open-solaris.h"
+#define ICONV_FLAVOR_ZOS "iconv_open-zos.h"
 
 #ifdef ICONV_FLAVOR
 # include ICONV_FLAVOR

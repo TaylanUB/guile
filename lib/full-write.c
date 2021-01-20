@@ -1,6 +1,6 @@
 /* An interface to read and write that retries (if necessary) until complete.
 
-   Copyright (C) 1993-1994, 1997-2006, 2009-2017 Free Software Foundation, Inc.
+   Copyright (C) 1993-1994, 1997-2006, 2009-2021 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU Lesser General Public License as published by
@@ -13,7 +13,7 @@
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <config.h>
 

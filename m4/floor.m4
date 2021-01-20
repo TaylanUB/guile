@@ -1,5 +1,5 @@
-# floor.m4 serial 8
-dnl Copyright (C) 2007, 2009-2017 Free Software Foundation, Inc.
+# floor.m4 serial 14
+dnl Copyright (C) 2007, 2009-2021 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -32,7 +32,7 @@ AC_DEFUN([gl_FUNC_FLOOR],
 static double dummy (double f) { return 0; }
 int main (int argc, char *argv[])
 {
-  double (*my_floor) (double) = argc ? floor : dummy;
+  double (* volatile my_floor) (double) = argc ? floor : dummy;
   /* Test whether floor (-0.0) is -0.0.  */
   if (signbitd (minus_zerod) && !signbitd (my_floor (minus_zerod)))
     return 1;
@@ -42,10 +42,14 @@ int main (int argc, char *argv[])
             [gl_cv_func_floor_ieee=yes],
             [gl_cv_func_floor_ieee=no],
             [case "$host_os" in
-                       # Guess yes on glibc systems.
-               *-gnu*) gl_cv_func_floor_ieee="guessing yes" ;;
-                       # If we don't know, assume the worst.
-               *)      gl_cv_func_floor_ieee="guessing no" ;;
+                              # Guess yes on glibc systems.
+               *-gnu* | gnu*) gl_cv_func_floor_ieee="guessing yes" ;;
+                              # Guess yes on musl systems.
+               *-musl*)       gl_cv_func_floor_ieee="guessing yes" ;;
+                              # Guess yes on native Windows.
+               mingw*)        gl_cv_func_floor_ieee="guessing yes" ;;
+                              # If we don't know, obey --enable-cross-guesses.
+               *)             gl_cv_func_floor_ieee="$gl_cross_guess_normal" ;;
              esac
             ])
           LIBS="$save_LIBS"
@@ -75,8 +79,9 @@ AC_DEFUN([gl_FUNC_FLOOR_LIBS],
            # define __NO_MATH_INLINES 1 /* for glibc */
            #endif
            #include <math.h>
+           double (*funcptr) (double) = floor;
            double x;]],
-         [[x = floor(x);]])],
+         [[x = funcptr(x) + floor(x);]])],
       [gl_cv_func_floor_libm=])
     if test "$gl_cv_func_floor_libm" = "?"; then
       save_LIBS="$LIBS"
@@ -87,8 +92,9 @@ AC_DEFUN([gl_FUNC_FLOOR_LIBS],
              # define __NO_MATH_INLINES 1 /* for glibc */
              #endif
              #include <math.h>
+             double (*funcptr) (double) = floor;
              double x;]],
-           [[x = floor(x);]])],
+           [[x = funcptr(x) + floor(x);]])],
         [gl_cv_func_floor_libm="-lm"])
       LIBS="$save_LIBS"
     fi

@@ -1,4 +1,4 @@
-/* Copyright (C) 1992, 1995-2003, 2005-2017 Free Software Foundation, Inc.
+/* Copyright (C) 1992, 1995-2003, 2005-2021 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    This program is free software: you can redistribute it and/or modify
@@ -12,7 +12,7 @@
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #if !_LIBC
 /* Don't use __attribute__ __nonnull__ in this compilation unit.  Otherwise gcc
@@ -72,7 +72,7 @@ __libc_lock_define_initialized (static, envlock)
    values are from a small set.  Outside glibc this will eat up all
    memory after a while.  */
 #if defined _LIBC || (defined HAVE_SEARCH_H && defined HAVE_TSEARCH \
-                      && defined __GNUC__)
+                      && (defined __GNUC__ || defined __clang__))
 # define USE_TSEARCH    1
 # include <search.h>
 typedef int (*compar_fn_t) (const void *, const void *);

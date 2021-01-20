@@ -1,5 +1,5 @@
-# iconv_open-utf.m4 serial 1
-dnl Copyright (C) 2007-2017 Free Software Foundation, Inc.
+# iconv_open-utf.m4 serial 4
+dnl Copyright (C) 2007-2021 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -211,16 +211,18 @@ int main ()
           [gl_cv_func_iconv_supports_utf=yes],
           [gl_cv_func_iconv_supports_utf=no],
           [
-           dnl We know that GNU libiconv, GNU libc, and Solaris >= 9 do.
+           dnl We know that GNU libiconv, GNU libc, musl libc, and Solaris >= 9 do.
            dnl OSF/1 5.1 has these encodings, but inserts a BOM in the "to"
            dnl direction.
-           gl_cv_func_iconv_supports_utf=no
+           gl_cv_func_iconv_supports_utf="$gl_cross_guess_normal"
            if test $gl_func_iconv_gnu = yes; then
-             gl_cv_func_iconv_supports_utf=yes
+             gl_cv_func_iconv_supports_utf="guessing yes"
            else
 changequote(,)dnl
              case "$host_os" in
-               solaris2.9 | solaris2.1[0-9]) gl_cv_func_iconv_supports_utf=yes ;;
+               *-musl*) gl_cv_func_iconv_supports_utf="guessing yes" ;;
+               solaris2.9 | solaris2.1[0-9])
+                        gl_cv_func_iconv_supports_utf="guessing yes" ;;
              esac
 changequote([,])dnl
            fi

@@ -1,6 +1,6 @@
 /* Work around rmdir bugs.
 
-   Copyright (C) 1988, 1990, 1999, 2003-2006, 2009-2017 Free Software
+   Copyright (C) 1988, 1990, 1999, 2003-2006, 2009-2021 Free Software
    Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
@@ -14,7 +14,7 @@
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <config.h>
 
@@ -23,9 +23,12 @@
 #include <errno.h>
 #include <string.h>
 
-#include "dosname.h"
+#include "filename.h"
 
 #undef rmdir
+#if defined _WIN32 && !defined __CYGWIN__
+# define rmdir _rmdir
+#endif
 
 /* Remove directory DIR.
    Return 0 if successful, -1 if not.  */

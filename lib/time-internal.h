@@ -1,6 +1,6 @@
 /* Time internal interface
 
-   Copyright 2015-2017 Free Software Foundation, Inc.
+   Copyright 2015-2021 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Lesser General Public License as published by
@@ -13,7 +13,7 @@
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License along
-   with this program; if not, see <http://www.gnu.org/licenses/>.  */
+   with this program; if not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Paul Eggert.  */
 
@@ -24,7 +24,7 @@ struct tm_zone
      members are zero.  */
   struct tm_zone *next;
 
-#if HAVE_TZNAME && !HAVE_TM_ZONE
+#if HAVE_TZNAME && !HAVE_STRUCT_TM_TM_ZONE
   /* Copies of recent strings taken from tzname[0] and tzname[1].
      The copies are in ABBRS, so that they survive tzset.  Null if unknown.  */
   char *tzname_copy[2];

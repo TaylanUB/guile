@@ -1,5 +1,5 @@
-# stdio_h.m4 serial 48
-dnl Copyright (C) 2007-2017 Free Software Foundation, Inc.
+# stdio_h.m4 serial 52
+dnl Copyright (C) 2007-2021 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -28,7 +28,7 @@ AC_DEFUN([gl_STDIO_H],
        /* For non-mingw systems, compilation will trivially succeed.
           For mingw, compilation will succeed for older mingw (system
           printf, "I64d") and fail for newer mingw (gnu printf, "lld"). */
-       #if ((defined _WIN32 || defined __WIN32__) && ! defined __CYGWIN__) && \
+       #if (defined _WIN32 && ! defined __CYGWIN__) && \
          (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4))
        extern char PRIdMAX_probe[sizeof PRIdMAX == sizeof "I64d" ? 1 : -1];
        #endif
@@ -107,6 +107,13 @@ AC_DEFUN([gl_STDIO_H],
   gl_WARN_ON_USE_PREPARE([[#include <stdio.h>
     ]], [dprintf fpurge fseeko ftello getdelim getline gets pclose popen
     renameat snprintf tmpfile vdprintf vsnprintf])
+
+  AC_REQUIRE([AC_C_RESTRICT])
+
+  AC_CHECK_DECLS_ONCE([fcloseall])
+  if test $ac_cv_have_decl_fcloseall = no; then
+    HAVE_DECL_FCLOSEALL=0
+  fi
 ])
 
 AC_DEFUN([gl_STDIO_MODULE_INDICATOR],
@@ -173,7 +180,15 @@ AC_DEFUN([gl_STDIO_H_DEFAULTS],
   GNULIB_VPRINTF_POSIX=0;        AC_SUBST([GNULIB_VPRINTF_POSIX])
   GNULIB_VSNPRINTF=0;            AC_SUBST([GNULIB_VSNPRINTF])
   GNULIB_VSPRINTF_POSIX=0;       AC_SUBST([GNULIB_VSPRINTF_POSIX])
+  dnl Support Microsoft deprecated alias function names by default.
+  GNULIB_MDA_FCLOSEALL=1;        AC_SUBST([GNULIB_MDA_FCLOSEALL])
+  GNULIB_MDA_FDOPEN=1;           AC_SUBST([GNULIB_MDA_FDOPEN])
+  GNULIB_MDA_FILENO=1;           AC_SUBST([GNULIB_MDA_FILENO])
+  GNULIB_MDA_GETW=1;             AC_SUBST([GNULIB_MDA_GETW])
+  GNULIB_MDA_PUTW=1;             AC_SUBST([GNULIB_MDA_PUTW])
+  GNULIB_MDA_TEMPNAM=1;          AC_SUBST([GNULIB_MDA_TEMPNAM])
   dnl Assume proper GNU behavior unless another module says otherwise.
+  HAVE_DECL_FCLOSEALL=1;         AC_SUBST([HAVE_DECL_FCLOSEALL])
   HAVE_DECL_FPURGE=1;            AC_SUBST([HAVE_DECL_FPURGE])
   HAVE_DECL_FSEEKO=1;            AC_SUBST([HAVE_DECL_FSEEKO])
   HAVE_DECL_FTELLO=1;            AC_SUBST([HAVE_DECL_FTELLO])

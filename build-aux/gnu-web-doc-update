@@ -1,10 +1,10 @@
 #!/bin/sh
 # Run this after each non-alpha release, to update the web documentation at
-# http://www.gnu.org/software/$pkg/manual/
+# https://www.gnu.org/software/$pkg/manual/
 
-VERSION=2016-01-12.23; # UTC
+VERSION=2021-01-09.09; # UTC
 
-# Copyright (C) 2009-2017 Free Software Foundation, Inc.
+# Copyright (C) 2009-2021 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@ VERSION=2016-01-12.23; # UTC
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ME=$(basename "$0")
 warn() { printf '%s: %s\n' "$ME" "$*" >&2; }
@@ -30,7 +30,7 @@ Usage: $ME
 
 Run this script from top_srcdir (no arguments) after each non-alpha
 release, to update the web documentation at
-http://www.gnu.org/software/\$pkg/manual/
+https://www.gnu.org/software/\$pkg/manual/
 
 This script assumes you're using git for revision control, and
 requires a .prev-version file as well as a Makefile, from which it
@@ -41,6 +41,7 @@ Options:
   -C, --builddir=DIR  location of (configured) Makefile (default: .)
   -n, --dry-run       don't actually commit anything
   -m, --mirror        remove out of date files from document server
+  -u, --user          the name of the CVS user on Savannah
   --help              print this help, then exit
   --version           print version number, then exit
 
@@ -55,7 +56,7 @@ version()
   cat <<EOF
 $ME $VERSION
 Copyright (C) $year Free Software Foundation, Inc,
-License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 EOF
@@ -109,6 +110,7 @@ find_tool XARGS gxargs xargs
 builddir=.
 dryrun=
 rm_stale='echo'
+cvs_user="$USER"
 while test $# != 0
 do
   # Handle --option=value by splitting apart and putting back on argv.
@@ -126,6 +128,7 @@ do
     -C|--builddir) shift; builddir=$1; shift ;;
     -n|--dry-run) dryrun=echo; shift;;
     -m|--mirror) rm_stale=''; shift;;
+    -u|--user) shift; cvs_user=$1; shift ;;
     --*) die "unrecognized option: $1";;
     *) break;;
   esac
@@ -172,7 +175,7 @@ set +e
 
 tmp=$(mktemp -d web-doc-update.XXXXXX) || exit 1
 ( cd $tmp \
-    && $CVS -d $USER@cvs.sv.gnu.org:/webcvs/$pkg co $pkg )
+    && $CVS -d $cvs_user@cvs.sv.gnu.org:/webcvs/$pkg co $pkg )
 $RSYNC -avP "$builddir"/doc/manual/ $tmp/$pkg/manual
 
 (
@@ -202,7 +205,7 @@ $RSYNC -avP "$builddir"/doc/manual/ $tmp/$pkg/manual
 )
 
 # Local variables:
-# eval: (add-hook 'write-file-hooks 'time-stamp)
+# eval: (add-hook 'before-save-hook 'time-stamp)
 # time-stamp-start: "VERSION="
 # time-stamp-format: "%:y-%02m-%02d.%02H"
 # time-stamp-time-zone: "UTC0"

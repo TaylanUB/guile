@@ -1,5 +1,5 @@
 /* Character set conversion.
-   Copyright (C) 2007, 2009-2017 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2009-2021 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Lesser General Public License as published by
@@ -12,7 +12,7 @@
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License along
-   with this program; if not, see <http://www.gnu.org/licenses/>.  */
+   with this program; if not, see <https://www.gnu.org/licenses/>.  */
 
 #include <config.h>
 
@@ -20,9 +20,6 @@
 #include <iconv.h>
 
 #include <stdint.h>
-#ifndef uintptr_t
-# define uintptr_t unsigned long
-#endif
 
 int
 rpl_iconv_close (iconv_t cd)

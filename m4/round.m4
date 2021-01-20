@@ -1,5 +1,5 @@
-# round.m4 serial 16
-dnl Copyright (C) 2007, 2009-2017 Free Software Foundation, Inc.
+# round.m4 serial 23
+dnl Copyright (C) 2007, 2009-2021 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -41,7 +41,7 @@ extern
 "C"
 #endif
 double round (double);
-#ifdef _MSC_VER
+#if defined _MSC_VER && !defined __clang__
 # pragma fenv_access (off)
 #endif
 int main()
@@ -57,11 +57,20 @@ int main()
     * (double) (1U << ((DBL_MANT_DIG + 3) / 5))
     * (double) (1U << ((DBL_MANT_DIG + 4) / 5));
   volatile double x = 0.5 - 0.5 / TWO_MANT_DIG;
-  exit (x < 0.5 && round (x) != 0.0);
+  return (x < 0.5 && round (x) != 0.0);
 }]])], [gl_cv_func_round_works=yes], [gl_cv_func_round_works=no],
         [case "$host_os" in
-           netbsd* | aix*) gl_cv_func_round_works="guessing no";;
-           *)              gl_cv_func_round_works="guessing yes";;
+           netbsd* | aix*) gl_cv_func_round_works="guessing no" ;;
+                           # Guess yes on MSVC, no on mingw.
+           mingw*)         AC_EGREP_CPP([Known], [
+#ifdef _MSC_VER
+ Known
+#endif
+                             ],
+                             [gl_cv_func_round_works="guessing yes"],
+                             [gl_cv_func_round_works="guessing no"])
+                           ;;
+           *)              gl_cv_func_round_works="guessing yes" ;;
          esac
         ])
         LIBS="$save_LIBS"
@@ -94,7 +103,7 @@ double round (double);
 static double dummy (double f) { return 0; }
 int main (int argc, char *argv[])
 {
-  double (*my_round) (double) = argc ? round : dummy;
+  double (* volatile my_round) (double) = argc ? round : dummy;
   /* Test whether round (-0.0) is -0.0.  */
   if (signbitd (minus_zerod) && !signbitd (my_round (minus_zerod)))
     return 1;
@@ -104,10 +113,21 @@ int main (int argc, char *argv[])
               [gl_cv_func_round_ieee=yes],
               [gl_cv_func_round_ieee=no],
               [case "$host_os" in
-                         # Guess yes on glibc systems.
-                 *-gnu*) gl_cv_func_round_ieee="guessing yes" ;;
-                         # If we don't know, assume the worst.
-                 *)      gl_cv_func_round_ieee="guessing no" ;;
+                                # Guess yes on glibc systems.
+                 *-gnu* | gnu*) gl_cv_func_round_ieee="guessing yes" ;;
+                                # Guess yes on musl systems.
+                 *-musl*)       gl_cv_func_round_ieee="guessing yes" ;;
+                                # Guess yes on MSVC, no on mingw.
+                 mingw*)        AC_EGREP_CPP([Known], [
+#ifdef _MSC_VER
+ Known
+#endif
+                                  ],
+                                  [gl_cv_func_round_ieee="guessing yes"],
+                                  [gl_cv_func_round_ieee="guessing no"])
+                                ;;
+                                # If we don't know, obey --enable-cross-guesses.
+                 *)             gl_cv_func_round_ieee="$gl_cross_guess_normal" ;;
                esac
               ])
             LIBS="$save_LIBS"

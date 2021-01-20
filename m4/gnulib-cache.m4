@@ -1,4 +1,4 @@
-# Copyright (C) 2002-2017 Free Software Foundation, Inc.
+# Copyright (C) 2002-2021 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this file.  If not, see <http://www.gnu.org/licenses/>.
+# along with this file.  If not, see <https://www.gnu.org/licenses/>.
 #
 # As a special exception to the GNU General Public License,
 # this file may be distributed as part of a program that
@@ -27,7 +27,121 @@
 
 
 # Specification in the form of a command-line invocation:
-#   gnulib-tool --import --local-dir=gnulib-local --lib=libgnu --source-base=lib --m4-base=m4 --doc-base=doc --tests-base=tests --aux-dir=build-aux --avoid=lock --avoid=unistr/base --avoid=unistr/u8-mbtouc --avoid=unistr/u8-mbtouc-unsafe --avoid=unistr/u8-mbtoucr --avoid=unistr/u8-prev --avoid=unistr/u8-uctomb --avoid=unitypes --lgpl=3 --conditional-dependencies --libtool --macro-prefix=gl --no-vc-files accept4 alignof alloca-opt announce-gen autobuild bind byteswap c-strcase canonicalize-lgpl ceil clock-time close connect copysign dirfd dirname-lgpl duplocale environ extensions flock floor fpieee frexp fstat fsync full-read full-write func gendocs getaddrinfo getlogin getpeername getsockname getsockopt git-version-gen gitlog-to-changelog gnu-web-doc-update gnupload havelib iconv_open-utf inet_ntop inet_pton isfinite isinf isnan ldexp lib-symbol-versions lib-symbol-visibility libunistring link listen localcharset locale log1p lstat maintainer-makefile malloc-gnu malloca mkdir mkostemp nl_langinfo nproc open pipe-posix pipe2 poll putenv readlink recv recvfrom regex rename rmdir select send sendto setenv setsockopt shutdown socket stat-time stdlib strftime striconveh string sys_stat time times trunc unistd verify vsnprintf warnings wchar
+# gnulib-tool --import --local-dir=gnulib-local \
+#  --lib=libgnu \
+#  --source-base=lib \
+#  --m4-base=m4 \
+#  --doc-base=doc \
+#  --tests-base=tests \
+#  --aux-dir=build-aux \
+#  --lgpl=3 \
+#  --conditional-dependencies \
+#  --libtool \
+#  --macro-prefix=gl \
+#  --no-vc-files \
+#  --avoid=lock \
+#  --avoid=unistr/base \
+#  --avoid=unistr/u8-mbtouc \
+#  --avoid=unistr/u8-mbtouc-unsafe \
+#  --avoid=unistr/u8-mbtoucr \
+#  --avoid=unistr/u8-prev \
+#  --avoid=unistr/u8-uctomb \
+#  --avoid=unitypes \
+#  accept4 \
+#  alignof \
+#  alloca-opt \
+#  announce-gen \
+#  autobuild \
+#  bind \
+#  byteswap \
+#  c-strcase \
+#  canonicalize-lgpl \
+#  ceil \
+#  clock-time \
+#  close \
+#  connect \
+#  copysign \
+#  dirfd \
+#  dirname-lgpl \
+#  duplocale \
+#  environ \
+#  extensions \
+#  flexmember \
+#  flock \
+#  floor \
+#  fpieee \
+#  frexp \
+#  fstat \
+#  fsync \
+#  full-read \
+#  full-write \
+#  func \
+#  gendocs \
+#  getaddrinfo \
+#  getlogin \
+#  getpeername \
+#  getsockname \
+#  getsockopt \
+#  git-version-gen \
+#  gitlog-to-changelog \
+#  gnu-web-doc-update \
+#  gnupload \
+#  havelib \
+#  iconv_open-utf \
+#  inet_ntop \
+#  inet_pton \
+#  isfinite \
+#  isinf \
+#  isnan \
+#  ldexp \
+#  lib-symbol-versions \
+#  lib-symbol-visibility \
+#  libunistring \
+#  link \
+#  listen \
+#  localcharset \
+#  locale \
+#  log1p \
+#  lstat \
+#  maintainer-makefile \
+#  malloc-gnu \
+#  malloca \
+#  mkdir \
+#  mkostemp \
+#  nl_langinfo \
+#  nproc \
+#  open \
+#  pipe-posix \
+#  pipe2 \
+#  poll \
+#  putenv \
+#  readlink \
+#  recv \
+#  recvfrom \
+#  regex \
+#  rename \
+#  rmdir \
+#  select \
+#  send \
+#  sendto \
+#  setenv \
+#  setsockopt \
+#  shutdown \
+#  socket \
+#  stat-time \
+#  stdlib \
+#  strftime \
+#  striconveh \
+#  string \
+#  sys_stat \
+#  time \
+#  times \
+#  trunc \
+#  unistd \
+#  verify \
+#  vsnprintf \
+#  warnings \
+#  wchar
 
 # Specification in the form of a few gnulib-tool.m4 macro invocations:
 gl_LOCAL_DIR([gnulib-local])
@@ -51,6 +165,7 @@ gl_MODULES([
   duplocale
   environ
   extensions
+  flexmember
   flock
   floor
   fpieee

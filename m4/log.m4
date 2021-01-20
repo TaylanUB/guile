@@ -1,5 +1,5 @@
-# log.m4 serial 4
-dnl Copyright (C) 2011-2017 Free Software Foundation, Inc.
+# log.m4 serial 11
+dnl Copyright (C) 2011-2021 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -46,9 +46,9 @@ numeric_equal (double x, double y)
 static double dummy (double x) { return 0; }
 int main (int argc, char *argv[])
 {
-  double (*my_log) (double) = argc ? log : dummy;
+  double (* volatile my_log) (double) = argc ? log : dummy;
   /* Test log(negative).
-     This test fails on NetBSD 5.1, Solaris 11 2011-11.  */
+     This test fails on NetBSD 5.1, Solaris 11.4.  */
   double y = my_log (-1.0);
   if (numeric_equal (y, y))
     return 1;
@@ -58,10 +58,14 @@ int main (int argc, char *argv[])
             [gl_cv_func_log_ieee=yes],
             [gl_cv_func_log_ieee=no],
             [case "$host_os" in
-                       # Guess yes on glibc systems.
-               *-gnu*) gl_cv_func_log_ieee="guessing yes" ;;
-                       # If we don't know, assume the worst.
-               *)      gl_cv_func_log_ieee="guessing no" ;;
+                              # Guess yes on glibc systems.
+               *-gnu* | gnu*) gl_cv_func_log_ieee="guessing yes" ;;
+                              # Guess yes on musl systems.
+               *-musl*)       gl_cv_func_log_ieee="guessing yes" ;;
+                              # Guess yes on native Windows.
+               mingw*)        gl_cv_func_log_ieee="guessing yes" ;;
+                              # If we don't know, obey --enable-cross-guesses.
+               *)             gl_cv_func_log_ieee="$gl_cross_guess_normal" ;;
              esac
             ])
           LIBS="$save_LIBS"
@@ -99,8 +103,10 @@ int main ()
         [gl_cv_func_log_works=yes],
         [gl_cv_func_log_works=no],
         [case "$host_os" in
-           osf*) gl_cv_func_log_works="guessing no";;
-           *)    gl_cv_func_log_works="guessing yes";;
+           osf*)   gl_cv_func_log_works="guessing no" ;;
+                   # Guess yes on native Windows.
+           mingw*) gl_cv_func_log_works="guessing yes" ;;
+           *)      gl_cv_func_log_works="guessing yes" ;;
          esac
         ])
     ])

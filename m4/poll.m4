@@ -1,5 +1,5 @@
-# poll.m4 serial 17
-dnl Copyright (c) 2003, 2005-2007, 2009-2017 Free Software Foundation, Inc.
+# poll.m4 serial 20
+dnl Copyright (c) 2003, 2005-2007, 2009-2021 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -8,6 +8,7 @@ AC_DEFUN([gl_FUNC_POLL],
 [
   AC_REQUIRE([gl_POLL_H])
   AC_REQUIRE([gl_SOCKETS])
+  AC_REQUIRE([AC_CANONICAL_HOST]) dnl for cross-compiles
   if test $ac_cv_header_poll_h = no; then
     ac_cv_func_poll=no
     gl_cv_func_poll=no
@@ -18,6 +19,7 @@ AC_DEFUN([gl_FUNC_POLL],
        AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #include <fcntl.h>
 #include <poll.h>
+]GL_MDA_DEFINES[
          int main()
          {
            int result = 0;
@@ -53,16 +55,19 @@ AC_DEFUN([gl_FUNC_POLL],
 #if (defined(__APPLE__) && defined(__MACH__)) || defined(_AIX)
 This is MacOSX or AIX
 #endif
-], [gl_cv_func_poll=no], [gl_cv_func_poll=yes])])])
+], [gl_cv_func_poll="guessing no"], [gl_cv_func_poll="guessing yes"])])])
   fi
-  if test $gl_cv_func_poll != yes; then
-    AC_CHECK_FUNC([poll], [ac_cv_func_poll=yes], [ac_cv_func_poll=no])
-    if test $ac_cv_func_poll = no; then
-      HAVE_POLL=0
-    else
-      REPLACE_POLL=1
-    fi
-  fi
+  case "$gl_cv_func_poll" in
+    *yes) ;;
+    *)
+      AC_CHECK_FUNC([poll], [ac_cv_func_poll=yes], [ac_cv_func_poll=no])
+      if test $ac_cv_func_poll = no; then
+        HAVE_POLL=0
+      else
+        REPLACE_POLL=1
+      fi
+      ;;
+  esac
   if test $HAVE_POLL = 0 || test $REPLACE_POLL = 1; then
     :
   else

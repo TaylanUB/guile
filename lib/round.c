@@ -1,5 +1,5 @@
 /* Round toward nearest, breaking ties away from zero.
-   Copyright (C) 2007, 2010-2017 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2010-2021 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU Lesser General Public License as published by
@@ -12,7 +12,7 @@
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License along
-   with this program; if not, see <http://www.gnu.org/licenses/>.  */
+   with this program; if not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Ben Pfaff <blp@gnu.org>, 2007.
    Based heavily on code by Bruno Haible. */
@@ -66,7 +66,7 @@
 
 /* MSVC with option -fp:strict refuses to compile constant initializers that
    contain floating-point operations.  Pacify this compiler.  */
-#ifdef _MSC_VER
+#if defined _MSC_VER && !defined __clang__
 # pragma fenv_access (off)
 #endif
 
