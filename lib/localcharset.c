@@ -1208,15 +1208,62 @@ environ_locale_charset (void)
     codeset = "";
 
   /* Resolve alias. */
-  for (aliases = get_charset_aliases ();
-       *aliases != '\0';
-       aliases += strlen (aliases) + 1, aliases += strlen (aliases) + 1)
-    if (strcmp (codeset, aliases) == 0
-        || (aliases[0] == '*' && aliases[1] == '\0'))
+  {
+# ifdef alias_table_defined
+    /* On some platforms, UTF-8 locales are the most frequently used ones.
+       Speed up the common case and slow down the less common cases by
+       testing for this case first.  */
+#  if defined __OpenBSD__ || (defined __APPLE__ && defined __MACH__) || defined __sun || defined __CYGWIN__
+    if (strcmp (codeset, "UTF-8") == 0)
+      goto done_table_lookup;
+    else
+#  endif
       {
-        codeset = aliases + strlen (aliases) + 1;
-        break;
+        const struct table_entry * const table = alias_table;
+        size_t const table_size =
+          sizeof (alias_table) / sizeof (struct table_entry);
+        /* The table is sorted.  Perform a binary search.  */
+        size_t hi = table_size;
+        size_t lo = 0;
+        while (lo < hi)
+          {
+            /* Invariant:
+               for i < lo, strcmp (table[i].alias, codeset) < 0,
+               for i >= hi, strcmp (table[i].alias, codeset) > 0.  */
+            size_t mid = (hi + lo) >> 1; /* >= lo, < hi */
+            int cmp = strcmp (table[mid].alias, codeset);
+            if (cmp < 0)
+              lo = mid + 1;
+            else if (cmp > 0)
+              hi = mid;
+            else
+              {
+                /* Found an i with
+                     strcmp (table[i].alias, codeset) == 0.  */
+                codeset = table[mid].canonical;
+                goto done_table_lookup;
+              }
+          }
       }
+    if (0)
+      done_table_lookup: ;
+    else
+# endif
+      {
+        /* Did not find it in the table.  */
+        /* On Mac OS X, all modern locales use the UTF-8 encoding.
+           BeOS and Haiku have a single locale, and it has UTF-8 encoding.  */
+# if (defined __APPLE__ && defined __MACH__) || defined __BEOS__ || defined __HAIKU__
+        codeset = "UTF-8";
+# else
+        /* Don't return an empty string.  GNU libc and GNU libiconv interpret
+           the empty string as denoting "the locale's character encoding",
+           thus GNU libiconv would call this function a second time.  */
+        if (codeset[0] == '\0')
+          codeset = "ASCII";
+# endif
+      }
+  }
 
   /* Don't return an empty string.  GNU libc and GNU libiconv interpret
      the empty string as denoting "the locale's character encoding",
