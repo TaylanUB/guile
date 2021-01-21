@@ -233,7 +233,6 @@ AC_DEFUN([gl_EARLY],
   # Code from module stdlib:
   # Code from module strdup-posix:
   # Code from module streq:
-  # Code from module strftime:
   # Code from module striconveh:
   # Code from module string:
   # Code from module sys_file:

@@ -105,6 +105,7 @@
 #  mkostemp \
 #  nl_langinfo \
 #  nproc \
+#  nstrftime \
 #  open \
 #  pipe-posix \
 #  pipe2 \
@@ -125,7 +126,6 @@
 #  socket \
 #  stat-time \
 #  stdlib \
-#  strftime \
 #  striconveh \
 #  string \
 #  sys_stat \

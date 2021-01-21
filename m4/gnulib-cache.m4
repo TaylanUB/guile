@@ -110,6 +110,7 @@
 #  mkostemp \
 #  nl_langinfo \
 #  nproc \
+#  nstrftime \
 #  open \
 #  pipe-posix \
 #  pipe2 \
@@ -130,7 +131,6 @@
 #  socket \
 #  stat-time \
 #  stdlib \
-#  strftime \
 #  striconveh \
 #  string \
 #  sys_stat \
@@ -209,6 +209,7 @@ gl_MODULES([
   mkostemp
   nl_langinfo
   nproc
+  nstrftime
   open
   pipe-posix
   pipe2
@@ -229,7 +230,6 @@ gl_MODULES([
   socket
   stat-time
   stdlib
-  strftime
   striconveh
   string
   sys_stat
