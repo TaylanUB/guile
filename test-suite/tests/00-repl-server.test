@@ -1,6 +1,6 @@
 ;;;; 00-repl-server.test --- REPL server.  -*- mode: scheme; coding: utf-8; -*-
 ;;;;
-;;;; 	Copyright (C) 2016, 2017 Free Software Foundation, Inc.
+;;;; 	Copyright (C) 2016, 2017, 2021 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -24,29 +24,17 @@
   #:use-module (web request)
   #:use-module (test-suite lib))
 
-;; FIXME: replace with mkdtemp! (or equivalent) when available
-(define (make-tempdir)
-  (let loop ((try 0)
-             (n (random:uniform)))
-    (let* ((path (string-append "/tmp/repl-server-test-" (number->string n)))
-           (dir (false-if-exception (mkdir path #o700))))
-      (cond
-       (dir path)
-       ((> try 10)
-        (error "Unable to create directory in /tmp for 00-repl-server.test"))
-       (else (loop (1+ try) (random:uniform)))))))
-
 (define (call-with-repl-server proc)
   "Set up a REPL server in a separate process and call PROC with a
 socket connected to that server."
-  (let* ((tmpdir (make-tempdir))
+  ;; The REPL server requires thread. The test requires fork.
+  (unless (and (provided? 'threads) (provided? 'fork) (defined? 'mkdtemp))
+    (throw 'unsupported))
+
+  (let* ((tmpdir (mkdtemp "/tmp/repl-server-test-XXXXXX"))
          (sockaddr (make-socket-address AF_UNIX (string-append tmpdir "/repl-server")))
          (client-socket (socket AF_UNIX SOCK_STREAM 0)))
     (false-if-exception (delete-file (sockaddr:path sockaddr)))
-
-    ;; The REPL server requires thread. The test requires fork.
-    (unless (and (provided? 'threads) (provided? 'fork))
-      (throw 'unsupported))
 
     (match (primitive-fork)
       (0
