@@ -133,6 +133,17 @@
 	  (and (= (sockaddr:fam sa) AF_UNIX)
 	       (string=? (sockaddr:path sa) "/tmp/unix-socket"))))))
 
+;;;
+;;; setsockopt
+;;;
+
+(with-test-prefix "setsockopt AF_INET"
+  (if (and (defined? 'AF_INET) (defined? 'TCP_NODELAY))
+      (pass-if "IPPROTO_TCP TCP_NODELAY"
+	(let ((sock (socket AF_INET SOCK_STREAM 0)))
+          (setsockopt sock IPPROTO_TCP TCP_NODELAY 1)
+          (eqv? 1 (getsockopt sock IPPROTO_TCP TCP_NODELAY))))))
+
 
 ;;;
 ;;; AF_UNIX sockets and `make-socket-address'
