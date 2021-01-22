@@ -1,4 +1,4 @@
-/* Copyright 2001,2002,2004,2006,2009-2011,2018-2019
+/* Copyright 2001,2002,2004,2006,2009-2011,2018-2019,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -27,6 +27,7 @@
 #include "dynwind.h"
 #include "gc.h"
 #include "gsubr.h"
+#include "foreign.h"
 #include "strings.h"
 #include "threads.h"
 
@@ -113,7 +114,9 @@ load_extension (SCM lib, SCM init)
 
   /* Dynamically link the library. */
 #if HAVE_MODULES
-  scm_dynamic_call (init, scm_dynamic_link (lib));
+  SCM pointer = scm_dynamic_pointer (init, scm_dynamic_link (lib));
+  void (*f)(void) = scm_to_pointer (pointer);
+  f ();
 #else
   scm_misc_error ("load-extension",
                   "extension ~S:~S not registered and dynamic-link disabled",

@@ -1,6 +1,6 @@
 ;;;; foreign.test --- FFI.           -*- mode: scheme; coding: utf-8; -*-
 ;;;;
-;;;; 	Copyright (C) 2010, 2011, 2012, 2013, 2017 Free Software Foundation, Inc.
+;;;; 	Copyright (C) 2010, 2011, 2012, 2013, 2017, 2021 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -21,6 +21,7 @@
 ;;;
 
 (define-module (test-foreign)
+  #:use-module (system foreign-library)
   #:use-module (system foreign)
   #:use-module (rnrs bytevectors)
   #:use-module (srfi srfi-1)
@@ -29,12 +30,13 @@
   #:use-module (test-suite lib))
 
 
-(with-test-prefix "dynamic-pointer"
+(with-test-prefix "foreign-library-pointer"
 
   (pass-if-exception
    "error message"
-   '(misc-error . "^Symbol not found")
-   (dynamic-func "does_not_exist___" (dynamic-link))))
+   ;; The error comes from dlsym, which is system-dependent.
+   '(misc-error . "")
+   (foreign-library-pointer #f "does_not_exist___")))
 
 
 (with-test-prefix "null pointer"
@@ -73,7 +75,7 @@
 
   (pass-if "equal? modulo finalizer"
     (let ((finalizer (false-if-exception
-                      (dynamic-func "scm_is_pair" (dynamic-link)))))
+                      (foreign-library-pointer #f "scm_is_pair"))))
       (if (not finalizer)
           (throw 'unresolved)               ;  Windows or a static build
           (equal? (make-pointer 123)
@@ -81,7 +83,7 @@
 
   (pass-if "equal? modulo finalizer (set-pointer-finalizer!)"
     (let ((finalizer (false-if-exception
-                      (dynamic-func "scm_is_pair" (dynamic-link))))
+                      (foreign-library-pointer #f "scm_is_pair")))
           (ptr       (make-pointer 123)))
       (if (not finalizer)
           (throw 'unresolved)                ; Windows or a static build
@@ -232,19 +234,15 @@
     ;; linking with `-export-dynamic'.  Just skip these tests when it's
     ;; not visible.
     (false-if-exception
-     (pointer->procedure void
-                         (dynamic-func "qsort"
-                                       (cond
-                                        ((string-contains %host-type "cygwin")
-                                         ;; On Cygwin, dynamic-link does
-                                         ;; not search recursively into
-                                         ;; linked DLLs. Thus, one needs
-                                         ;; to link to the core C
-                                         ;; library DLL explicitly.
-                                         (dynamic-link "cygwin1"))
-                                        (else
-                                         (dynamic-link))))
-                         (list '* size_t size_t '*))))
+     (foreign-library-function
+      (cond
+       ((string-contains %host-type "cygwin")
+        ;; On Cygwin, load-foreign-library does not search recursively
+        ;; into linked DLLs. Thus, one needs to link to the core C
+        ;; library DLL explicitly.
+        "cygwin1")
+       (else #f))
+      "qsort" #:arg-types (list '* size_t size_t '*))))
 
   (define (dereference-pointer-to-byte ptr)
     (let ((b (pointer->bytevector ptr 1)))

@@ -1,6 +1,6 @@
 ;;;; goops.scm -- The Guile Object-Oriented Programming System
 ;;;;
-;;;; Copyright (C) 1998-2003,2006,2009-2011,2013-2015,2017-2018
+;;;; Copyright (C) 1998-2003,2006,2009-2011,2013-2015,2017-2018,2021
 ;;;;   Free Software Foundation, Inc.
 ;;;; Copyright (C) 1993-1998 Erick Gallesio - I3S-CNRS/ESSI <eg@unice.fr>
 ;;;;
@@ -3307,9 +3307,14 @@ var{initargs}."
 (define <directory> (find-subclass <top> '<directory>))
 (define <array> (find-subclass <top> '<array>))
 (define <character-set> (find-subclass <top> '<character-set>))
-(define <dynamic-object> (find-subclass <top> '<dynamic-object>))
 (define <guardian> (find-subclass <applicable> '<guardian>))
 (define <macro> (find-subclass <top> '<macro>))
+
+;; <dynamic-object> used to be a SMOB type, albeit not exported even to
+;; C.  However now it's a record type, though still private.  Cross our
+;; fingers that nobody is using it in anger!
+(define <dynamic-object>
+  (module-ref (resolve-module '(system foreign-library)) '<foreign-library>))
 
 (define (define-class-subtree class)
   (define! (class-name class) class)

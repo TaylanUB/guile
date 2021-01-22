@@ -1,7 +1,7 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Guile Reference Manual.
 @c Copyright (C)  1996, 1997, 2000, 2001, 2002, 2003, 2004, 2005, 2010, 2011,
-@c   2013-2014 Free Software Foundation, Inc.
+@c   2013-2014, 2021 Free Software Foundation, Inc.
 @c See the file guile.texi for copying conditions.
 
 @node Parallel Installations
@@ -52,8 +52,8 @@ how to use it from Autoconf.
 @item extensiondir
 @cindex @code{extensiondir}
 The default directory where Guile looks for extensions---i.e., shared
-libraries providing additional features (@pxref{Modules and
-Extensions}).  Run @command{pkg-config guile-@value{EFFECTIVE-VERSION}
+libraries providing additional features (@pxref{Foreign Extensions}).
+Run @command{pkg-config guile-@value{EFFECTIVE-VERSION}
 --variable=extensiondir} to see its value.
 
 @item guile

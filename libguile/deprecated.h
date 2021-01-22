@@ -1,7 +1,7 @@
 #ifndef SCM_DEPRECATED_H
 #define SCM_DEPRECATED_H
 
-/* Copyright 2003-2007,2009-2018,2020
+/* Copyright 2003-2007,2009-2018,2020,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -139,6 +139,8 @@ SCM_DEPRECATED SCM scm_make_srcprops (long line, int col, SCM filename,
                                       SCM copy, SCM alist);
 
 SCM_DEPRECATED SCM scm_copy_tree (SCM obj);
+
+SCM_DEPRECATED SCM scm_dynamic_unlink (SCM obj);
 
 void scm_i_init_deprecated (void);
 

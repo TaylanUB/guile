@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Guile Reference Manual.
-@c Copyright (C)  1996, 1997, 2000-2004, 2007-2014, 2016-2017
+@c Copyright (C)  1996, 1997, 2000-2004, 2007-2014, 2016-2017, 2021
 @c   Free Software Foundation, Inc.
 @c See the file guile.texi for copying conditions.
 
@@ -9,245 +9,208 @@
 @cindex foreign function interface
 @cindex ffi
 
-The more one hacks in Scheme, the more one realizes that there are
-actually two computational worlds: one which is warm and alive, that
-land of parentheses, and one cold and dead, the land of C and its ilk.
-
-But yet we as programmers live in both worlds, and Guile itself is half
-implemented in C. So it is that Guile's living half pays respect to its
-dead counterpart, via a spectrum of interfaces to C ranging from dynamic
-loading of Scheme primitives to dynamic binding of stock C library
-procedures.
+Sometimes you need to use libraries written in C or Rust or some other
+non-Scheme language.  More rarely, you might need to write some C to
+extend Guile.  This section describes how to load these ``foreign
+libraries'', look up data and functions inside them, and so on.
 
 @menu
-* Foreign Libraries::           Dynamically linking to libraries.
-* Foreign Functions::           Simple calls to C procedures.
-* C Extensions::                Extending Guile in C with loadable modules.
-* Modules and Extensions::      Loading C extensions into modules.
-* Foreign Pointers::            Accessing global variables.
-* Dynamic FFI::                 Calling arbitrary C functions.
+* Foreign Libraries::              Dynamically linking to libraries.
+* Foreign Extensions::             Extending Guile in C with loadable modules.
+* Foreign Pointers::               Pointers to C data or functions.
+* Foreign Types::                  Expressing C types in Scheme.
+* Foreign Functions::              Simple calls to C procedures.
+* Void Pointers and Byte Access::  Pointers into the ether.
+* Foreign Structs::                Packing and unpacking structs.
+* More Foreign Functions::         Advanced examples.
 @end menu
 
 
 @node Foreign Libraries
 @subsection Foreign Libraries
 
-Most modern Unices have something called @dfn{shared libraries}.  This
-ordinarily means that they have the capability to share the executable
-image of a library between several running programs to save memory and
-disk space.  But generally, shared libraries give a lot of additional
-flexibility compared to the traditional static libraries.  In fact,
-calling them `dynamic' libraries is as correct as calling them `shared'.
+Just as Guile can load up Scheme libraries at run-time, Guile can also
+load some system libraries written in C or other low-level languages.
+We refer to these as dynamically-loadable modules as @dfn{foreign
+libraries}, to distinguish them from native libraries written in Scheme
+or other languages implemented by Guile.
+@cindex foreign libraries
+@cindex libraries, foreign
 
-Shared libraries really give you a lot of flexibility in addition to the
-memory and disk space savings.  When you link a program against a shared
-library, that library is not closely incorporated into the final
-executable.  Instead, the executable of your program only contains
-enough information to find the needed shared libraries when the program
-is actually run.  Only then, when the program is starting, is the final
-step of the linking process performed.  This means that you need not
-recompile all programs when you install a new, only slightly modified
-version of a shared library.  The programs will pick up the changes
-automatically the next time they are run.
+Foreign libraries usually come in two forms.  Some foreign libraries are
+part of the operating system, such as the compression library
+@code{libz}.  These shared libraries are built in such a way that many
+programs can use their functionality without duplicating their code.
+When a program written in C is built, it can declare that it uses a
+specific set of shared libraries.
+@cindex shared libraries
+@cindex libraries, shared
+When the program is run, the operating system takes care of locating and
+loading the shared libraries.
 
-Now, when all the necessary machinery is there to perform part of the
-linking at run-time, why not take the next step and allow the programmer
-to explicitly take advantage of it from within their program?  Of course,
-many operating systems that support shared libraries do just that, and
-chances are that Guile will allow you to access this feature from within
-your Scheme programs.  As you might have guessed already, this feature
-is called @dfn{dynamic linking}.@footnote{Some people also refer to the
-final linking stage at program startup as `dynamic linking', so if you
-want to make yourself perfectly clear, it is probably best to use the
-more technical term @dfn{dlopening}, as suggested by Gordon Matzigkeit
-in his libtool documentation.}
+The operating system components that can dynamically load and link
+shared libraries when a program is run are also available
+programmatically during a program's execution.  This is the interface
+that's most useful for Guile, and this is what we mean in Guile when we
+refer to @dfn{dynamic linking}.  Dynamic linking at run-time is
+sometimes called @dfn{dlopening}, to distinguish it from the dynamic
+linking that happens at program start-up.
+@cindex dynamic linking
+@cindex dlopening
 
-We titled this section ``foreign libraries'' because although the name
-``foreign'' doesn't leak into the API, the world of C really is foreign
-to Scheme -- and that estrangement extends to components of foreign
-libraries as well, as we see in future sections.
+The other kind of foreign library is sometimes known as a module,
+plug-in, bundle, or an extension.  These foreign libraries aren't meant
+to be linked to by C programs, but rather only to be dynamically loaded
+at run-time -- they extend some main program with functionality, but
+don't stand on their own.  Sometimes a Guile library will implement some
+of its functionality in a loadable module.
 
-@deffn {Scheme Procedure} dynamic-link [library]
-@deffnx {C Function} scm_dynamic_link (library)
-Find the shared library denoted by @var{library} (a string) and link it
-into the running Guile application.  When everything works out, return a
-Scheme object suitable for representing the linked object file.
-Otherwise an error is thrown.  How object files are searched is system
-dependent.
+In either case, the interface on the Guile side is the same.  You load
+the interface using @code{load-foreign-library}.  The resulting foreign
+library object implements a simple lookup interface whereby the user can
+get addresses of data or code exported by the library.  There is no
+facility to inspect foreign libraries; you have to know what's in there
+already before you look.
 
-Guile first tries to load @var{library} as the absolute file name of a shared
-library.  If that fails, it then falls back to interpret
-@var{library} as just the name of some shared library that will be
-searched for in the places where shared libraries usually reside, such
-as @file{/usr/lib} and @file{/usr/local/lib}.
+Routines for loading foreign libraries and accessing their contents are
+implemented in the @code{(system foreign-library)} module.
 
-@var{library} should not contain an extension such as @code{.so}, unless
-@var{library} represents the absolute file name to the shared library.  The
-correct file name extension for the host operating system is provided
-automatically, according to libltdl's rules (@pxref{Libltdl interface,
-lt_dlopenext, @code{lt_dlopenext}, libtool, Shared Library Support for
-GNU}).
+@example
+(use-modules (system foreign-library))
+@end example
 
-When @var{library} is omitted, a @dfn{global symbol handle} is returned.  This
-handle provides access to the symbols available to the program at run-time,
-including those exported by the program itself and the shared libraries already
-loaded.
+@deffn {Scheme Procedure} load-foreign-library [library] @
+       [#:extensions=system-library-extensions] @
+       [#:search-ltdl-library-path?=#t] @
+       [#:search-path=search-path] @
+       [#:search-system-paths?=#t] [#:lazy?=#t] [#:global=#f]
+Find the shared library denoted by @var{library} (a string or @code{#f})
+and link it into the running Guile application.  When everything works
+out, return a Scheme object suitable for representing the linked object
+file.  Otherwise an error is thrown.
 
-Note that on hosts that use dynamic-link libraries (DLLs), the global
-symbol handle may not be able to provide access to symbols from
-recursively-loaded DLLs.  Only exported symbols from those DLLs directly
-loaded by the program may be available.
+If @var{library} argument is omitted, it defaults to @code{#f}.  If
+@code{library} is false, the resulting foreign library gives access to
+all symbols available for dynamic linking in the main binary.
+
+It is not necessary to include any extension such as @code{.so} in
+@var{library}.  For each system, Guile has a default set of extensions
+that it will try.  On GNU systems, the default extension set is just
+@code{.so}; on Windows, just @code{.dll}; and on Darwin (Mac OS), it is
+@code{.bundle}, @code{.so}, and @code{.dylib}.  Pass @code{#:extensions
+@var{extensions}} to override the default extensions list.  If
+@var{library} contains one of the extensions, no extensions are tried,
+so it is possible to specify the extension if you know exactly what file
+to load.
+
+Unless @var{library} denotes an absolute file name or otherwise contains
+a directory separator (@code{/}, and also @code{\} on Windows), Guile
+will search for the library in the directories listed in
+@var{search-paths}.  The default search path has three components, which
+can all be overriden by colon-delimited (semicolon on Windows)
+environment variables:
+
+@table @env
+@item GUILE_EXTENSIONS_PATH
+This is the main environment variable for users to add directories
+containing Guile extensions.  The default value has no entries.  This
+environment variable was added in Guile 3.0.6.
+@item LTDL_LIBRARY_PATH
+Before Guile 3.0.6, Guile loaded foreign libraries using @code{libltdl},
+the dynamic library loader provided by libtool.  This loader used
+@env{LTDL_LIBRARY_PATH}, and for backwards compatibility we still
+support that path.
+
+However, @code{libltdl} would not only open @code{.so} (or @code{.dll}
+and so on) files, but also the @code{.la} files created by libtool.  In
+installed libraries -- libraries that are in the target directories of
+@code{make install} -- @code{.la} files are never needed, to the extent
+that most GNU/Linux distributions remove them entirely.  It is
+sufficient to just load the @code{.so} (or @code{.dll} and so on) files,
+which are always located in the same directory as the @code{.la} files.
+
+But for uninstalled dynamic libraries, like those in a build tree, the
+situation is a bit of a mess.  If you have a project that uses libtool
+to build libraries -- which is the case for Guile, and for most projects
+using autotools -- and you build @file{foo.so} in directory @file{D},
+libtool will put @file{foo.la} in @file{D}, but @file{foo.so} gets put
+into @file{D/.libs}.
+
+Users were mostly oblivious to this situation, as @code{libltdl} had
+special logic to be able to read the @code{.la} file to know where to
+find the @code{.so}, even from an uninstalled build tree, preventing the
+existence of @file{.libs} from leaking out to the user.
+
+We don't use libltdl now, essentially for flexibility and
+error-reporting reasons.  But, to keep this old use-case working, if
+@var{search-ltdl-library-path?} is true, we add each entry of
+@code{LTDL_LIBRARY_PATH} to the default extensions load path,
+additionally adding the @file{.libs} subdirextories for each entry, in
+case there are @file{.so} files there instead of alongside the
+@file{.la} files.
+@item GUILE_SYSTEM_EXTENSIONS_PATH
+The last path in Guile's search path belongs to Guile itself, and
+defaults to the libdir and the extensiondir, in that order.  For
+example, if you install to @file{/opt/guile}, these would probably be
+@file{/opt/guile/lib} and
+@code{/opt/guile/lib/guile/@value{EFFECTIVE-VERSION}/extensions},
+respectively.  @xref{Parallel Installations}, for more details on
+@code{extensionsdir}.
+@end table
+
+Finally, if no library is found in the search path, and if @var{library}
+is not absolute and does not include directory separators, and if
+@var{search-system-paths?} is true, the operating system may have its
+own logic for where to locate @var{library}.  For example, on GNU, there
+will be a default set of paths (often @file{/usr/lib} and @file{/lib},
+though it depends on the system), and the @code{LD_LIBRARY_PATH}
+environment variable can add additional paths.  Other operating systems
+have other conventions.
+
+Falling back to the operating system for search is usually not a great
+thing; it is a recipe for making programs that work on one machine but
+not on others.  Still, when wrapping system libraries, it can be the
+only way to get things working at all.
+
+If @var{lazy?} is true (the default), Guile will request the operating
+system to resolve symbols used by the loaded library as they are first
+used.  If @var{global?} is true, symbols defined by the loaded library
+will be available when other modules need to resolve symbols; the
+default is @code{#f}, which keeps symbols local.
 @end deffn
 
-@deffn {Scheme Procedure} dynamic-object? obj
-@deffnx {C Function} scm_dynamic_object_p (obj)
-Return @code{#t} if @var{obj} is a dynamic library handle, or @code{#f}
+The environment variables mentioned above are parsed when the
+foreign-library module is first loaded and bound to parameters.  Null
+path components, for example the three components of
+@env{GUILE_SYSTEM_EXTENSIONS_PATH="::"}, are ignored.
+
+@deffn {Scheme Parameter} guile-extensions-path
+@deffnx {Scheme Parameter} ltdl-library-path
+@deffnx {Scheme Parameter} guile-system-extensions-path
+Parameters whose initial values are taken from
+@env{GUILE_EXTENSIONS_PATH}, @env{LTDL_LIBRARY_PATH}, and
+@env{GUILE_SYSTEM_EXTENSIONS_PATH}, respectively.  @xref{Parameters}.
+The current values of these parameters are used when building the search
+path when @code{load-foreign-library} is called, unless the caller
+explicitly passes a @code{#:search-path} argument.
+@end deffn
+
+@deffn {Scheme Procedure} foreign-library? obj
+Return @code{#t} if @var{obj} is a foreign library, or @code{#f}
 otherwise.
 @end deffn
 
-@deffn {Scheme Procedure} dynamic-unlink dobj
-@deffnx {C Function} scm_dynamic_unlink (dobj)
-Unlink the indicated object file from the application.  The
-argument @var{dobj} must have been obtained by a call to
-@code{dynamic-link}.  After @code{dynamic-unlink} has been
-called on @var{dobj}, its content is no longer accessible.
-@end deffn
 
-@smallexample
-(define libgl-obj (dynamic-link "libGL"))
-libgl-obj
-@result{} #<dynamic-object "libGL">
-(dynamic-unlink libGL-obj)
-libGL-obj
-@result{} #<dynamic-object "libGL" (unlinked)>
-@end smallexample
+@node Foreign Extensions
+@subsection Foreign Extensions
 
-As you can see, after calling @code{dynamic-unlink} on a dynamically
-linked library, it is marked as @samp{(unlinked)} and you are no longer
-able to use it with @code{dynamic-call}, etc.  Whether the library is
-really removed from you program is system-dependent and will generally
-not happen when some other parts of your program still use it.
+One way to use shared libraries is to extend Guile.  Such loadable
+modules generally define one distinguished initialization function that,
+when called, will use the @code{libguile} API to define procedures in
+the current module.
 
-When dynamic linking is disabled or not supported on your system,
-the above functions throw errors, but they are still available.
-
-
-@node Foreign Functions
-@subsection Foreign Functions
-
-The most natural thing to do with a dynamic library is to grovel around
-in it for a function pointer: a @dfn{foreign function}.
-@code{dynamic-func} exists for that purpose.
-
-@deffn {Scheme Procedure} dynamic-func name dobj
-@deffnx {C Function} scm_dynamic_func (name, dobj)
-Return a ``handle'' for the func @var{name} in the shared object referred to
-by @var{dobj}. The handle can be passed to @code{dynamic-call} to
-actually call the function.
-
-Regardless whether your C compiler prepends an underscore @samp{_} to the global
-names in a program, you should @strong{not} include this underscore in
-@var{name} since it will be added automatically when necessary.
-@end deffn
-
-Guile has static support for calling functions with no arguments,
-@code{dynamic-call}.
-
-@deffn {Scheme Procedure} dynamic-call func dobj
-@deffnx {C Function} scm_dynamic_call (func, dobj)
-Call the C function indicated by @var{func} and @var{dobj}.
-The function is passed no arguments and its return value is
-ignored.  When @var{function} is something returned by
-@code{dynamic-func}, call that function and ignore @var{dobj}.
-When @var{func} is a string , look it up in @var{dynobj}; this
-is equivalent to
-@smallexample
-(dynamic-call (dynamic-func @var{func} @var{dobj}) #f)
-@end smallexample
-@end deffn
-
-@code{dynamic-call} is not very powerful. It is mostly intended to be
-used for calling specially written initialization functions that will
-then add new primitives to Guile. For example, we do not expect that you
-will dynamically link @file{libX11} with @code{dynamic-link} and then
-construct a beautiful graphical user interface just by using
-@code{dynamic-call}. Instead, the usual way would be to write a special
-Guile-to-X11 glue library that has intimate knowledge about both Guile
-and X11 and does whatever is necessary to make them inter-operate
-smoothly. This glue library could then be dynamically linked into a
-vanilla Guile interpreter and activated by calling its initialization
-function. That function would add all the new types and primitives to
-the Guile interpreter that it has to offer.
-
-(There is actually another, better option: simply to create a
-@file{libX11} wrapper in Scheme via the dynamic FFI. @xref{Dynamic FFI},
-for more information.)
-
-Given some set of C extensions to Guile, the next logical step is to
-integrate these glue libraries into the module system of Guile so that
-you can load new primitives into a running system just as you can load
-new Scheme code.
-
-@deffn {Scheme Procedure} load-extension lib init
-@deffnx {C Function} scm_load_extension (lib, init)
-Load and initialize the extension designated by LIB and INIT.
-When there is no pre-registered function for LIB/INIT, this is
-equivalent to
-
-@lisp
-(dynamic-call INIT (dynamic-link LIB))
-@end lisp
-
-When there is a pre-registered function, that function is called
-instead.
-
-Normally, there is no pre-registered function.  This option exists
-only for situations where dynamic linking is unavailable or unwanted.
-In that case, you would statically link your program with the desired
-library, and register its init function right after Guile has been
-initialized.
-
-As for @code{dynamic-link}, @var{lib} should not contain any suffix such
-as @code{.so} (@pxref{Foreign Libraries, dynamic-link}).  It
-should also not contain any directory components.  Libraries that
-implement Guile Extensions should be put into the normal locations for
-shared libraries.  We recommend to use the naming convention
-@file{libguile-bla-blum} for a extension related to a module @code{(bla
-blum)}.
-
-The normal way for a extension to be used is to write a small Scheme
-file that defines a module, and to load the extension into this
-module.  When the module is auto-loaded, the extension is loaded as
-well.  For example,
-
-@lisp
-(define-module (bla blum))
-
-(load-extension "libguile-bla-blum" "bla_init_blum")
-@end lisp
-@end deffn
-
-@node C Extensions
-@subsection C Extensions
-
-The most interesting application of dynamically linked libraries is
-probably to use them for providing @emph{compiled code modules} to
-Scheme programs.  As much fun as programming in Scheme is, every now and
-then comes the need to write some low-level C stuff to make Scheme even
-more fun.
-
-Not only can you put these new primitives into their own module (see the
-previous section), you can even put them into a shared library that is
-only then linked to your running Guile image when it is actually
-needed.
-
-An example will hopefully make everything clear.  Suppose we want to
-make the Bessel functions of the C library available to Scheme in the
-module @samp{(math bessel)}.  First we need to write the appropriate
-glue code to convert the arguments and return values of the functions
-from Scheme to C and back.  Additionally, we need a function that will
-add them to the set of Guile primitives.  Because this is just an
-example, we will only implement this for the @code{j0} function.
+Concretely, you might extend Guile with an implementation of the Bessel
+function, @code{j0}:
 
 @smallexample
 #include <math.h>
@@ -260,302 +223,156 @@ j0_wrapper (SCM x)
 @}
 
 void
-init_math_bessel ()
+init_math_bessel (void)
 @{
   scm_c_define_gsubr ("j0", 1, 0, 0, j0_wrapper);
 @}
 @end smallexample
 
-We can already try to bring this into action by manually calling the low
-level functions for performing dynamic linking.  The C source file needs
-to be compiled into a shared library.  Here is how to do it on
-GNU/Linux, please refer to the @code{libtool} documentation for how to
-create dynamically linkable libraries portably.
+The C source file would then need to be compiled into a shared library.
+On GNU/Linux, the compiler invocation might look like this:
 
 @smallexample
-gcc -shared -o libbessel.so -fPIC bessel.c
+gcc -shared -o bessel.so -fPIC bessel.c
 @end smallexample
 
-Now fire up Guile:
+A good default place to put shared libraries that extend Guile is into
+the extensions dir.  From the command line or a build script, invoke
+@code{pkg-config --variable=extensionsdir
+guile-@value{EFFECTIVE-VERSION}} to print the extensions dir.
+@xref{Parallel Installations}, for more details.
+
+Guile can load up @code{bessel.so} via @code{load-extension}.
+
+@deffn {Scheme Procedure} load-extension lib init
+@deffnx {C Function} scm_load_extension (lib, init)
+Load and initialize the extension designated by LIB and INIT.
+@end deffn
+
+The normal way for a extension to be used is to write a small Scheme
+file that defines a module, and to load the extension into this
+module.  When the module is auto-loaded, the extension is loaded as
+well.  For example:
 
 @lisp
-(define bessel-lib (dynamic-link "./libbessel.so"))
-(dynamic-call "init_math_bessel" bessel-lib)
-(j0 2)
-@result{} 0.223890779141236
+(define-module (math bessel)
+  #:export (j0))
+
+(load-extension "bessel" "init_math_bessel")
 @end lisp
 
-The filename @file{./libbessel.so} should be pointing to the shared
-library produced with the @code{gcc} command above, of course.  The
-second line of the Guile interaction will call the
-@code{init_math_bessel} function which in turn will register the C
-function @code{j0_wrapper} with the Guile interpreter under the name
-@code{j0}.  This function becomes immediately available and we can call
-it from Scheme.
+This @code{load-extension} invocation loads the @code{bessel} library
+via @code{(load-foreign-library "bessel")}, then looks up the
+@code{init_math_bessel} symbol in the library, treating it as a function
+of no arguments, and calls that function.
 
-Fun, isn't it?  But we are only half way there.  This is what
-@code{apropos} has to say about @code{j0}:
+If you decide to put your extension outside the default search path for
+@code{load-foreign-library}, probably you should adapt the Scheme module
+to specify its absolute path.  For example, if you use @code{automake}
+to build your extension and place it in @code{$(pkglibdir)}, you might
+define a build-parameters module that gets created by the build system:
+
+@example
+(define-module (math config)
+  #:export (extensiondir))
+(define extensiondir "PKGLIBDIR")
+@end example
+
+This file would be @code{config.scm.in}.  You would define a @code{make}
+rule to substitute in the absolute installed file name:
+
+@example
+config.scm: config.scm.in
+        sed 's|PKGLIBDIR|$(pkglibdir)|' <$< >$@
+@end example
+
+Then your @code{(math bessel)} would import @code{(math config)}, then
+@code{(load-extension (in-vicinity extensiondir "bessel")
+"init_math_bessel")}.
+
+An alternate approach would be to rebind the
+@code{guile-extensions-path} parameter, or its corresponding environment
+variable, but note that changing those parameters applies to other users
+of @code{load-foreign-library} as well.
+
+Note that the new primitives that the extension adds to Guile with
+@code{scm_c_define_gsubr} (@pxref{Primitive Procedures}) or with any of
+the other mechanisms are placed into the module that is current when the
+@code{scm_c_define_gsubr} is executed, so to be clear about what goes
+vwhere it's best to include the @code{load-extension} in a module, as
+above.  Alternately, the C code can use @code{scm_c_define_module} to
+specify which module is being created:
 
 @smallexample
-(apropos "j0")
-@print{} (guile-user): j0     #<primitive-procedure j0>
-@end smallexample
-
-As you can see, @code{j0} is contained in the root module, where all
-the other Guile primitives like @code{display}, etc live.  In general,
-a primitive is put into whatever module is the @dfn{current module} at
-the time @code{scm_c_define_gsubr} is called.
-
-A compiled module should have a specially named @dfn{module init
-function}.  Guile knows about this special name and will call that
-function automatically after having linked in the shared library.  For
-our example, we replace @code{init_math_bessel} with the following code in
-@file{bessel.c}:
-
-@smallexample
-void
-init_math_bessel (void *unused)
+static void
+do_init (void *unused)
 @{
   scm_c_define_gsubr ("j0", 1, 0, 0, j0_wrapper);
   scm_c_export ("j0", NULL);
 @}
 
 void
-scm_init_math_bessel_module ()
+init_math_bessel ()
 @{
-  scm_c_define_module ("math bessel", init_math_bessel, NULL);   
+  scm_c_define_module ("math bessel", do_init, NULL);
 @}
 @end smallexample
 
-The general pattern for the name of a module init function is:
-@samp{scm_init_}, followed by the name of the module where the
-individual hierarchical components are concatenated with underscores,
-followed by @samp{_module}.
-
-After @file{libbessel.so} has been rebuilt, we need to place the shared
-library into the right place.
-
-Once the module has been correctly installed, it should be possible to
-use it like this:
-
-@smallexample
-guile> (load-extension "./libbessel.so" "scm_init_math_bessel_module")
-guile> (use-modules (math bessel))
-guile> (j0 2)
-0.223890779141236
-guile> (apropos "j0")
-@print{} (math bessel): j0      #<primitive-procedure j0>
-@end smallexample
-
-That's it!
-
-
-@node Modules and Extensions
-@subsection Modules and Extensions
-
-The new primitives that you add to Guile with @code{scm_c_define_gsubr}
-(@pxref{Primitive Procedures}) or with any of the other mechanisms are
-placed into the module that is current when the
-@code{scm_c_define_gsubr} is executed. Extensions loaded from the REPL,
-for example, will be placed into the @code{(guile-user)} module, if the
-REPL module was not changed.
-
-To define C primitives within a specific module, the simplest way is:
-
-@example
-(define-module (foo bar))
-(load-extension "foobar-c-code" "foo_bar_init")
-@end example
-
-@cindex extensiondir
-When loaded with @code{(use-modules (foo bar))}, the
-@code{load-extension} call looks for the @file{foobar-c-code.so} (etc)
-object file in Guile's @code{extensiondir}, which is usually a
-subdirectory of the @code{libdir}. For example, if your libdir is
-@file{/usr/lib}, the @code{extensiondir} for the Guile @value{EFFECTIVE-VERSION}.@var{x}
-series will be @file{/usr/lib/guile/@value{EFFECTIVE-VERSION}/}.
-
-The extension path includes the major and minor version of Guile (the
-``effective version''), because Guile guarantees compatibility within a
-given effective version. This allows you to install different versions
-of the same extension for different versions of Guile.
-
-If the extension is not found in the @code{extensiondir}, Guile will
-also search the standard system locations, such as @file{/usr/lib} or
-@file{/usr/local/lib}. It is preferable, however, to keep your extension
-out of the system library path, to prevent unintended interference with
-other dynamically-linked C libraries.
-
-If someone installs your module to a non-standard location then the
-object file won't be found.  You can address this by inserting the
-install location in the @file{foo/bar.scm} file.  This is convenient
-for the user and also guarantees the intended object is read, even if
-stray older or newer versions are in the loader's path.
-
-The usual way to specify an install location is with a @code{prefix}
-at the configure stage, for instance @samp{./configure prefix=/opt}
-results in library files as say @file{/opt/lib/foobar-c-code.so}.
-When using Autoconf (@pxref{Top, , Introduction, autoconf, The GNU
-Autoconf Manual}), the library location is in a @code{libdir}
-variable.  Its value is intended to be expanded by @command{make}, and
-can by substituted into a source file like @file{foo.scm.in}
-
-@example
-(define-module (foo bar))
-(load-extension "XXextensiondirXX/foobar-c-code" "foo_bar_init")
-@end example
-
-@noindent
-with the following in a @file{Makefile}, using @command{sed}
-(@pxref{Top, , Introduction, sed, SED, A Stream Editor}),
-
-@example
-foo.scm: foo.scm.in
-        sed 's|XXextensiondirXX|$(libdir)/guile/@value{EFFECTIVE-VERSION}|' <foo.scm.in >foo.scm
-@end example
-
-The actual pattern @code{XXextensiondirXX} is arbitrary, it's only something
-which doesn't otherwise occur.  If several modules need the value, it
-can be easier to create one @file{foo/config.scm} with a define of the
-@code{extensiondir} location, and use that as required.
-
-@example
-(define-module (foo config))
-(define-public foo-config-extensiondir "XXextensiondirXX"")
-@end example
-
-Such a file might have other locations too, for instance a data
-directory for auxiliary files, or @code{localedir} if the module has
-its own @code{gettext} message catalogue
-(@pxref{Internationalization}).
-
-It will be noted all of the above requires that the Scheme code to be
-found in @code{%load-path} (@pxref{Load Paths}).  Presently it's left up
-to the system administrator or each user to augment that path when
-installing Guile modules in non-default locations.  But having reached
-the Scheme code, that code should take care of hitting any of its own
-private files etc.
+And yet... if what we want is just the @code{j0} function, it seems like
+a lot of ceremony to have to compile a Guile-specific wrapper library
+complete with an initialization function and wraper module to allow
+Guile users to call it.  There is another way, but to get there, we have
+to talk about function pointers and function types first.  @xref{Foreign
+Functions}, to skip to the good parts.
 
 
 @node Foreign Pointers
 @subsection Foreign Pointers
 
-The previous sections have shown how Guile can be extended at runtime by
-loading compiled C extensions. This approach is all well and good, but
-wouldn't it be nice if we didn't have to write any C at all? This
-section takes up the problem of accessing C values from Scheme, and the
-next discusses C functions.
+Foreign libraries are essentially key-value mappings, where the keys are
+names of definitions and the values are the addresses of those
+definitions.  To look up the address of a definition, use
+@code{foreign-library-pointer} from the @code{(system foreign-library)}
+module.
 
-@menu
-* Foreign Types::                  Expressing C types in Scheme.
-* Foreign Variables::              Pointers to C symbols.
-* Void Pointers and Byte Access::  Pointers into the ether.
-* Foreign Structs::                Packing and unpacking structs.
-@end menu
-
-@node Foreign Types
-@subsubsection Foreign Types
-
-The first impedance mismatch that one sees between C and Scheme is that
-in C, the storage locations (variables) are typed, but in Scheme types
-are associated with values, not variables. @xref{Values and Variables}.
-
-So when describing a C function or a C structure so that it can be
-accessed from Scheme, the data types of the parameters or fields must be
-passed explicitly.
-
-These ``C type values'' may be constructed using the constants and
-procedures from the @code{(system foreign)} module, which may be loaded
-like this:
-
-@example
-(use-modules (system foreign))
-@end example
-
-@code{(system foreign)} exports a number of values expressing the basic
-C types:
-
-@defvr {Scheme Variable} int8
-@defvrx {Scheme Variable} uint8
-@defvrx {Scheme Variable} uint16
-@defvrx {Scheme Variable} int16
-@defvrx {Scheme Variable} uint32
-@defvrx {Scheme Variable} int32
-@defvrx {Scheme Variable} uint64
-@defvrx {Scheme Variable} int64
-@defvrx {Scheme Variable} float
-@defvrx {Scheme Variable} double
-These values represent the C numeric types of the specified sizes and
-signednesses.
-@end defvr
-
-In addition there are some convenience bindings for indicating types of
-platform-dependent size:
-
-@defvr {Scheme Variable} int
-@defvrx {Scheme Variable} unsigned-int
-@defvrx {Scheme Variable} long
-@defvrx {Scheme Variable} unsigned-long
-@defvrx {Scheme Variable} short
-@defvrx {Scheme Variable} unsigned-short
-@defvrx {Scheme Variable} size_t
-@defvrx {Scheme Variable} ssize_t
-@defvrx {Scheme Variable} ptrdiff_t
-@defvrx {Scheme Variable} intptr_t
-@defvrx {Scheme Variable} uintptr_t
-Values exported by the @code{(system foreign)} module, representing C
-numeric types. For example, @code{long} may be @code{equal?} to
-@code{int64} on a 64-bit platform.
-@end defvr
-
-@defvr {Scheme Variable} void
-The @code{void} type.  It can be used as the first argument to
-@code{pointer->procedure} to wrap a C function that returns nothing.
-@end defvr
-
-In addition, the symbol @code{*} is used by convention to denote pointer
-types.  Procedures detailed in the following sections, such as
-@code{pointer->procedure}, accept it as a type descriptor.
-
-@node Foreign Variables
-@subsubsection Foreign Variables
-
-Pointers to variables in the current address space may be looked up
-dynamically using @code{dynamic-pointer}.
-
-@deffn {Scheme Procedure} dynamic-pointer name dobj
-@deffnx {C Function} scm_dynamic_pointer (name, dobj)
+@deffn {Scheme Procedure} foreign-library-pointer lib name
 Return a ``wrapped pointer'' for the symbol @var{name} in the shared
-object referred to by @var{dobj}.  The returned pointer points to a C
+object referred to by @var{lib}.  The returned pointer points to a C
 object.
 
-Regardless whether your C compiler prepends an underscore @samp{_} to the global
-names in a program, you should @strong{not} include this underscore in
-@var{name} since it will be added automatically when necessary.
+As a convenience, if @var{lib} is not a foreign library, it will be
+passed to @code{load-foreign-library}.
 @end deffn
 
-For example, currently Guile has a variable, @code{scm_numptob}, as part
-of its API. It is declared as a C @code{long}. So, to create a handle
-pointing to that foreign value, we do:
+If we continue with the @code{bessel.so} example from before, we can get
+the address of the @code{init_math_bessel} function via:
 
 @example
-(use-modules (system foreign))
-(define numptob (dynamic-pointer "scm_numptob" (dynamic-link)))
-numptob
+(use-modules (system foreign-library))
+(define init (foreign-library-pointer "bessel" "init_math_bessel"))
+init
 @result{} #<pointer 0x7fb35b1b4688>
 @end example
 
-(The next section discusses ways to dereference pointers.)
+A value returned by @code{foreign-library-pointer} is a Scheme wrapper
+for a C pointer.  Pointers are a data type in Guile that is disjoint
+from all other types.  The next section discusses ways to dereference
+pointers, but before then we describe the usual type predicates and so
+on.
 
-A value returned by @code{dynamic-pointer} is a Scheme wrapper for a C
-pointer.
+Note that the rest of the interfaces in this section are part of the
+@code{(system foreign)} library:
+
+@example
+(use-modules (system foreign))
+@end example
 
 @deffn {Scheme Procedure} pointer-address pointer
 @deffnx {C Function} scm_pointer_address (pointer)
 Return the numerical value of @var{pointer}.
 
 @example
-(pointer-address numptob)
+(pointer-address init)
 @result{} 139984413364296 ; YMMV
 @end example
 @end deffn
@@ -568,7 +385,8 @@ unreachable.
 @end deffn
 
 @deffn {Scheme Procedure} pointer? obj
-Return @code{#t} if @var{obj} is a pointer object, @code{#f} otherwise.
+Return @code{#t} if @var{obj} is a pointer object, or @code{#f}
+otherwise.
 @end deffn
 
 @defvr {Scheme Variable} %null-pointer
@@ -610,8 +428,144 @@ value at some point after the pointer object becomes collectable.
 Unpack the pointer value from a pointer object.
 @end deftypefn
 
+@node Foreign Types
+@subsection Foreign Types
+
+From Scheme's perspective, foreign pointers are shards of chaos.  The
+user can create a foreign pointer for any address, and do with it what
+they will.  The only thing that lends a sense of order to the whole is a
+shared hallucination that certain storage locations have certain types.
+When making Scheme wrappers for foreign interfaces, we hide the madness
+by explicitly representing the the data types of parameters and fields.
+
+These ``foreign type values'' may be constructed using the constants and
+procedures from the @code{(system foreign)} module, which may be loaded
+like this:
+
+@example
+(use-modules (system foreign))
+@end example
+
+@code{(system foreign)} exports a number of values expressing the basic
+C types.
+
+@defvr {Scheme Variable} int8
+@defvrx {Scheme Variable} uint8
+@defvrx {Scheme Variable} uint16
+@defvrx {Scheme Variable} int16
+@defvrx {Scheme Variable} uint32
+@defvrx {Scheme Variable} int32
+@defvrx {Scheme Variable} uint64
+@defvrx {Scheme Variable} int64
+@defvrx {Scheme Variable} float
+@defvrx {Scheme Variable} double
+These values represent the C numeric types of the specified sizes and
+signednesses.
+@end defvr
+
+In addition there are some convenience bindings for indicating types of
+platform-dependent size.
+
+@defvr {Scheme Variable} int
+@defvrx {Scheme Variable} unsigned-int
+@defvrx {Scheme Variable} long
+@defvrx {Scheme Variable} unsigned-long
+@defvrx {Scheme Variable} short
+@defvrx {Scheme Variable} unsigned-short
+@defvrx {Scheme Variable} size_t
+@defvrx {Scheme Variable} ssize_t
+@defvrx {Scheme Variable} ptrdiff_t
+@defvrx {Scheme Variable} intptr_t
+@defvrx {Scheme Variable} uintptr_t
+Values exported by the @code{(system foreign)} module, representing C
+numeric types. For example, @code{long} may be @code{equal?} to
+@code{int64} on a 64-bit platform.
+@end defvr
+
+@defvr {Scheme Variable} void
+The @code{void} type.  It can be used as the first argument to
+@code{pointer->procedure} to wrap a C function that returns nothing.
+@end defvr
+
+In addition, the symbol @code{*} is used by convention to denote pointer
+types.  Procedures detailed in the following sections, such as
+@code{pointer->procedure}, accept it as a type descriptor.
+
+@node Foreign Functions
+@subsection Foreign Functions
+
+The most natural thing to do with a dynamic library is to grovel around
+in it for a function pointer: a @dfn{foreign function}.  Load the
+@code{(system foreign)} module to use these Scheme interfaces.
+
+@example
+(use-modules (system foreign))
+@end example
+
+@deffn {Scheme Procedure} pointer->procedure return_type func_ptr arg_types @
+                                             [#:return-errno?=#f]
+@deffnx {C Function} scm_pointer_to_procedure (return_type, func_ptr, arg_types)
+@deffnx {C Function} scm_pointer_to_procedure_with_errno (return_type, func_ptr, arg_types)
+
+Make a foreign function.
+
+Given the foreign void pointer @var{func_ptr}, its argument and
+return types @var{arg_types} and @var{return_type}, return a
+procedure that will pass arguments to the foreign function
+and return appropriate values.
+
+@var{arg_types} should be a list of foreign types.
+@code{return_type} should be a foreign type. @xref{Foreign Types}, for
+more information on foreign types.
+
+If @var{return-errno?} is true, or when calling
+@code{scm_pointer_to_procedure_with_errno}, the returned procedure will
+return two values, with @code{errno} as the second value.
+@end deffn
+
+Finally, in @code{(system foreign-library)} there is a convenient
+wrapper function, joining together @code{foreign-libary-pointer} and
+@code{procedure->pointer}:
+
+@deffn {Scheme Procedure} foreign-library-function lib name @
+       [#:return-type=void] [#:arg-types='()] [#:return-errno?=#f]
+Load the address of @var{name} from @var{lib}, and treat it as a
+function taking arguments @var{arg-types} and returning
+@var{return-type}, optionally also with errno.
+
+An invocation of @code{foreign-library-function} is entirely equivalent
+to:
+@example
+(pointer->procedure @var{return-type}
+                    (foreign-library-pointer @var{lib} @var{name})
+                    @var{arg-types}
+                    #:return-errno? @var{return-errno?}).
+@end example
+@end deffn
+
+Pulling all this together, here is a better definition of @code{(math
+bessel)}:
+
+@example
+(define-module (math bessel)
+  #:use-module (system foreign)
+  #:use-module (system foreign-library)
+  #:export (j0))
+
+(define j0
+  (foreign-library-function "libm" "j0"
+                            #:return-type double
+                            #:arg-types (list double)))
+@end example
+
+That's it! No C at all.
+
+Before going on to more detailed examples, the next two sections discuss
+how to deal with data that is more complex than, say, @code{int8}.
+@xref{More Foreign Functions}, to continue with foreign function examples.
+
 @node Void Pointers and Byte Access
-@subsubsection Void Pointers and Byte Access
+@subsection Void Pointers and Byte Access
 
 Wrapped pointers are untyped, so they are essentially equivalent to C
 @code{void} pointers.  As in C, the memory region pointed to by a
@@ -619,6 +573,12 @@ pointer can be accessed at the byte level.  This is achieved using
 @emph{bytevectors} (@pxref{Bytevectors}).  The @code{(rnrs bytevectors)}
 module contains procedures that can be used to convert byte sequences to
 Scheme objects such as strings, floating point numbers, or integers.
+
+Load the @code{(system foreign)} module to use these Scheme interfaces.
+
+@example
+(use-modules (system foreign))
+@end example
 
 @deffn {Scheme Procedure} pointer->bytevector pointer len [offset [uvec_type]]
 @deffnx {C Function} scm_pointer_to_bytevector (pointer, len, offset, uvec_type)
@@ -709,19 +669,17 @@ pointers to manipulate them.  We could write:
 
 (define grab-bottle
   ;; Wrapper for `bottle_t *grab (void)'.
-  (let ((grab (pointer->procedure '*
-                                  (dynamic-func "grab_bottle" libbottle)
-                                  '())))
+  (let ((grab (foreign-library-function libbottle "grab_bottle"
+                                        #:return-type '*)))
     (lambda ()
       "Return a new bottle."
       (wrap-bottle (grab)))))
 
 (define bottle-contents
   ;; Wrapper for `const char *bottle_contents (bottle_t *)'.
-  (let ((contents (pointer->procedure '*
-                                      (dynamic-func "bottle_contents"
-                                                     libbottle)
-                                      '(*))))
+  (let ((contents (foreign-library-function libbottle "bottle_contents"
+                                            #:return-type '*
+                                            #:arg-types  '(*))))
     (lambda (b)
       "Return the contents of B."
       (pointer->string (contents (unwrap-bottle b))))))
@@ -736,12 +694,16 @@ In this example, @code{grab-bottle} is guaranteed to return a genuine
 @code{bottle} object.
 @end deffn
 
-Going back to the @code{scm_numptob} example above, here is how we can
-read its value as a C @code{long} integer:
+As another example, currently Guile has a variable, @code{scm_numptob},
+as part of its API. It is declared as a C @code{long}. So, to read its
+value, we can do:
 
 @example
+(use-modules (system foreign))
 (use-modules (rnrs bytevectors))
-
+(define numptob
+  (foreign-library-pointer #f "scm_numptob"))
+numptob
 (bytevector-uint-ref (pointer->bytevector numptob (sizeof long))
                      0 (native-endianness)
                      (sizeof long))
@@ -756,13 +718,17 @@ crash your program, simply accessing the data pointed to by a dangling
 pointer or similar can prove equally disastrous.
 
 @node Foreign Structs
-@subsubsection Foreign Structs
+@subsection Foreign Structs
 
 Finally, one last note on foreign values before moving on to actually
 calling foreign functions. Sometimes you need to deal with C structs,
 which requires interpreting each element of the struct according to the
-its type, offset, and alignment. Guile has some primitives to support
-this.
+its type, offset, and alignment. The @code{(system foreign)} module has
+some primitives to support this.
+
+@example
+(use-modules (system foreign))
+@end example
 
 @deffn {Scheme Procedure} sizeof type
 @deffnx {C Function} scm_sizeof (type)
@@ -818,67 +784,20 @@ and @code{pointer->bytevector} routines, one can create and parse
 tightly packed structs and unions by hand. See the code for
 @code{(system foreign)} for details.
 
+@node More Foreign Functions
+@subsection More Foreign Functions
 
-@node Dynamic FFI
-@subsection Dynamic FFI
-
-Of course, the land of C is not all nouns and no verbs: there are
-functions too, and Guile allows you to call them.
-
-@deffn {Scheme Procedure} pointer->procedure return_type func_ptr arg_types @
-                                             [#:return-errno?=#f]
-@deffnx {C Function} scm_pointer_to_procedure (return_type, func_ptr, arg_types)
-@deffnx {C Function} scm_pointer_to_procedure_with_errno (return_type, func_ptr, arg_types)
-
-Make a foreign function.
-
-Given the foreign void pointer @var{func_ptr}, its argument and
-return types @var{arg_types} and @var{return_type}, return a
-procedure that will pass arguments to the foreign function
-and return appropriate values.
-
-@var{arg_types} should be a list of foreign types.
-@code{return_type} should be a foreign type. @xref{Foreign Types}, for
-more information on foreign types.
-
-If @var{return-errno?} is true, or when calling
-@code{scm_pointer_to_procedure_with_errno}, the returned procedure will
-return two values, with @code{errno} as the second value.
-@end deffn
-
-Here is a better definition of @code{(math bessel)}:
-
-@example
-(define-module (math bessel)
-  #:use-module (system foreign)
-  #:export (j0))
-
-(define libm (dynamic-link "libm"))
-
-(define j0
-  (pointer->procedure double
-                      (dynamic-func "j0" libm)
-                      (list double)))
-@end example
-
-That's it! No C at all.
-
-Numeric arguments and return values from foreign functions are
-represented as Scheme values. For example, @code{j0} in the above
-example takes a Scheme number as its argument, and returns a Scheme
-number.
-
-Pointers may be passed to and returned from foreign functions as well.
-In that case the type of the argument or return value should be the
-symbol @code{*}, indicating a pointer. For example, the following
+It is possible to pass pointers to foreign functions, and to return them
+as well.  In that case the type of the argument or return value should
+be the symbol @code{*}, indicating a pointer. For example, the following
 code makes @code{memcpy} available to Scheme:
 
 @example
+(use-modules (system foreign))
 (define memcpy
-  (let ((this (dynamic-link)))
-    (pointer->procedure '*
-                        (dynamic-func "memcpy" this)
-                        (list '* '* size_t))))
+  (foreign-library-function #f "memcpy"
+                            #:return-type '*
+                            #:arg-types (list '* '* size_t)))
 @end example
 
 To invoke @code{memcpy}, one must pass it foreign pointers:
@@ -914,10 +833,9 @@ by the foreign pointer is mutated in place.
 ;; assuming fields are of type "long"
 
 (define gettimeofday
-  (let ((f (pointer->procedure
-            int
-            (dynamic-func "gettimeofday" (dynamic-link))
-            (list '* '*)))
+  (let ((f (foreign-library-function #f "gettimeofday"
+                                     #:return-type int
+                                     #:arg-types (list '* '*)))
         (tv-type (list long long)))
     (lambda ()
       (let* ((timeval (make-c-struct tv-type (list 0 0)))
@@ -955,10 +873,8 @@ function can be made accessible to Scheme (@pxref{Array Sort Function,
 
 @example
 (define qsort!
-  (let ((qsort (pointer->procedure void
-                                   (dynamic-func "qsort"
-                                                 (dynamic-link))
-                                   (list '* size_t size_t '*))))
+  (let ((qsort (foreign-library-function
+                #f "qsort" #:arg-types (list '* size_t size_t '*))))
     (lambda (bv compare)
       ;; Sort bytevector BV in-place according to comparison
       ;; procedure COMPARE.

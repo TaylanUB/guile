@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in.
 ##
-##   Copyright (C) 2009-2020 Free Software Foundation, Inc.
+##   Copyright (C) 2009-2021 Free Software Foundation, Inc.
 ##
 ##   This file is part of GUILE.
 ##
@@ -334,7 +334,7 @@ SOURCES =					\
   system/base/ck.scm				\
 						\
   system/foreign.scm				\
-						\
+  system/foreign-library.scm			\
   system/foreign-object.scm			\
 						\
   system/repl/debug.scm				\

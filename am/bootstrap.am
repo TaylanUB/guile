@@ -1,4 +1,4 @@
-##  	Copyright (C) 2009-2020 Free Software Foundation, Inc.
+##  	Copyright (C) 2009-2021 Free Software Foundation, Inc.
 ##
 ##   This file is part of GNU Guile.
 ##
@@ -120,6 +120,7 @@ SOURCES =					\
   system/vm/program.scm				\
   system/vm/vm.scm				\
   system/foreign.scm				\
+  system/foreign-library.scm			\
 						\
   language/tree-il/compile-cps.scm		\
   language/tree-il/cps-primitives.scm		\

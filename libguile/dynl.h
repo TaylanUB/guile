@@ -1,7 +1,7 @@
 #ifndef SCM_DYNL_H
 #define SCM_DYNL_H
 
-/* Copyright 1996,1998,2000-2001,2006,2008,2010,2018
+/* Copyright 1996,1998,2000-2001,2006,2008,2010,2018,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -27,11 +27,10 @@
 
 
 SCM_API SCM scm_dynamic_link (SCM fname);
-SCM_API SCM scm_dynamic_unlink (SCM dobj);
 SCM_API SCM scm_dynamic_object_p (SCM obj);
-SCM_API SCM scm_dynamic_pointer (SCM name, SCM dobj);
-SCM_API SCM scm_dynamic_func (SCM symb, SCM dobj);
-SCM_API SCM scm_dynamic_call (SCM symb, SCM dobj);
+SCM_API SCM scm_dynamic_pointer (SCM name, SCM obj);
+SCM_API SCM scm_dynamic_func (SCM name, SCM obj);
+SCM_API SCM scm_dynamic_call (SCM name, SCM obj);
 
 SCM_INTERNAL void scm_init_dynamic_linking (void);
 

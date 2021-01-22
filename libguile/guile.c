@@ -1,4 +1,4 @@
-/* Copyright 1996-1997,2000-2001,2006,2008,2011,2013,2018
+/* Copyright 1996-1997,2000-2001,2006,2008,2011,2013,2018,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -28,7 +28,6 @@
 #  include <config.h>
 #endif
 
-#include <ltdl.h>
 #include <locale.h>
 #include <stdio.h>
 

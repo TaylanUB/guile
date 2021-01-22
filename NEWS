@@ -7,6 +7,46 @@ Please send Guile bug reports to bug-guile@gnu.org.
 
 Changes in 3.0.6 (since 3.0.5)
 
+* Notable changes
+
+** Reimplement dynamic library loading ("dlopening") without libltdl
+
+Guile used to load dynamic libraries with libltdl, a library provided by
+the Libtool project.
+
+Libltdl provided some compatibility benefits when loading shared
+libraries made with older toolchains on older operating systems.
+However, no system from the last 10 years or so appears to need such a
+thick compatibility layer.
+
+Besides being an unmaintained dependency of limited utility, libltdl
+also has the negative aspect that in its search for libraries to load,
+it could swallow useful errors for libraries that are found but not
+loadable, instead showing just errors for search path candidates that
+are not found.
+
+Guile now implements dynamic library loading directly in terms of the
+standard "dlopen" interface, providing a limited shim for platforms with
+similar functionality exposed under different names (MinGW).
+
+This change has a few practical impacts to Guile users.  There is a new
+library search path variable, `GUILE_EXTENSIONS_DIR'.  Also, errors when
+loading a library fails now have better errors.  And Guile no longer has
+a libltdl dependency.
+
+Although Guile no longer uses libltdl, for backwards compatibility Guile
+still adds `LTDL_LIBRARY_PATH' to the loadable library search path, and
+includes ad-hoc logic to support uninstalled dynamically loadable
+libraries via also adding the ".libs" subdirectories of
+`LTDL_LIBRARY_PATH' elements.  See "Foreign Libraries" in the
+documentation for a full discussion.
+
+** Updated Gnulib
+
+The Gnulib compatibility library has been updated, for the first time
+since 2017 or so.  We expect no functional change but look forward to
+any bug reports.
+
 * New interfaces and functionality
 
 ** `call-with-port'
@@ -16,6 +56,21 @@ See "Ports" in the manual.
 ** `call-with-input-bytevector', `call-with-output-bytevector'
 
 See "Bytevector Ports" in the manual.
+
+** `GUILE_EXTENSIONS_DIR' environment variable.
+
+** `(system foreign-library)' module
+
+See the newly reorganized "Foreign Function Interface", for details.
+These new interfaces replace `dynamic-link', `dynamic-pointer' and
+similar, which will eventually be deprecated.
+
+* New deprecations
+
+** `dynamic-unlink'
+
+This function now has no effect; Guile will not unload dynamically
+linked modules, as that can destabilize the system.
 
 * Incompatible changes
 

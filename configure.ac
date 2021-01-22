@@ -105,12 +105,8 @@ AC_PROG_LIBTOOL
 
 AM_CONDITIONAL([HAVE_SHARED_LIBRARIES], [test "x$enable_shared" = "xyes"])
 
-dnl Check for libltdl.
-AC_LIB_HAVE_LINKFLAGS([ltdl], [], [#include <ltdl.h>],
-  [lt_dlopenext ("foo");])
-if test "x$HAVE_LIBLTDL" != "xyes"; then
-  AC_MSG_ERROR([GNU libltdl (Libtool) not found, see README.])
-fi
+# Some systems provide dlopen via libc; others require -ldl.
+AC_SEARCH_LIBS([dlopen], [dl])
 
 AC_CHECK_PROG(have_makeinfo, makeinfo, yes, no)
 AM_CONDITIONAL(HAVE_MAKEINFO, test "$have_makeinfo" = yes)

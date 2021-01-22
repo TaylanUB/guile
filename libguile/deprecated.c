@@ -1,4 +1,4 @@
-/* Copyright 2003-2004,2006,2008-2018,2020
+/* Copyright 2003-2004,2006,2008-2018,2020,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -31,7 +31,9 @@
 #include "boolean.h"
 #include "bitvectors.h"
 #include "deprecation.h"
+#include "dynl.h"
 #include "eval.h"
+#include "foreign.h"
 #include "gc.h"
 #include "gsubr.h"
 #include "modules.h"
@@ -597,6 +599,19 @@ scm_copy_tree (SCM obj)
 
   return scm_call_1 (scm_c_public_ref ("ice-9 copy-tree", "copy-tree"), obj);
 }
+
+
+
+
+SCM_DEFINE (scm_dynamic_unlink, "dynamic-unlink", 1, 0, 0, (SCM obj), "")
+#define FUNC_NAME s_scm_dynamic_unlink
+{
+  scm_c_issue_deprecation_warning
+    ("scm_dynamic_unlink has no effect and is deprecated.  Unloading "
+     "shared libraries is no longer supported.");
+  return SCM_UNSPECIFIED;
+}
+#undef FUNC_NAME
 
 
 
