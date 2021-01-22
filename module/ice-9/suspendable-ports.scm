@@ -338,7 +338,7 @@
                 the-eof-object)
               (let ((transfer-size (min count buffered)))
                 (bytevector-copy! (port-buffer-bytevector buf) cur
-                                  transfer-size start buffered)
+                                  bv start transfer-size)
                 (set-port-buffer-cur! buf (+ cur transfer-size))
                 transfer-size))))))
 
