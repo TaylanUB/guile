@@ -23,6 +23,7 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-11)
   #:use-module (ice-9 match)
+  #:use-module ((ice-9 binary-ports) #:select (get-bytevector-some!))
   #:use-module (rnrs io ports)
   #:use-module (rnrs io simple)
   #:use-module (rnrs exceptions)
@@ -181,6 +182,25 @@
            (bv   (get-bytevector-some port)))
       (and (bytevector? bv)
            (equal? (bytevector->u8-list bv)
+                   (map char->integer (string->list str))))))
+
+  (pass-if "get-bytevector-some! [short]"
+    (let* ((port (open-input-string "GNU Guile"))
+           (bv   (make-bytevector 4))
+           (read (get-bytevector-some! port bv 0 4)))
+      (and (equal? read 4)
+           (equal? (bytevector->u8-list bv)
+                   (map char->integer (string->list "GNU "))))))
+
+  (pass-if "get-bytevector-some! [long]"
+    (let* ((str  "GNU Guile")
+           (port (open-input-string str))
+           (bv   (make-bytevector 256))
+           (read (get-bytevector-some! port bv 0 256)))
+      (and (equal? read (string-length str))
+           (equal? (map (lambda (i)
+                          (bytevector-u8-ref bv i))
+                        (iota read))
                    (map char->integer (string->list str))))))
 
   (pass-if "get-bytevector-all"
