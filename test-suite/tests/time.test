@@ -1,7 +1,7 @@
 ;;;; time.test --- test suite for Guile's time functions     -*- scheme -*-
 ;;;; Jim Blandy <jimb@red-bean.com> --- June 1999, 2004
 ;;;;
-;;;; 	Copyright (C) 1999, 2004, 2006, 2007, 2008, 2019 Free Software Foundation, Inc.
+;;;; 	Copyright (C) 1999,2004,2006,2007,2008,2019,2021 Free Software Foundation, Inc.
 ;;;; 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -275,7 +275,7 @@
     (pass-if-equal "strftime fr_FR.utf8"
         '(1 2 1999)
       (with-locale "fr_FR.utf8"
-                   (let ((tm (car (strptime "%e %B %Y" " 1 février 1999"))))
+                   (let ((tm (car (strptime "%e %B %Y" "1 février 1999"))))
                      (list (tm:mday tm)
                            (+ 1 (tm:mon tm))
                            (+ 1900 (tm:year tm))))))
@@ -283,7 +283,7 @@
     (pass-if-equal "strftime fr_FR.iso88591" ;<https://bugs.gnu.org/35920>
         '(1 2 1999)
       (with-locale "fr_FR.iso88591"
-                   (let ((tm (car (strptime "%e %B %Y" " 1 février 1999"))))
+                   (let ((tm (car (strptime "%e %B %Y" "1 février 1999"))))
                      (list (tm:mday tm)
                            (+ 1 (tm:mon tm))
                            (+ 1900 (tm:year tm))))))
