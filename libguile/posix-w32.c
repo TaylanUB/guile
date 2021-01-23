@@ -1,4 +1,4 @@
-/* Copyright 2001,2006,2008,2016,2018
+/* Copyright 2001,2006,2008,2016,2018,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -739,22 +739,6 @@ start_child (const char *exec_file, char **argv,
   CloseHandle (hout);
   CloseHandle (herr);
   CloseHandle (pi.hThread);
-
-  /* Posix requires to call the shell if execvp fails to invoke EXEC_FILE.  */
-  if (errno_save == ENOEXEC || errno_save == ENOENT)
-    {
-      const char *shell = getenv ("ComSpec");
-
-      if (!shell)
-        shell = "cmd.exe";
-
-      if (c_strcasecmp (exec_file, shell) != 0)
-        {
-          argv[0] = (char *)exec_file;
-          return start_child (shell, argv, reading, c2p, writing, p2c,
-                              infd, outfd, errfd);
-        }
-    }
 
   errno = errno_save;
   return pid;
