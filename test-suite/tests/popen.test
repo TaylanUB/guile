@@ -1,6 +1,7 @@
 ;;;; popen.test --- exercise ice-9/popen.scm      -*- scheme -*-
 ;;;;
-;;;; Copyright 2003, 2006, 2010, 2011, 2013, 2014, 2020 Free Software Foundation, Inc.
+;;;; Copyright 2003, 2006, 2010, 2011, 2013, 2014, 2020
+;;;;           2021 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -21,6 +22,9 @@
   #:use-module (ice-9 receive)
   #:use-module (ice-9 rdelim))
 
+
+(define mingw?
+  (string-contains %host-type "-mingw32"))
 
 ;; read from PORT until eof is reached, return what's read as a string
 (define (read-string-to-eof port)
@@ -104,6 +108,7 @@
    ;; sure that we are testing what the parent sees at a point where
    ;; the child has closed stdout but is still alive.
    (pass-if "no duplicate"
+     (when mingw? (throw 'unresolved))
      (let* ((c2p (pipe))
             (p2c (pipe))
             (port (with-error-to-port (cdr c2p)
