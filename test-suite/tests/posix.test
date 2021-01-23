@@ -260,10 +260,14 @@
 (with-test-prefix "crypt"
 
   (pass-if "basic usage"
-    (string? (crypt "pass" "abcdefg")))
+    (if (not (defined? 'crypt))
+        (throw 'unsupported)
+        (string? (crypt "pass" "abcdefg"))))
 
   (pass-if "crypt invalid salt on glibc"
     (begin
+      (unless (defined? 'crypt)
+        (throw 'unsupported))
       (unless (string-contains %host-type "-gnu")
         (throw 'unresolved))
       (catch 'system-error
