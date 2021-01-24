@@ -34,13 +34,18 @@
 #include <string.h>
 #endif
 #include <unistd.h>
-#include <sys/socket.h>
 #include <sys/types.h>
+
+#ifdef HAVE_WINSOCK2_H
+#include <winsock2.h>
+#else /* ! HAVE_WINSOCK2_H */
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #ifdef HAVE_UNIX_DOMAIN_SOCKETS
 #include <sys/un.h>
 #endif
-#include <netinet/in.h>
-#include <netinet/tcp.h>
+#endif /* ! HAVE_WINSOCK2_H */
 #include <netdb.h>
 #include <arpa/inet.h>
 
