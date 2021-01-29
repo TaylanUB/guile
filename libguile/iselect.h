@@ -23,7 +23,11 @@
 
 
 #include <sys/types.h> /* Needed for FD_SET on some systems.  */
+#ifdef __MINGW32__
+#include <winsock2.h>
+#else
 #include <sys/select.h>
+#endif
 
 #include "libguile/scm.h"
 
