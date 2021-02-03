@@ -1,6 +1,6 @@
 ;;; open-coding primitive procedures
 
-;; Copyright (C) 2009-2015, 2017-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2015, 2017-2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -52,6 +52,7 @@
     sqrt abs floor ceiling sin cos tan asin acos atan
     not
     pair? null? list? symbol? vector? string? struct? number? char? nil?
+    eof-object?
     bytevector? keyword? bitvector?
 
     symbol->string string->symbol
@@ -199,7 +200,7 @@
     eq? eqv? equal?
     not
     pair? null? nil? list?
-    symbol? variable? vector? struct? string? number? char?
+    symbol? variable? vector? struct? string? number? char? eof-object?
     exact-integer?
     bytevector? keyword? bitvector?
     procedure? thunk? atomic-box?
@@ -403,6 +404,12 @@
 
 (define-primitive-expander module-define! (mod sym val)
   (%variable-set! (module-ensure-local-variable! mod sym) val))
+
+(define-primitive-expander! 'eof-object?
+  (match-lambda*
+   ((src obj)
+    (make-primcall src 'eq? (list obj (make-const #f the-eof-object))))
+   (_ #f)))
 
 (define-primitive-expander zero? (x)
   (= x 0))

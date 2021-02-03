@@ -1,5 +1,5 @@
 ;;; Type analysis on CPS
-;;; Copyright (C) 2014-2020 Free Software Foundation, Inc.
+;;; Copyright (C) 2014-2021 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software: you can redistribute it and/or modify
 ;;; it under the terms of the GNU Lesser General Public License as
@@ -368,6 +368,7 @@ minimum, and maximum."
    ((eq? val #t) (return &special-immediate &true))
    ((eq? val #f) (return &special-immediate &false))
    ((eqv? val *unspecified*) (return &special-immediate &unspecified))
+   ((eof-object? val) (return &special-immediate &eof))
    ((char? val) (return &char (char->integer val)))
    ((symbol? val) (return &symbol #f))
    ((keyword? val) (return &keyword #f))
