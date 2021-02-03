@@ -67,8 +67,8 @@ called, the arguments will be stored into the newly created location for
 the formal variables.
 @item @var{variable}
 The procedure takes any number of arguments; when the procedure is
-called, the sequence of actual arguments will converted into a list and
-stored into the newly created location for the formal variable.
+called, the sequence of actual arguments will be converted into a list
+and stored into the newly created location for the formal variable.
 @item (@var{variable1} @dots{} @var{variablen} . @var{variablen+1})
 If a space-delimited period precedes the last variable, then the
 procedure takes @var{n} or more variables where @var{n} is the number
