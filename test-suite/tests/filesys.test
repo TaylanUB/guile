@@ -1,6 +1,6 @@
 ;;;; filesys.test --- test file system functions -*- scheme -*-
 ;;;; 
-;;;; Copyright (C) 2004, 2006, 2013, 2019 Free Software Foundation, Inc.
+;;;; Copyright (C) 2004, 2006, 2013, 2019, 2021 Free Software Foundation, Inc.
 ;;;; 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -245,7 +245,7 @@
         (throw 'unresolved)
         (let* ((template "T-XXXXXX")
                (name (mkdtemp template)))
-          (false-if-exception (rmdir template))
+          (false-if-exception (rmdir name))
           (and
            (string? name)
            (string-contains name "T-")
@@ -263,5 +263,5 @@
                (name (mkdtemp template)))
           (let* ((_stat    (stat name))
                  (result   (eqv? 'directory (stat:type _stat))))
-            (false-if-exception (rmdir template))
+            (false-if-exception (rmdir name))
             result)))))
