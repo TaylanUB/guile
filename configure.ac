@@ -646,22 +646,28 @@ fi
 AC_CACHE_SAVE
 
 dnl GMP tests
-AC_LIB_HAVE_LINKFLAGS([gmp],
+
+PKG_CHECK_MODULES([GMP],[gmp],
   [],
-  [#include <gmp.h>],
-  [mpz_import (0, 0, 0, 0, 0, 0, 0);])
+  [$enable_mini_gmp=yes])
 
-if test "x$HAVE_LIBGMP" != "xyes"; then
-  AC_MSG_ERROR([GNU MP 4.1 or greater not found, see README])
+AC_ARG_ENABLE(mini-gmp,
+  [  --enable-mini-gmp       use mini-gmp instead of the full GMP library])
+if test "$enable_mini_gmp" = yes; then
+  AC_DEFINE([GUILE_MINI_GMP], 1,
+      [Define this if you want to use mini-gmp.])
+else
+  LIBS="$GMP_LIBS $LIBS"
+  CFLAGS="$GMP_CFLAGS $CFLAGS"
 fi
+AM_CONDITIONAL([USE_MINI_GMP], [test "x$enable_mini_gmp" = "xyes"])
 
-dnl `mpz_inits' and `mpz_clears' appeared in GMP 5.0.0.
-save_CPPFLAGS="$CPPFLAGS"
-if test "x$LIBGMP_PREFIX" != "x"; then
-   CPPFLAGS="-I$LIBGMP_PREFIX $CPPFLAGS"
-fi
-AC_CHECK_DECLS([mpz_inits], [], [], [[#include <gmp.h>]])
-CPPFLAGS="$save_CPPFLAGS"
+AC_CHECK_DECLS([mpz_inits], [], [],
+  [[#if GUILE_MINI_GMP
+    #include "libguile/mini-gmp.h"
+    #else
+    #include <gmp.h>
+    #endif]])
 
 dnl GNU libunistring is checked for by Gnulib's `libunistring' module.
 if test "x$LTLIBUNISTRING" = "x"; then

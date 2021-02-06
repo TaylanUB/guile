@@ -44,7 +44,11 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
+#if GUILE_MINI_GMP
+#include "mini-gmp.h"
+#else
 #include <gmp.h>
+#endif
 
 #include "arrays.h"
 #include "async.h"

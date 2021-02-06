@@ -31,7 +31,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#if GUILE_MINI_GMP
+#include "mini-gmp.h"
+#else
 #include <gmp.h>
+#endif
 
 /* Everybody has an init function.  */
 #include "alist.h"

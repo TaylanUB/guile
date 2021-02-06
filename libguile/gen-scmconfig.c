@@ -1,4 +1,4 @@
-/* Copyright 2003-2013,2018,2020
+/* Copyright 2003-2013,2018,2020,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -206,7 +206,6 @@ main (int argc, char *argv[])
   pf ("#define SCM_HAVE_WINSOCK2_H 0 /* 0 or 1 */\n");
 #endif
 
-
   /*** GUILE_DEBUG (defined or undefined) ***/
   pf ("\n");
   pf ("/* Define to include various undocumented debugging functions. */\n");
@@ -377,6 +376,12 @@ main (int argc, char *argv[])
   pf ("\n");
   pf ("/* Define to 1 if there is an auxiliary stack, as in ia64.  */\n");
   pf ("#define SCM_HAVE_AUXILIARY_STACK %d\n", SCM_I_GSC_HAVE_AUXILIARY_STACK);
+
+#ifdef GUILE_MINI_GMP
+  pf ("#define GUILE_MINI_GMP 1\n");
+#else
+  pf ("#undef GUILE_MINI_GMP\n");
+#endif
 
   printf ("#endif\n");
 

@@ -241,6 +241,10 @@ if ENABLE_JIT
 libguile_@GUILE_EFFECTIVE_VERSION@_la_SOURCES += $(lightening_c_files)
 endif
 
+if USE_MINI_GMP
+libguile_@GUILE_EFFECTIVE_VERSION@_la_SOURCES += mini-gmp.c
+endif
+
 DOT_X_FILES =					\
 	alist.x					\
 	array-handle.x				\
@@ -474,7 +478,8 @@ EXTRA_libguile_@GUILE_EFFECTIVE_VERSION@_la_SOURCES = \
     posix.c net_db.c socket.c			\
     debug-malloc.c				\
     posix-w32.c					\
-    locale-categories.h
+    locale-categories.h			\
+    mini-gmp.h
 
 ## delete guile-snarf.awk from the installation bindir, in case it's
 ## lingering there due to an earlier guile version not having been

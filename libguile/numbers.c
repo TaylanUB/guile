@@ -398,7 +398,15 @@ scm_i_big2dbl_2exp (SCM b, long *expon_p)
 
   {
     long expon;
-    double signif = mpz_get_d_2exp (&expon, SCM_I_BIG_MPZ (b));
+    double signif;
+#if GUILE_MINI_GMP
+    int iexpon;
+    signif = mpz_get_d (SCM_I_BIG_MPZ (b));
+    signif = frexp (signif, &iexpon);
+    expon = (long) iexpon;
+#else
+    signif = mpz_get_d_2exp (&expon, SCM_I_BIG_MPZ (b));
+#endif
     scm_remember_upto_here_1 (b);
     *expon_p = expon + shift;
     return signif;

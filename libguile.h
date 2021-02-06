@@ -22,15 +22,21 @@
 
 
 
-/* This needs to be included outside of the extern "C" block.
- */
-#include <gmp.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 #include "libguile/scm.h"
+#ifdef __cplusplus
+}
+#endif
+#if GUILE_MINI_GMP
+#include "libguile/mini-gmp.h"
+#else
+#include <gmp.h>
+#endif
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "libguile/alist.h"
 #include "libguile/array-handle.h"
 #include "libguile/array-map.h"

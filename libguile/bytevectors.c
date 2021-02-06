@@ -35,7 +35,11 @@
 #include <alloca.h>
 #include <assert.h>
 
+#if GUILE_MINI_GMP
+#include "mini-gmp.h"
+#else
 #include <gmp.h>
+#endif
 
 #include "array-handle.h"
 #include "arrays.h"
