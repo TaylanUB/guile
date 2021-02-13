@@ -146,6 +146,7 @@ SOURCES =					\
   ice-9/q.scm					\
   ice-9/r5rs.scm				\
   ice-9/rdelim.scm				\
+  ice-9/read.scm				\
   ice-9/receive.scm				\
   ice-9/regex.scm				\
   ice-9/runq.scm				\
