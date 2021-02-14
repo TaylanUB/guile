@@ -346,6 +346,8 @@
       (cond
        ((eof-object? ch)
         (input-error "unexpected end of input after #\\"))
+       ((delimiter? ch)
+        ch)
        (else
         (let* ((tok (read-token ch))
                (len (string-length tok)))
