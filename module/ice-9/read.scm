@@ -759,7 +759,9 @@
        (else
         (string->symbol
          (take-while ch (lambda (ch)
-                          (or (eqv? ch #\-) (char-alphabetic? ch)))))))))
+                          (or (eqv? ch #\-)
+                              (char-alphabetic? ch)
+                              (char-numeric? ch)))))))))
 
   (define (skip-scsh-comment)
     (let lp ((ch (next)))
