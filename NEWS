@@ -138,10 +138,6 @@ The Gnulib compatibility library has been updated, for the first time
 since 2017 or so.  We expect no functional change but look forward to
 any bug reports.
 
-** Optimized "eof-object?"
-
-This predicate is now understood by the compiler.
-
 * New interfaces and functionality
 
 ** `call-with-port'
@@ -179,6 +175,11 @@ See "Syntax Case" in the manual.
 ** `syntax-sourcev'
 
 See "Syntax Transformer Helpers" in the manual.
+
+* Optimizations
+
+** eof-object?
+** R6RS vector-map, vector-for-each
 
 * Bug fixes
 

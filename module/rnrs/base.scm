@@ -1,6 +1,6 @@
 ;;; base.scm --- The R6RS base library
 
-;;      Copyright (C) 2010, 2011, 2019 Free Software Foundation, Inc.
+;;      Copyright (C) 2010, 2011, 2019, 2021 Free Software Foundation, Inc.
 ;;
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -231,10 +231,81 @@
    (and (rational-valued? x)
         (= x (floor (real-part x)))))
 
- (define (vector-for-each proc . vecs)
-   (apply for-each (cons proc (map vector->list vecs))))
- (define (vector-map proc . vecs)
-   (list->vector (apply map (cons proc (map vector->list vecs)))))
+ ;; Auxiliary procedure for vector-map and vector-for-each
+ (define (vector-lengths who vs)
+   (let ((lengths (map vector-length vs)))
+     (unless (apply = lengths)
+       (error (string-append (symbol->string who)
+                             ": Vectors of uneven length.")
+              vs))
+     (car lengths)))
+
+ (define vector-map
+   (case-lambda
+     "(vector-map f vec2 vec2 ...) -> vector
+
+Return a new vector of the size of the vector arguments, which must be
+of equal length. Each element at index @var{i} of the new vector is
+mapped from the old vectors by @code{(f (vector-ref vec1 i)
+(vector-ref vec2 i) ...)}.  The dynamic order of application of
+@var{f} is unspecified."
+     ((f v)
+      (let* ((len (vector-length v))
+             (result (make-vector len)))
+        (let loop ((i 0))
+          (unless (= i len)
+            (vector-set! result i (f (vector-ref v i)))
+            (loop (+ i 1))))
+        result))
+     ((f v1 v2)
+      (let* ((len (vector-lengths 'vector-map (list v1 v2)))
+             (result (make-vector len)))
+        (let loop ((i 0))
+          (unless (= i len)
+            (vector-set! result
+                         i
+                         (f (vector-ref v1 i) (vector-ref v2 i)))
+            (loop (+ i 1)))
+          result)))
+     ((f v . vs)
+      (let* ((vs (cons v vs))
+             (len (vector-lengths 'vector-map vs))
+             (result (make-vector len)))
+        (let loop ((i 0))
+          (unless (= i len)
+            (vector-set! result
+                         i
+                         (apply f (map (lambda (v) (vector-ref v i)) vs)))
+            (loop (+ i 1))))
+        result))))
+
+(define vector-for-each
+  (case-lambda
+    "(vector-for-each f vec1 vec2 ...) -> unspecified
+
+Call @code{(f (vector-ref vec1 i) (vector-ref vec2 i) ...)} for each index
+ in the provided vectors, which have to be of equal length. The iteration
+is strictly left-to-right."
+    ((f v)
+     (let ((len (vector-length v)))
+       (let loop ((i 0))
+         (unless (= i len)
+           (f (vector-ref v i))
+           (loop (+ i 1))))))
+    ((f v1 v2)
+     (let ((len (vector-lengths 'vector-for-each (list v1 v2))))
+       (let loop ((i 0))
+         (unless (= i len)
+           (f (vector-ref v1 i) (vector-ref v2 i))
+           (loop (+ i 1))))))
+    ((f v . vs)
+     (let* ((vs (cons v vs))
+            (len (vector-lengths 'vector-for-each vs)))
+       (let loop ((i 0))
+         (unless (= i len)
+           (apply f (map (lambda (v) (vector-ref v i)) vs))
+           (loop (+ i 1))))))))
+
 
  (define-syntax define-proxy
    (syntax-rules (@)
