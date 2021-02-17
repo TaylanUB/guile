@@ -182,10 +182,11 @@
     (take-until first (lambda (ch) (not (pred ch)))))
 
   (define (delimiter? ch)
-    (or (memv ch '(#\( #\) #\; #\"
-                   #\space #\return #\ff #\newline #\tab))
-        (and (memv ch '(#\[ #\])) (or (square-brackets?) (curly-infix?)))
-        (and (memv ch '(#\{ #\})) (curly-infix?))))
+    (case ch
+      ((#\( #\) #\; #\" #\space #\return #\ff #\newline #\tab) #t)
+      ((#\[ #\]) (or (square-brackets?) (curly-infix?)))
+      ((#\{ #\}) (curly-infix?))
+      (else #f)))
 
   (define (read-token ch)
     (take-until ch delimiter?))
