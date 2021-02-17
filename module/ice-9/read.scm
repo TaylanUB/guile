@@ -134,15 +134,6 @@
   (define (get-pos) (cons (port-line port) (port-column port)))
   ;; We are only ever interested in whether an object is a char or not.
   (define (eof-object? x) (not (char? x)))
-  (define accumulator (open-output-string))
-  (define-syntax-rule (accumulate proc)
-    (begin
-      (proc (lambda (ch) (write-char ch accumulator)))
-      (let ((str (get-output-string accumulator)))
-        (seek accumulator 0 SEEK_SET)
-        (truncate-file accumulator 0)
-        str)))
-
   (define (annotate line column datum)
     ;; FIXME: Return a syntax object instead, so we can avoid the
     ;; srcprops side table.
@@ -179,15 +170,13 @@
        (else (read-semicolon-comment)))))
 
   (define-syntax-rule (take-until first pred)
-    (accumulate
-     (lambda (put)
-       (put first)
-       (let lp ()
-         (let ((ch (peek)))
-           (unless (or (eof-object? ch) (pred ch))
-             (put ch)
-             (next)
-             (lp)))))))
+    (let lp ((out (list first)))
+      (let ((ch (peek)))
+        (if (or (eof-object? ch) (pred ch))
+            (reverse-list->string out)
+            (begin
+              (next)
+              (lp (cons ch out)))))))
   (define-syntax-rule (take-while first pred)
     (take-until first (lambda (ch) (not (pred ch)))))
 
@@ -305,58 +294,60 @@
               (error "invalid character in escape sequence: ~S" ch)))))))
 
   (define (read-string rdelim)
-    (accumulate
-     (lambda (put)
-       (let lp ()
-         (let ((ch (next)))
-           (unless (eqv? ch rdelim)
-             (cond
-              ((eof-object? ch)
-               (error "unexpected end of input while reading string"))
-              ((eqv? ch #\\)
-               (let ((ch (next)))
-                 (when (eof-object? ch)
-                   (error "unexpected end of input while reading string"))
-                 (case ch
-                   ((#\newline)
-                    (when (hungry-eol-escapes?)
-                      ;; Skip intraline whitespace before continuing.
-                      (let lp ()
-                        (let ((ch (peek)))
-                          (when (and (not (eof-object? ch))
-                                     (or (eqv? ch #\tab)
-                                         (eq? (char-general-category ch) 'Zs)))
-                            (next)
-                            (lp))))))
-                   ;; Accept "\(" for use at the beginning of
-                   ;; lines in multiline strings to avoid
-                   ;; confusing emacs lisp modes.
-                   ((#\| #\\ #\() (put ch))
-                   ((#\0)         (put #\nul))
-                   ((#\f)         (put #\ff))
-                   ((#\n)         (put #\newline))
-                   ((#\r)         (put #\return))
-                   ((#\t)         (put #\tab))
-                   ((#\a)         (put #\alarm))
-                   ((#\v)         (put #\vtab))
-                   ((#\b)         (put #\backspace))
-                   ((#\x)
-                    (let ((ch (if (or (r6rs-escapes?) (eqv? rdelim #\|))
-                                  (read-r6rs-hex-escape)
-                                  (read-fixed-hex-escape 2))))
-                      (put ch)))
-                   ((#\u)
-                    (put (read-fixed-hex-escape 4)))
-                   ((#\U)
-                    (put (read-fixed-hex-escape 8)))
-                   (else
-                    (unless (eqv? ch rdelim)
-                      (error "invalid character in escape sequence: ~S" ch))
-                    (put ch)))
-                 (lp)))
-              (else
-               (put ch)
-               (lp)))))))))
+    (let lp ((out '()))
+      (let ((ch (next)))
+        (cond
+         ((eof-object? ch)
+          (error "unexpected end of input while reading string"))
+         ((eqv? ch rdelim)
+          (reverse-list->string out))
+         ((eqv? ch #\\)
+          (let ((ch (next)))
+            (when (eof-object? ch)
+              (error "unexpected end of input while reading string"))
+            (cond
+             ((eqv? ch #\newline)
+              (when (hungry-eol-escapes?)
+                ;; Skip intraline whitespace before continuing.
+                (let skip ()
+                  (let ((ch (peek)))
+                    (when (and (not (eof-object? ch))
+                               (or (eqv? ch #\tab)
+                                   (eq? (char-general-category ch) 'Zs)))
+                      (next)
+                      (skip)))))
+              (lp out))
+             ((eqv? ch rdelim)
+              (lp (cons rdelim out)))
+             (else
+              (lp
+               (cons
+                (case ch
+                  ;; Accept "\(" for use at the beginning of
+                  ;; lines in multiline strings to avoid
+                  ;; confusing emacs lisp modes.
+                  ((#\| #\\ #\() ch)
+                  ((#\0)         #\nul)
+                  ((#\f)         #\ff)
+                  ((#\n)         #\newline)
+                  ((#\r)         #\return)
+                  ((#\t)         #\tab)
+                  ((#\a)         #\alarm)
+                  ((#\v)         #\vtab)
+                  ((#\b)         #\backspace)
+                  ((#\x)
+                   (if (or (r6rs-escapes?) (eqv? rdelim #\|))
+                       (read-r6rs-hex-escape)
+                       (read-fixed-hex-escape 2)))
+                  ((#\u)
+                   (read-fixed-hex-escape 4))
+                  ((#\U)
+                   (read-fixed-hex-escape 8))
+                  (else
+                   (error "invalid character in escape sequence: ~S" ch)))
+                out))))))
+         (else
+          (lp (cons ch out)))))))
 
   (define (read-character)
     (let ((ch (next)))
