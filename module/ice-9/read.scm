@@ -93,7 +93,7 @@
               (ash (assq-ref values (and=> (memq key options) cadr)) field)))
     (logior (bool 'positions bitfield:record-positions?)
             (bool 'case-insensitive bitfield:case-insensitive?)
-            (enum 'keyword-style '((#f . 0) (prefix . 1) (postfix . 2))
+            (enum 'keywords '((#f . 0) (prefix . 1) (postfix . 2))
                   bitfield:keyword-style)
             (bool 'r6rs-hex-escapes bitfield:r6rs-escapes?)
             (bool 'square-brackets bitfield:square-brackets?)
@@ -102,15 +102,13 @@
             (bool 'r7rs-symbols bitfield:r7rs-symbols?))))
 
 (define (set-option options field new)
-  (logior new (logand options (lognot (ash #b11 field)))))
+  (logior (ash new field) (logand options (lognot (ash #b11 field)))))
 
 (define (set-port-read-option! port field value)
-  (let ((options (or (%port-property port 'port-read-options)
-                     read-options-inherit-all))
-        (new (ash value field)))
-    (%set-port-property! port 'port-read-options
-                         (set-option options field new)
-                         )))
+  (%set-port-property! port 'port-read-options
+                       (set-option (or (%port-property port 'port-read-options)
+                                       read-options-inherit-all)
+                                   field value)))
 
 (define* (read #:optional (port (current-input-port)))
   ;; init read options
@@ -208,7 +206,7 @@
            (len (string-length str)))
       (cond
        ((and (eq? (keyword-style) keyword-style-postfix)
-             (> len 0) (eqv? #\: (string-ref str (1- len))))
+             (> len 1) (eqv? #\: (string-ref str (1- len))))
         (let ((str (substring str 0 (1- len))))
           (symbol->keyword
            (string->symbol
@@ -325,9 +323,9 @@
                       ;; Skip intraline whitespace before continuing.
                       (let lp ()
                         (let ((ch (peek)))
-                          (unless (or (eof-object? ch)
-                                      (eqv? ch #\tab)
-                                      (eq? (char-general-category ch) 'Zs))
+                          (when (and (not (eof-object? ch))
+                                     (or (eqv? ch #\tab)
+                                         (eq? (char-general-category ch) 'Zs)))
                             (next)
                             (lp))))))
                    ;; Accept "\(" for use at the beginning of
