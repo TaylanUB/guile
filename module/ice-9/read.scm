@@ -134,6 +134,8 @@
   (define (peek) (peek-char port))
   (define filename (port-filename port))
   (define (get-pos) (cons (port-line port) (port-column port)))
+  ;; We are only ever interested in whether an object is a char or not.
+  (define (eof-object? x) (not (char? x)))
   (define accumulator (open-output-string))
   (define-syntax-rule (accumulate proc)
     (begin
@@ -159,8 +161,17 @@
                                       (column . ,(1- column)))))
     datum)
 
-  (define (input-error msg . args)
-    (apply error msg args))
+  (define (input-error msg args)
+    (scm-error 'read-error #f
+               (format #f "~A:~S:~S: ~A"
+                       (or filename "#<unknown port>")
+                       (port-line port) (port-column port)
+                       msg)
+               args #f))
+
+  (define-syntax-rule (error msg arg ...)
+    (let ((args (list arg ...)))
+      (input-error msg args)))
 
   (define (read-semicolon-comment)
     (let ((ch (next)))
@@ -237,13 +248,14 @@
     (finish-curly-infix
      (let lp ((ch (next-non-whitespace)))
        (when (eof-object? ch)
-         (input-error "unexpected end of input while searching for " rdelim))
+         (error "unexpected end of input while searching for: ~A"
+                rdelim))
        (cond
         ((eqv? ch rdelim) '())
         ((or (eqv? ch #\))
              (and (eqv? ch #\]) (or (square-brackets?) (curly-infix?)))
              (and (eqv? ch #\}) (curly-infix?)))
-         (input-error "mismatched close paren" ch))
+         (error "mismatched close paren: ~A" ch))
         (else
          (let ((expr (read-expr ch)))
            ;; Note that it is possible for scm_read_expression to
@@ -253,7 +265,7 @@
                (let* ((tail (read-expr (next-non-whitespace)))
                       (close (next-non-whitespace)))
                  (unless (eqv? close rdelim)
-                   (input-error "missing close paren" rdelim))
+                   (error "missing close paren: ~A" close))
                  tail)
                (cons expr (lp (next-non-whitespace))))))))))
 
@@ -278,9 +290,9 @@
                ((hex-digit ch) => (lambda (digit) (lp (+ (* 16 res) digit))))
                ((eqv? ch #\;) (integer->char res))
                (else
-                (input-error "invalid character in escape sequence: ~S" ch)))))))
+                (error "invalid character in escape sequence: ~S" ch)))))))
        (else
-        (input-error "invalid character in escape sequence: ~S" ch)))))
+        (error "invalid character in escape sequence: ~S" ch)))))
 
   (define (read-fixed-hex-escape len)
     (let lp ((len len) (res 0))
@@ -292,7 +304,7 @@
               (lambda (digit)
                 (lp (1- len) (+ (* res 16) digit))))
              (else
-              (input-error "invalid character in escape sequence: ~S" ch)))))))
+              (error "invalid character in escape sequence: ~S" ch)))))))
 
   (define (read-string rdelim)
     (accumulate
@@ -302,11 +314,11 @@
            (unless (eqv? ch rdelim)
              (cond
               ((eof-object? ch)
-               (input-error "unexpected end of input while reading string"))
+               (error "unexpected end of input while reading string"))
               ((eqv? ch #\\)
                (let ((ch (next)))
                  (when (eof-object? ch)
-                   (input-error "unexpected end of input while reading string"))
+                   (error "unexpected end of input while reading string"))
                  (case ch
                    ((#\newline)
                     (when (hungry-eol-escapes?)
@@ -341,7 +353,7 @@
                     (put (read-fixed-hex-escape 8)))
                    (else
                     (unless (eqv? ch rdelim)
-                      (input-error "invalid character in escape sequence: ~S" ch))
+                      (error "invalid character in escape sequence: ~S" ch))
                     (put ch)))
                  (lp)))
               (else
@@ -352,7 +364,7 @@
     (let ((ch (next)))
       (cond
        ((eof-object? ch)
-        (input-error "unexpected end of input after #\\"))
+        (error "unexpected end of input after #\\"))
        ((delimiter? ch)
         ch)
        (else
@@ -414,7 +426,7 @@
            ((named-char tok C0-control-charnames))
            ((named-char tok alt-charnames))
            (else
-            (input-error "unknown character name ~a" tok))))))))
+            (error "unknown character name ~a" tok))))))))
 
   (define (read-vector)
     (list->vector (read-parenthesized #\))))
@@ -448,7 +460,7 @@
   (define (read-bytevector)
     (define (expect ch)
       (unless (eqv? (next) ch)
-        (input-error "invalid bytevector prefix" ch)))
+        (error "invalid bytevector prefix" ch)))
     (expect #\u)
     (expect #\8)
     (expect #\()
@@ -479,11 +491,10 @@
   (define (read-keyword)
     (let ((ch (next-non-whitespace)))
       (when (eof-object? ch)
-        (input-error "end of input while reading keyword"))
+        (error "end of input while reading keyword"))
       (let ((expr (read-expr ch)))
         (unless (symbol? expr)
-          (input-error "keyword prefix #: not followed by a symbol: ~a"
-                       expr))
+          (error "keyword prefix #: not followed by a symbol: ~a" expr))
         (symbol->keyword expr))))
 
   (define (read-array ch)
@@ -507,14 +518,14 @@
     (define (read-rank ch)
       (let-values (((ch rank) (read-decimal-integer ch 1)))
         (when (< rank 0)
-          (input-error "array rank must be non-negative"))
+          (error "array rank must be non-negative"))
         (when (eof-object? ch)
-          (input-error "unexpected end of input while reading array"))
+          (error "unexpected end of input while reading array"))
         (values ch rank)))
     (define (read-tag ch)
       (let lp ((ch ch) (chars '()))
         (when (eof-object? ch)
-          (input-error "unexpected end of input while reading array"))
+          (error "unexpected end of input while reading array"))
         (if (memv ch '(#\( #\@ @\:))
             (values ch
                     (if (null? chars)
@@ -529,9 +540,9 @@
                                   (read-decimal-integer (next) 0)
                                   (values ch #f))))
         (when (and len (< len 0))
-          (input-error "array length must be non-negative"))
+          (error "array length must be non-negative"))
         (when (eof-object? ch)
-          (input-error "unexpected end of input while reading array"))
+          (error "unexpected end of input while reading array"))
         (values ch
                 (if len
                     (if (zero? lbnd)
@@ -546,16 +557,16 @@
           (values ch alt)))
     (define (read-elements ch rank)
       (unless (eqv? ch #\()
-        (input-error "missing '(' in vector or array literal"))
+        (error "missing '(' in vector or array literal"))
       (let ((elts (read-parenthesized #\))))
         (if (zero? rank)
             (begin
               ;; Handle special print syntax of rank zero arrays; see
               ;; scm_i_print_array for a rationale.
               (when (null? elts)
-                (input-error "too few elements in array literal, need 1"))
+                (error "too few elements in array literal, need 1"))
               (unless (null? (cdr elts))
-                (input-error "too many elements in array literal, need 1"))
+                (error "too many elements in array literal, need 1"))
               (car elts))
             elts)))
     (let*-values (((ch rank) (read-rank ch))
@@ -563,20 +574,19 @@
                   ((ch shape) (read-shape ch rank))
                   ((elts) (read-elements ch rank)))
       (when (and (pair? shape) (not (eqv? (length shape) rank)))
-        (input-error
-         "the number of shape specifications must match the array rank"))
+        (error "the number of shape specifications must match the array rank"))
       (list->typed-array tag shape elts)))
 
   (define (read-number-and-radix ch)
     (let ((tok (string-append "#" (read-token ch))))
       (or (string->number tok)
-          (input-error "unknown # object"))))
+          (error "unknown # object" tok))))
 
   (define (read-extended-symbol)
     (define (next-not-eof)
       (let ((ch (next)))
         (when (eof-object? ch)
-          (input-error "end of input while reading symbol"))
+          (error "end of input while reading symbol"))
         ch))
     (string->symbol
      (list->string
@@ -610,14 +620,14 @@
     ;; Have already read "#\n" -- now read "il".
     (let ((id (read-mixed-case-symbol #\n)))
       (unless (eq? id 'nil)
-        (input-error "unexpected input while reading #nil: ~a" id))
+        (error "unexpected input while reading #nil: ~a" id))
       #nil))
 
   (define (read-sharp)
     (let* ((ch (next)))
       (cond
        ((eof-object? ch)
-        (input-error "unexpected end of input after #"))
+        (error "unexpected end of input after #"))
        ((read-hash-procedure ch)
         => (lambda (proc) (proc ch)))
        (else
@@ -645,7 +655,7 @@
                (list 'unsyntax (read-expr (next-non-whitespace)))))
           ((#\n) (read-nil))
           (else
-           (input-error "Unknown # object: ~S" ch)))))))
+           (error "Unknown # object: ~S" ch)))))))
 
   (define (read-number ch)
     (let* ((str (read-token ch)))
@@ -702,24 +712,21 @@
        ;; FIXME: read-sharp should recur if we read a comment
        (read-sharp))
       ((#\))
-       (input-error "unexpected \")\""))
+       (error "unexpected \")\""))
       ((#\})
        (if (curly-infix?)
-           (input-error "unexpected \"}\"")
+           (error "unexpected \"}\"")
            (read-mixed-case-symbol ch)))
       ((#\])
        (if (square-brackets?)
-           (input-error "unexpected \"]\"")
+           (error "unexpected \"]\"")
            (read-mixed-case-symbol ch)))
-      ((#f)
-       ;; EOF.
-       the-eof-object)
       ((#\:)
        (if (eq? (keyword-style) keyword-style-prefix)
            ;; FIXME: Don't skip whitespace here.
            (let ((ch (next-non-whitespace)))
              (when (eof-object? ch)
-               (input-error "unexpected end of input while reading :keyword"))
+               (error "unexpected end of input while reading :keyword"))
              (symbol->keyword (read-expr ch)))
            (read-mixed-case-symbol ch)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\+ #\- #\.)
@@ -764,7 +771,7 @@
     (let ((ch (next)))
       (cond
        ((eof-object? ch)
-        (input-error "unexpected end of input after #!"))
+        (error "unexpected end of input after #!"))
        (else
         (string->symbol
          (take-while ch (lambda (ch)
@@ -776,7 +783,7 @@
     (let lp ((ch (next)))
       (cond
        ((eof-object? ch)
-        (input-error "unexpected end of input while looking for !#"))
+        (error "unexpected end of input while looking for !#"))
        ((eqv? ch #\!)
         (let ((ch (next)))
           (if (eqv? ch #\#)
@@ -828,7 +835,7 @@
     ;; We have read #|, now looking for |#.
     (let ((ch (next)))
       (when (eof-object? ch)
-        (input-error "unterminated `#| ... |#' comment"))
+        (error "unterminated `#| ... |#' comment"))
       (cond
        ((and (eqv? ch #\|) (eqv? (peek) #\#))
         ;; Done.
@@ -856,7 +863,7 @@
             (next)
             (let ((ch (next-non-whitespace)))
               (when (eof-object? ch)
-                (input-error "no expression after #; comment"))
+                (error "no expression after #; comment"))
               (read-expr ch))
             (next-non-whitespace))
            ((#\|)
