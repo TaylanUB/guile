@@ -146,7 +146,8 @@
   (define (annotate line column datum)
     ;; FIXME: Return a syntax object instead, so we can avoid the
     ;; srcprops side table.
-    (when (and (supports-source-properties? datum)
+    (when (and (record-positions?)
+               (supports-source-properties? datum)
                ;; Line or column can be invalid via set-port-column! or
                ;; ungetting chars beyond start of line.
                (<= 0 line)
