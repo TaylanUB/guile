@@ -1347,7 +1347,7 @@
                        ;; need to make sure the fmod information is
                        ;; propagated back correctly -- hence this
                        ;; consing.
-                       (values 'global-call (make-syntax fval w fmod)
+                       (values 'global-call (make-syntax fval w fmod fs)
                                e e w s mod)))
                   ((macro)
                    (syntax-type (expand-macro fval e r w s rib mod)
@@ -1538,7 +1538,8 @@
                            (make-syntax
                             (syntax-expression x)
                             (make-wrap (cdr ms) (if rib (cons rib (cdr ss)) (cdr ss)))
-                            (syntax-module x))
+                            (syntax-module x)
+                            (syntax-source x))
                            ;; output introduced by macro
                            (make-syntax
                             (decorate-source (syntax-expression x) s)
@@ -1546,7 +1547,8 @@
                                        (if rib
                                            (cons rib (cons 'shift ss))
                                            (cons 'shift ss)))
-                            (syntax-module x))))))
+                            (syntax-module x)
+                            (syntax-source x))))))
                 
                   ((vector? x)
                    (let* ((n (vector-length x))
@@ -1780,8 +1782,9 @@
              (call-with-values
                  (lambda () (resolve-identifier
                              (make-syntax '#{ $sc-ellipsis }#
-                                                 (syntax-wrap e)
-                                                 (syntax-module e))
+                                          (syntax-wrap e)
+                                          (syntax-module e)
+                                          #f)
                              empty-wrap r mod #f))
                (lambda (type value mod)
                  (if (eq? type 'ellipsis)
@@ -2343,8 +2346,9 @@
                         (let ((id (if (symbol? #'dots)
                                       '#{ $sc-ellipsis }#
                                       (make-syntax '#{ $sc-ellipsis }#
-                                                          (syntax-wrap #'dots)
-                                                          (syntax-module #'dots)))))
+                                                   (syntax-wrap #'dots)
+                                                   (syntax-module #'dots)
+                                                   (syntax-source #'dots)))))
                           (let ((ids (list id))
                                 (labels (list (gen-label)))
                                 (bindings (list (make-binding 'ellipsis (source-wrap #'dots w s mod)))))
@@ -2501,7 +2505,8 @@
                                  (remodulate (syntax-expression x) mod)
                                  (syntax-wrap x)
                                  ;; hither the remodulation
-                                 mod))
+                                 mod
+                                 (syntax-source x)))
                                ((vector? x)
                                 (let* ((n (vector-length x)) (v (make-vector n)))
                                   (do ((i 0 (fx+ i 1)))
@@ -2758,9 +2763,11 @@
             (nonsymbol-id? x)))
 
     (set! datum->syntax
-          (lambda (id datum)
-            (make-syntax datum (syntax-wrap id)
-                                (syntax-module id))))
+          (lambda* (id datum #:optional srcloc)
+            (make-syntax datum (syntax-wrap id) (syntax-module id)
+                         (if srcloc
+                             (syntax-source srcloc)
+                             (source-properties datum)))))
 
     (set! syntax->datum
           ;; accepts any object, since syntax objects may consist partially
@@ -2838,8 +2845,9 @@
                  ((ellipsis)
                   (values 'ellipsis
                           (make-syntax (syntax-expression value)
-                                              (anti-mark (syntax-wrap value))
-                                              (syntax-module value))))
+                                       (anti-mark (syntax-wrap value))
+                                       (syntax-module value)
+                                       (syntax-source value))))
                  (else (values 'other #f))))))))
 
       (define (syntax-locally-bound-identifiers id)
