@@ -1,4 +1,4 @@
-/* Copyright 2017-2018
+/* Copyright 2017-2018,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -28,7 +28,9 @@
 #include "gsubr.h"
 #include "keywords.h"
 #include "modules.h"
+#include "pairs.h"
 #include "ports.h"
+#include "srcprop.h"
 #include "threads.h"
 #include "variable.h"
 
@@ -36,6 +38,22 @@
 
 
 
+
+/* The source field was added to syntax objects in Guile 3.0.6.  However
+   there can be older syntax objects present in compiled files that
+   don't have the source field.  If a syntax object has a source field,
+   its tag will have HAS_SOURCE_WORD_FLAG set.  */
+#define HAS_SOURCE_WORD_FLAG 0x100
+
+enum
+{
+  TAG_WORD,
+  EXPR_WORD,
+  WRAP_WORD,
+  MODULE_WORD,
+  SOURCE_WORD,
+  WORD_COUNT
+};
 
 static int
 scm_is_syntax (SCM x)
@@ -56,13 +74,23 @@ SCM_DEFINE (scm_syntax_p, "syntax?", 1, 0, 0,
 }
 #undef FUNC_NAME
 
-SCM_DEFINE (scm_make_syntax, "make-syntax", 3, 0, 0,
-	    (SCM exp, SCM wrap, SCM module),
+SCM_DEFINE (scm_make_syntax, "make-syntax", 3, 1, 0,
+	    (SCM exp, SCM wrap, SCM module, SCM source),
 	    "Make a new syntax object.")
 #define FUNC_NAME s_scm_make_syntax
 {
-  return scm_double_cell (scm_tc7_syntax, SCM_UNPACK (exp),
-                          SCM_UNPACK (wrap), SCM_UNPACK (module));
+  if (SCM_UNBNDP (source))
+    source = scm_source_properties (exp);
+  if (!scm_is_pair (source))
+    source = SCM_BOOL_F;
+
+  SCM ret = scm_words (scm_tc7_syntax | HAS_SOURCE_WORD_FLAG, WORD_COUNT);
+  SCM_SET_CELL_OBJECT (ret, EXPR_WORD, exp);
+  SCM_SET_CELL_OBJECT (ret, WRAP_WORD, wrap);
+  SCM_SET_CELL_OBJECT (ret, MODULE_WORD, module);
+  SCM_SET_CELL_OBJECT (ret, SOURCE_WORD, source);
+
+  return ret;
 }
 #undef FUNC_NAME
 
@@ -72,7 +100,7 @@ SCM_DEFINE (scm_syntax_expression, "syntax-expression", 1, 0, 0,
 #define FUNC_NAME s_scm_syntax_expression
 {
   SCM_VALIDATE_SYNTAX (1, obj);
-  return SCM_CELL_OBJECT_1 (obj);
+  return SCM_CELL_OBJECT (obj, EXPR_WORD);
 }
 #undef FUNC_NAME
 
@@ -82,7 +110,7 @@ SCM_DEFINE (scm_syntax_wrap, "syntax-wrap", 1, 0, 0,
 #define FUNC_NAME s_scm_syntax_wrap
 {
   SCM_VALIDATE_SYNTAX (1, obj);
-  return SCM_CELL_OBJECT_2 (obj);
+  return SCM_CELL_OBJECT (obj, WRAP_WORD);
 }
 #undef FUNC_NAME
 
@@ -92,7 +120,19 @@ SCM_DEFINE (scm_syntax_module, "syntax-module", 1, 0, 0,
 #define FUNC_NAME s_scm_syntax_module
 {
   SCM_VALIDATE_SYNTAX (1, obj);
-  return SCM_CELL_OBJECT_3 (obj);
+  return SCM_CELL_OBJECT (obj, MODULE_WORD);
+}
+#undef FUNC_NAME
+
+SCM_DEFINE (scm_syntax_source, "syntax-source", 1, 0, 0,
+	    (SCM obj),
+	    "Return the source location information for syntax object @var{obj}.")
+#define FUNC_NAME s_scm_syntax_source
+{
+  SCM_VALIDATE_SYNTAX (1, obj);
+  if (!(SCM_CELL_WORD (obj, TAG_WORD) & HAS_SOURCE_WORD_FLAG))
+    return SCM_BOOL_F;
+  return SCM_CELL_OBJECT (obj, SOURCE_WORD);
 }
 #undef FUNC_NAME
 

@@ -1,6 +1,6 @@
 ;;; Guile bytecode assembler
 
-;;; Copyright (C) 2001, 2009-2020 Free Software Foundation, Inc.
+;;; Copyright (C) 2001, 2009-2021 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -1272,7 +1272,8 @@ table, its existing label is used directly."
      ((syntax? obj)
       (append (field label 1 (syntax-expression obj))
               (field label 2 (syntax-wrap obj))
-              (field label 3 (syntax-module obj))))
+              (field label 3 (syntax-module obj))
+              (field label 4 (syntax-source obj))))
      ((stringbuf? obj) '())
      ((static-procedure? obj)
       `((static-patch! ,label 1 ,(static-procedure-code obj))))
@@ -1772,6 +1773,7 @@ should be .data or .rodata), and return the resulting linker object.
   (define stringbuf-wide-flag #x400)
 
   (define tc7-syntax #x3d)
+  (define syntax-has-source-flag #x100)
 
   (define tc7-program #x45)
 
@@ -1804,7 +1806,7 @@ should be .data or .rodata), and return the resulting linker object.
        ((simple-vector? x)
         (* (1+ (vector-length x)) word-size))
        ((syntax? x)
-        (* 4 word-size))
+        (* 5 word-size))
        ((jit-data? x)
         (case word-size
           ((4) (+ word-size (* 4 3)))
@@ -1920,16 +1922,19 @@ should be .data or .rodata), and return the resulting linker object.
         (write-placeholder asm buf pos))
 
        ((syntax? obj)
-        (case word-size
-          ((4) (bytevector-u32-set! buf pos tc7-syntax endianness))
-          ((8) (bytevector-u64-set! buf pos tc7-syntax endianness))
-          (else (error "bad word size")))
+        (let ((tag (logior tc7-syntax syntax-has-source-flag)))
+          (case word-size
+            ((4) (bytevector-u32-set! buf pos tag endianness))
+            ((8) (bytevector-u64-set! buf pos tag endianness))
+            (else (error "bad word size"))))
         (write-constant-reference buf (+ pos (* 1 word-size))
                                   (syntax-expression obj))
         (write-constant-reference buf (+ pos (* 2 word-size))
                                   (syntax-wrap obj))
         (write-constant-reference buf (+ pos (* 3 word-size))
-                                  (syntax-module obj)))
+                                  (syntax-module obj))
+        (write-constant-reference buf (+ pos (* 4 word-size))
+                                  (syntax-source obj)))
 
        ((number? obj)
         (write-placeholder asm buf pos))

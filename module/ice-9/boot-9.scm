@@ -379,7 +379,6 @@ If returning early, return the return value of F."
 (define syntax-violation #f)
 (define datum->syntax #f)
 (define syntax->datum #f)
-(define syntax-source #f)
 (define identifier? #f)
 (define generate-temporaries #f)
 (define bound-identifier=? #f)

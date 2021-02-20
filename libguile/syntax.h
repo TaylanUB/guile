@@ -1,7 +1,7 @@
 #ifndef SCM_SYNTAX_H
 #define SCM_SYNTAX_H
 
-/* Copyright 2017-2018
+/* Copyright 2017-2018,2021
     Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -23,10 +23,11 @@
 #include "libguile/scm.h"
 
 SCM_INTERNAL SCM scm_syntax_p (SCM obj);
-SCM_INTERNAL SCM scm_make_syntax (SCM exp, SCM wrap, SCM module);
+SCM_INTERNAL SCM scm_make_syntax (SCM exp, SCM wrap, SCM module, SCM source);
 SCM_INTERNAL SCM scm_syntax_expression (SCM obj);
 SCM_INTERNAL SCM scm_syntax_wrap (SCM obj);
 SCM_INTERNAL SCM scm_syntax_module (SCM obj);
+SCM_INTERNAL SCM scm_syntax_source (SCM obj);
 
 SCM_INTERNAL void scm_i_syntax_print (SCM obj, SCM port,
                                       scm_print_state *pstate);

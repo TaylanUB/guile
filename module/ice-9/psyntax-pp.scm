@@ -236,8 +236,10 @@
              (make-letrec src in-order? ids vars val-exps body-exp)))))
      (source-annotation
        (lambda (x)
-         (let ((props (source-properties (if (syntax? x) (syntax-expression x) x))))
-           (and (pair? props) props))))
+         (if (syntax? x)
+             (syntax-source x)
+             (let ((props (source-properties x)))
+               (and (pair? props) props)))))
      (extend-env
        (lambda (labels bindings r)
          (if (null? labels)
@@ -2416,7 +2418,6 @@
       (lambda (id datum)
         (make-syntax datum (syntax-wrap id) (syntax-module id))))
     (set! syntax->datum (lambda (x) (strip x '(()))))
-    (set! syntax-source (lambda (x) (source-annotation x)))
     (set! generate-temporaries
       (lambda (ls)
         (let ((x ls))

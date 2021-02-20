@@ -1,6 +1,6 @@
 ;;;; -*-scheme-*-
 ;;;;
-;;;; Copyright (C) 2001, 2003, 2006, 2009, 2010-2020
+;;;; Copyright (C) 2001, 2003, 2006, 2009, 2010-2021
 ;;;;   Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
@@ -454,11 +454,10 @@
 
     (define source-annotation
       (lambda (x)
-        (let ((props (source-properties
-                      (if (syntax? x)
-                          (syntax-expression x)
-                          x))))
-          (and (pair? props) props))))
+        (if (syntax? x)
+            (syntax-source x)
+            (let ((props (source-properties x)))
+              (and (pair? props) props)))))
 
     (define-syntax-rule (arg-check pred? e who)
       (let ((x e))
@@ -2768,9 +2767,6 @@
           ;; or entirely of unwrapped, nonsymbolic data
           (lambda (x)
             (strip x empty-wrap)))
-
-    (set! syntax-source
-          (lambda (x) (source-annotation x)))
 
     (set! generate-temporaries
           (lambda (ls)
