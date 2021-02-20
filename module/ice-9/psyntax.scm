@@ -1041,19 +1041,19 @@
 
     (define wrap
       (lambda (x w defmod)
-        (cond
-         ((and (null? (wrap-marks w)) (null? (wrap-subst w))) x)
-         ((syntax? x)
-          (make-syntax
-           (syntax-expression x)
-           (join-wraps w (syntax-wrap x))
-           (syntax-module x)))
-         ((null? x) x)
-         (else (make-syntax x w defmod)))))
+        (source-wrap x w #f defmod)))
 
     (define source-wrap
       (lambda (x w s defmod)
-        (wrap (decorate-source x s) w defmod)))
+        (cond
+         ((and (null? (wrap-marks w)) (null? (wrap-subst w)) (not s)) x)
+         ((syntax? x)
+          (make-syntax (syntax-expression x)
+                       (join-wraps w (syntax-wrap x))
+                       (syntax-module x)
+                       (syntax-source x)))
+         ((null? x) x)
+         (else (make-syntax x w defmod (or s (source-properties x)))))))
 
     ;; expanding
 
