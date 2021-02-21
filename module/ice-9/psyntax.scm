@@ -2764,10 +2764,17 @@
 
     (set! datum->syntax
           (lambda* (id datum #:optional srcloc)
-            (make-syntax datum (syntax-wrap id) (syntax-module id)
-                         (if srcloc
-                             (syntax-source srcloc)
-                             (source-properties datum)))))
+            (make-syntax datum
+                         (if id
+                             (syntax-wrap id)
+                             top-wrap)
+                         (if id
+                             (syntax-module id)
+                             (cons 'hygiene (module-name (current-module))))
+                         (cond
+                          ((not srcloc) (source-properties datum))
+                          ((and (list? srcloc) (and-map pair? srcloc)) srcloc)
+                          (else (syntax-source srcloc))))))
 
     (set! syntax->datum
           ;; accepts any object, since syntax objects may consist partially
