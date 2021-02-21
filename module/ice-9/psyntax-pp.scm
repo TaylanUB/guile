@@ -2421,16 +2421,16 @@
           (cons 'hygiene (module-name (current-module))))))
     (set! identifier? (lambda (x) (nonsymbol-id? x)))
     (set! datum->syntax
-      (lambda* (id datum #:optional (srcloc #f))
+      (lambda* (id datum #:key (source #f #:source))
         (make-syntax
           datum
           (if id (syntax-wrap id) '((top)))
           (if id
             (syntax-module id)
             (cons 'hygiene (module-name (current-module))))
-          (cond ((not srcloc) (source-properties datum))
-                ((and (list? srcloc) (and-map pair? srcloc)) srcloc)
-                (else (syntax-source srcloc))))))
+          (cond ((not source) (source-properties datum))
+                ((and (list? source) (and-map pair? source)) source)
+                (else (syntax-source source))))))
     (set! syntax->datum (lambda (x) (strip x '(()))))
     (set! generate-temporaries
       (lambda (ls)

@@ -43,7 +43,8 @@
   #:use-module (srfi srfi-11)
   #:use-module (ice-9 textual-ports)
   #:use-module (rnrs bytevectors)
-  #:replace (read))
+  #:replace (read)
+  #:export (read-syntax))
 
 (define read-hash-procedures
   (fluid->parameter %read-hash-procedures))
@@ -110,7 +111,7 @@
                                        read-options-inherit-all)
                                    field value)))
 
-(define* (read #:optional (port (current-input-port)))
+(define (%read port annotate strip-annotation)
   ;; init read options
   (define opts (compute-reader-options port))
   (define (enabled? field)
@@ -118,7 +119,6 @@
   (define (set-reader-option! field value)
     (set! opts (set-option opts field value))
     (set-port-read-option! port field value))
-  (define (record-positions?) (enabled? bitfield:record-positions?))
   (define (case-insensitive?) (enabled? bitfield:case-insensitive?))
   (define (keyword-style) (logand read-option-mask
                                   (ash opts (- bitfield:keyword-style))))
@@ -134,21 +134,6 @@
   (define (get-pos) (cons (port-line port) (port-column port)))
   ;; We are only ever interested in whether an object is a char or not.
   (define (eof-object? x) (not (char? x)))
-  (define (annotate line column datum)
-    ;; FIXME: Return a syntax object instead, so we can avoid the
-    ;; srcprops side table.
-    (when (and (record-positions?)
-               (supports-source-properties? datum)
-               ;; Line or column can be invalid via set-port-column! or
-               ;; ungetting chars beyond start of line.
-               (<= 0 line)
-               (<= 1 column))
-      ;; We always capture the column after one char of lookahead;
-      ;; subtract off that lookahead value.
-      (set-source-properties! datum `((filename . ,filename)
-                                      (line . ,line)
-                                      (column . ,(1- column)))))
-    datum)
 
   (define (input-error msg args)
     (scm-error 'read-error #f
@@ -248,7 +233,7 @@
            ;; Note that it is possible for scm_read_expression to
            ;; return `.', but not as part of a dotted pair: as in
            ;; #{.}#.  Indeed an example is here!
-           (if (and (eqv? ch #\.) (eq? expr '#{.}#))
+           (if (and (eqv? ch #\.) (eq? (strip-annotation expr) '#{.}#))
                (let* ((tail (read-expr (next-non-whitespace)))
                       (close (next-non-whitespace)))
                  (unless (eqv? close rdelim)
@@ -481,7 +466,7 @@
     (let ((ch (next-non-whitespace)))
       (when (eof-object? ch)
         (error "end of input while reading keyword"))
-      (let ((expr (read-expr ch)))
+      (let ((expr (strip-annotation (read-expr ch))))
         (unless (symbol? expr)
           (error "keyword prefix #: not followed by a symbol: ~a" expr))
         (symbol->keyword expr))))
@@ -716,7 +701,7 @@
            (let ((ch (next-non-whitespace)))
              (when (eof-object? ch)
                (error "unexpected end of input while reading :keyword"))
-             (symbol->keyword (read-expr ch)))
+             (symbol->keyword (strip-annotation (read-expr ch))))
            (read-mixed-case-symbol ch)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\+ #\- #\.)
        (read-number ch))
@@ -749,12 +734,11 @@
   (define (read-expr ch)
     (let ((line (port-line port))
           (column (port-column port)))
-      (annotate
-       line
-       column
-       (if (zero? neoteric)
-           (read-expr* ch)
-           (read-neoteric ch)))))
+      (annotate line
+                column
+                (if (zero? neoteric)
+                    (read-expr* ch)
+                    (read-neoteric ch)))))
 
   (define (read-directive)
     (let ((ch (next)))
@@ -871,3 +855,34 @@
     (if (eof-object? ch)
         ch
         (read-expr ch))))
+
+(define* (read #:optional (port (current-input-port)))
+  (define filename (port-filename port))
+  (define annotate
+    (if (memq 'positions (read-options))
+        (lambda (line column datum)
+          (when (and (supports-source-properties? datum)
+                     ;; Line or column can be invalid via
+                     ;; set-port-column! or ungetting chars beyond start
+                     ;; of line.
+                     (<= 0 line)
+                     (<= 1 column))
+            ;; We always capture the column after one char of lookahead;
+            ;; subtract off that lookahead value.
+            (set-source-properties! datum
+                                    `((filename . ,filename)
+                                      (line . ,line)
+                                      (column . ,(1- column)))))
+          datum)
+        identity))
+  (%read port annotate identity))
+
+(define* (read-syntax #:optional (port (current-input-port)))
+  (define filename (port-filename port))
+  (define (annotate line column datum)
+    (datum->syntax #f ; No lexical context.
+                   datum
+                   #:source `((filename . ,filename)
+                              (line . ,line)
+                              (column . ,(1- column)))))
+  (%read port annotate syntax->datum))

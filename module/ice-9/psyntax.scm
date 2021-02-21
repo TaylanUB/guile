@@ -2763,7 +2763,7 @@
             (nonsymbol-id? x)))
 
     (set! datum->syntax
-          (lambda* (id datum #:optional srcloc)
+          (lambda* (id datum #:key source)
             (make-syntax datum
                          (if id
                              (syntax-wrap id)
@@ -2772,9 +2772,9 @@
                              (syntax-module id)
                              (cons 'hygiene (module-name (current-module))))
                          (cond
-                          ((not srcloc) (source-properties datum))
-                          ((and (list? srcloc) (and-map pair? srcloc)) srcloc)
-                          (else (syntax-source srcloc))))))
+                          ((not source) (source-properties datum))
+                          ((and (list? source) (and-map pair? source)) source)
+                          (else (syntax-source source))))))
 
     (set! syntax->datum
           ;; accepts any object, since syntax objects may consist partially

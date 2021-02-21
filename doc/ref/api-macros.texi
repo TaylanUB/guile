@@ -638,18 +638,18 @@ won't have access to the binding of @code{it}.
 
 But they can, if we explicitly introduce a binding via @code{datum->syntax}.
 
-@deffn {Scheme Procedure} datum->syntax template-id datum [srcloc]
+@deffn {Scheme Procedure} datum->syntax template-id datum [#:source=#f]
 Create a syntax object that wraps @var{datum}, within the lexical
 context corresponding to the identifier @var{template-id}.  If
 @var{template-id} is false, the datum will have no lexical context
 information.
 
 Syntax objects have an associated source location.  @xref{Source
-Properties}.  If a syntax object is passed as @var{srcloc}, the
-resulting syntax object will have the source properties of @var{srcloc}.
-Otherwise if @var{srcloc} is a source properties alist, those will be
+Properties}.  If a syntax object is passed as @var{source}, the
+resulting syntax object will have the source properties of @var{source}.
+Otherwise if @var{source} is a source properties alist, those will be
 the source properties of the resulting syntax object.  Otherwise if
-@var{srcloc} is false, the source properties are computed as
+@var{source} is false, the source properties are computed as
 @code{(source-properties @var{datum})}.
 @end deffn
 
