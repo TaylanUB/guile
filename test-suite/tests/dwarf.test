@@ -1,6 +1,6 @@
 ;;;; dwarf.test                               -*- scheme -*-
 ;;;;
-;;;; Copyright 2013 Free Software Foundation, Inc.
+;;;; Copyright 2013, 2021 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -26,7 +26,7 @@
 
 (define prog
   (string-concatenate
-   ;; Every open parenthesis is a possible source location.
+   ;; The start of every datum is a possible source location.
    '("(define (qux f)\n" 
      ;^ 0:0
      "  (+ 32 (f)))\n"
@@ -37,6 +37,7 @@
      "  (lambda (a)\n"
      ;  ^ 4:2
      "    13))\n"
+     ;    ^ 5:4
      "'success\n")
    ))
 
@@ -81,10 +82,15 @@
      (error "unexpected sources" sources)))
 
   (match (find-program-sources (program-code bar))
-    ((source)
-     (pass-if-equal "foo.scm" (source-file source))
-     (pass-if-equal 4 (source-line source))
-     (pass-if-equal 5 (source-line-for-user source))
-     (pass-if-equal 2 (source-column source)))
+    ((s1 s2)
+     (pass-if-equal "foo.scm" (source-file s1))
+     (pass-if-equal 4 (source-line s1))
+     (pass-if-equal 5 (source-line-for-user s1))
+     (pass-if-equal 2 (source-column s1))
+
+     (pass-if-equal "foo.scm" (source-file s2))
+     (pass-if-equal 5 (source-line s2))
+     (pass-if-equal 6 (source-line-for-user s2))
+     (pass-if-equal 4 (source-column s2)))
     (sources
      (error "unexpected sources" sources))))

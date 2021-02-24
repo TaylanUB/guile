@@ -21,6 +21,7 @@
 (define-module (language scheme spec)
   #:use-module (system base compile)
   #:use-module (system base language)
+  #:use-module (ice-9 read)
   #:use-module (language scheme compile-tree-il)
   #:use-module (language scheme decompile-tree-il)
   #:export (scheme))
@@ -37,7 +38,7 @@
                   ((or (and=> (and=> (module-variable env 'current-reader)
                                      variable-ref)
                               fluid-ref)
-                       read)
+                       read-syntax)
                    port))
 
   #:compilers   `((tree-il . ,compile-tree-il))
