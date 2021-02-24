@@ -98,33 +98,6 @@
 ;;; compiled.  In this way, psyntax bootstraps off of an expanded
 ;;; version of itself.
 
-;;; This implementation of the expander sometimes uses syntactic
-;;; abstractions when procedural abstractions would suffice.  For
-;;; example, we define top-wrap and top-marked? as
-;;;
-;;;   (define-syntax top-wrap (identifier-syntax '((top))))
-;;;   (define-syntax top-marked?
-;;;     (syntax-rules ()
-;;;       ((_ w) (memq 'top (wrap-marks w)))))
-;;;
-;;; rather than
-;;;
-;;;   (define top-wrap '((top)))
-;;;   (define top-marked?
-;;;     (lambda (w) (memq 'top (wrap-marks w))))
-;;;
-;;; On the other hand, we don't do this consistently; we define
-;;; make-wrap, wrap-marks, and wrap-subst simply as
-;;;
-;;;   (define make-wrap cons)
-;;;   (define wrap-marks car)
-;;;   (define wrap-subst cdr)
-;;;
-;;; In Chez Scheme, the syntactic and procedural forms of these
-;;; abstractions are equivalent, since the optimizer consistently
-;;; integrates constants and small procedures.  This will be true of
-;;; Guile as well, once we implement a proper inliner.
-
 
 ;;; Implementation notes:
 
@@ -626,11 +599,7 @@
     (define-structure (ribcage symnames marks labels))
 
     (define-syntax empty-wrap (identifier-syntax '(())))
-
     (define-syntax top-wrap (identifier-syntax '((top))))
-
-    (define-syntax-rule (top-marked? w)
-      (memq 'top (wrap-marks w)))
 
     ;; Marks must be comparable with "eq?" and distinct from pairs and
     ;; the symbol top.  We do not use integers so that marks will remain
@@ -1043,15 +1012,16 @@
       (lambda (x w defmod)
         (source-wrap x w #f defmod)))
 
+    (define (wrap-syntax x w)
+      (make-syntax (syntax-expression x)
+                   w
+                   (syntax-module x)
+                   (syntax-source x)))
     (define source-wrap
       (lambda (x w s defmod)
         (cond
          ((and (null? (wrap-marks w)) (null? (wrap-subst w)) (not s)) x)
-         ((syntax? x)
-          (make-syntax (syntax-expression x)
-                       (join-wraps w (syntax-wrap x))
-                       (syntax-module x)
-                       (syntax-source x)))
+         ((syntax? x) (wrap-syntax x (join-wraps w (syntax-wrap x))))
          ((null? x) x)
          (else (make-syntax x w defmod (or s (source-properties x)))))))
 
@@ -1265,7 +1235,7 @@
         ;; we twingle the definition of eval-when to the bindings of
         ;; eval, load, expand, and compile, which is totally unintended.
         ;; So do a symbolic match instead.
-        (let ((result (strip when-list empty-wrap)))
+        (let ((result (strip when-list)))
           (let lp ((l result))
             (if (null? l)
                 result
@@ -1451,7 +1421,7 @@
                               value
                               (map (lambda (e) (expand e r w mod))
                                    #'(e ...))))))
-          ((constant) (build-data s (strip (source-wrap e w s mod) empty-wrap)))
+          ((constant) (build-data s (strip e)))
           ((global) (build-global-reference s value mod))
           ((call) (expand-call (expand (car e) r w mod) e r w s mod))
           ((begin-form)
@@ -1535,20 +1505,19 @@
                      (let ((ms (wrap-marks w)) (ss (wrap-subst w)))
                        (if (and (pair? ms) (eq? (car ms) the-anti-mark))
                            ;; output is from original text
-                           (make-syntax
-                            (syntax-expression x)
-                            (make-wrap (cdr ms) (if rib (cons rib (cdr ss)) (cdr ss)))
-                            (syntax-module x)
-                            (syntax-source x))
+                           (wrap-syntax
+                            x
+                            (make-wrap (cdr ms)
+                                       (if rib
+                                           (cons rib (cdr ss))
+                                           (cdr ss))))
                            ;; output introduced by macro
-                           (make-syntax
-                            (decorate-source (syntax-expression x) s)
+                           (wrap-syntax
+                            x
                             (make-wrap (cons m ms)
                                        (if rib
                                            (cons rib (cons 'shift ss))
-                                           (cons 'shift ss)))
-                            (syntax-module x)
-                            (syntax-source x))))))
+                                           (cons 'shift ss))))))))
                 
                   ((vector? x)
                    (let* ((n (vector-length x))
@@ -2000,36 +1969,22 @@
 
     ;; data
 
-    ;; strips syntax objects down to top-wrap
-    ;;
-    ;; since only the head of a list is annotated by the reader, not each pair
-    ;; in the spine, we also check for pairs whose cars are annotated in case
-    ;; we've been passed the cdr of an annotated list
+    ;; strips syntax objects, recursively.
 
-    (define strip
-      (lambda (x w)
-        (if (top-marked? w)
-            x
-            (let f ((x x))
-              (cond
-               ((syntax? x)
-                (strip (syntax-expression x) (syntax-wrap x)))
-               ((pair? x)
-                (let ((a (f (car x))) (d (f (cdr x))))
-                  (if (and (eq? a (car x)) (eq? d (cdr x)))
-                      x
-                      (cons a d))))
-               ((vector? x)
-                (let ((old (vector->list x)))
-                  (let ((new (map f old)))
-                    ;; inlined and-map with two args
-                    (let lp ((l1 old) (l2 new))
-                      (if (null? l1)
-                          x
-                          (if (eq? (car l1) (car l2))
-                              (lp (cdr l1) (cdr l2))
-                              (list->vector new)))))))
-               (else x))))))
+    (define (strip x)
+      (define (annotate proc datum)
+        (let ((src (proc x)))
+          (when (and (pair? src) (supports-source-properties? datum))
+            (set-source-properties! datum src))
+          datum))
+      (cond
+       ((syntax? x)
+        (annotate syntax-source (strip (syntax-expression x))))
+       ((pair? x)
+        (annotate source-properties (cons (strip (car x)) (strip (cdr x)))))
+       ((vector? x)
+        (annotate source-properties (list->vector (strip (vector->list x)))))
+       (else x)))
 
     ;; lexical variables
 
@@ -2102,7 +2057,7 @@
     (global-extend 'core 'quote
                    (lambda (e r w s mod)
                      (syntax-case e ()
-                       ((_ e) (build-data s (strip #'e w)))
+                       ((_ e) (build-data s (strip #'e)))
                        (_ (syntax-violation 'quote "bad syntax"
                                             (source-wrap e w s mod))))))
 
@@ -2641,7 +2596,7 @@
                                     (call-with-values
                                         (lambda () (cvt (syntax (x ...)) n ids))
                                       (lambda (p ids) (values (vector 'vector p) ids))))
-                                   (x (values (vector 'atom (strip p empty-wrap)) ids))))))
+                                   (x (values (vector 'atom (strip p)) ids))))))
                          (cvt pattern 0 '())))
 
                      (define build-dispatch-call
@@ -2786,7 +2741,7 @@
           ;; accepts any object, since syntax objects may consist partially
           ;; or entirely of unwrapped, nonsymbolic data
           (lambda (x)
-            (strip x empty-wrap)))
+            (strip x)))
 
     (set! generate-temporaries
           (lambda (ls)
@@ -2816,8 +2771,8 @@
             (throw 'syntax-error who message
                    (or (source-annotation subform)
                        (source-annotation form))
-                   (strip form empty-wrap)
-                   (and subform (strip subform empty-wrap)))))
+                   (strip form)
+                   (strip subform))))
 
     (let ()
       (define (%syntax-module id)
@@ -2857,10 +2812,7 @@
                       (values 'global (cons value (cdr mod)))))
                  ((ellipsis)
                   (values 'ellipsis
-                          (make-syntax (syntax-expression value)
-                                       (anti-mark (syntax-wrap value))
-                                       (syntax-module value)
-                                       (syntax-source value))))
+                          (wrap-syntax value (anti-mark (syntax-wrap value)))))
                  (else (values 'other #f))))))))
 
       (define (syntax-locally-bound-identifiers id)
@@ -3010,7 +2962,7 @@
                             (match-empty (vector-ref p 1) r)
                             (combine xr* r))))))
               ((free-id) (and (id? e) (free-id=? (wrap e w mod) (vector-ref p 1)) r))
-              ((atom) (and (equal? (vector-ref p 1) (strip e w)) r))
+              ((atom) (and (equal? (vector-ref p 1) (strip e)) r))
               ((vector)
                (and (vector? e)
                     (match (vector->list e) (vector-ref p 1) w r mod))))))))
