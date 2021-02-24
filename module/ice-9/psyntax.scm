@@ -2106,6 +2106,12 @@
                        (_ (syntax-violation 'quote "bad syntax"
                                             (source-wrap e w s mod))))))
 
+    (global-extend 'core 'quote-syntax
+                   (lambda (e r w s mod)
+                     (syntax-case (source-wrap e w s mod) ()
+                       ((_ e) (build-data s #'e))
+                       (e (syntax-violation 'quote "bad syntax" #'e)))))
+
     (global-extend
      'core 'syntax
      (let ()

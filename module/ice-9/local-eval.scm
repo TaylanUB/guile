@@ -1,6 +1,6 @@
 ;;; -*- mode: scheme; coding: utf-8; -*-
 ;;;
-;;; Copyright (C) 2012, 2013 Free Software Foundation, Inc.
+;;; Copyright (C) 2012, 2013, 2021 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -39,11 +39,6 @@
            (syntax-module (lexenv-scope e))
            (+ (length (lexenv-boxes e)) (length (lexenv-patterns e))))))
 
-(define-syntax syntax-object-of
-  (lambda (form)
-    (syntax-case form ()
-      ((_ x) #`(quote #,(datum->syntax #'x #'x))))))
-
 (define-syntax-rule (make-box v)
   (case-lambda
    (() v)
@@ -55,7 +50,7 @@
 
 (define-syntax-rule (identifier-syntax-from-box box)
   (make-transformer-from-box
-   (syntax-object-of box)
+   (quote-syntax box)
    (identifier-syntax (id          (box))
                       ((set! id x) (box x)))))
 
