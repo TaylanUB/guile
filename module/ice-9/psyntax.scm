@@ -760,7 +760,7 @@
          ((syntax? id)
           (let ((id (syntax-expression id))
                 (w1 (syntax-wrap id))
-                (mod (syntax-module id)))
+                (mod (or (syntax-module id) mod)))
             (let ((marks (join-marks (wrap-marks w) (wrap-marks w1))))
               (call-with-values (lambda () (search id (wrap-subst w) marks mod))
                 (lambda (new-id marks)
@@ -902,15 +902,15 @@
             (resolve-identifier (syntax-expression n)
                                 (syntax-wrap n)
                                 r
-                                (syntax-module n)
+                                (or (syntax-module n) mod)
                                 resolve-syntax-parameters?))))
          ((symbol? n)
-          (resolve-global n (if (syntax? id)
-                                (syntax-module id)
+          (resolve-global n (or (and (syntax? id)
+                                     (syntax-module id))
                                 mod)))
          ((string? n)
-          (resolve-lexical n (if (syntax? id)
-                                 (syntax-module id)
+          (resolve-lexical n (or (and (syntax? id)
+                                      (syntax-module id))
                                  mod)))
          (else
           (error "unexpected id-var-name" id w n)))))
@@ -1012,18 +1012,21 @@
       (lambda (x w defmod)
         (source-wrap x w #f defmod)))
 
-    (define (wrap-syntax x w)
+    (define (wrap-syntax x w defmod)
       (make-syntax (syntax-expression x)
                    w
-                   (syntax-module x)
+                   (or (syntax-module x) defmod)
                    (syntax-source x)))
-    (define source-wrap
-      (lambda (x w s defmod)
-        (cond
-         ((and (null? (wrap-marks w)) (null? (wrap-subst w)) (not s)) x)
-         ((syntax? x) (wrap-syntax x (join-wraps w (syntax-wrap x))))
-         ((null? x) x)
-         (else (make-syntax x w defmod (or s (source-properties x)))))))
+    (define (source-wrap x w s defmod)
+      (cond
+       ((and (null? (wrap-marks w))
+             (null? (wrap-subst w))
+             (not defmod)
+             (not s))
+        x)
+       ((syntax? x) (wrap-syntax x (join-wraps w (syntax-wrap x)) defmod))
+       ((null? x) x)
+       (else (make-syntax x w defmod (or s (source-properties x))))))
 
     ;; expanding
 
@@ -1064,7 +1067,7 @@
               ;; the special case of names that are pairs.  See the
               ;; comments in id-var-name for more.
               (extend-ribcage! ribcage id
-                               (cons (syntax-module id)
+                               (cons (or (syntax-module id) mod)
                                      (wrap var top-wrap mod)))))
           (define (macro-introduced-identifier? id)
             (not (equal? (wrap-marks (syntax-wrap id)) '(top))))
@@ -1410,8 +1413,8 @@
                                     (if (syntax? value)
                                         (syntax-expression value)
                                         value)
-                                    (if (syntax? value)
-                                        (syntax-module value)
+                                    (or (and (syntax? value)
+                                             (syntax-module value))
                                         mod))
             e r w s mod))
           ((primitive-call)
@@ -1510,14 +1513,16 @@
                             (make-wrap (cdr ms)
                                        (if rib
                                            (cons rib (cdr ss))
-                                           (cdr ss))))
+                                           (cdr ss)))
+                            mod)
                            ;; output introduced by macro
                            (wrap-syntax
                             x
                             (make-wrap (cons m ms)
                                        (if rib
                                            (cons rib (cons 'shift ss))
-                                           (cons 'shift ss))))))))
+                                           (cons 'shift ss)))
+                            mod)))))
                 
                   ((vector? x)
                    (let* ((n (vector-length x))
@@ -1752,7 +1757,7 @@
                  (lambda () (resolve-identifier
                              (make-syntax '#{ $sc-ellipsis }#
                                           (syntax-wrap e)
-                                          (syntax-module e)
+                                          (or (syntax-module e) mod)
                                           #f)
                              empty-wrap r mod #f))
                (lambda (type value mod)
@@ -2477,8 +2482,8 @@
                      (syntax-case e (@@ primitive)
                        ((_ primitive id)
                         (and (id? #'id)
-                             (equal? (cdr (if (syntax? #'id)
-                                              (syntax-module #'id)
+                             (equal? (cdr (or (and (syntax? #'id)
+                                                   (syntax-module #'id))
                                               mod))
                                      '(guile)))
                         ;; Strip the wrap from the identifier and return top-wrap
@@ -2728,10 +2733,10 @@
             (make-syntax datum
                          (if id
                              (syntax-wrap id)
-                             top-wrap)
+                             empty-wrap)
                          (if id
                              (syntax-module id)
-                             (cons 'hygiene (module-name (current-module))))
+                             #f)
                          (cond
                           ((not source) (source-properties datum))
                           ((and (list? source) (and-map pair? source)) source)
@@ -2778,7 +2783,8 @@
       (define (%syntax-module id)
         (arg-check nonsymbol-id? id 'syntax-module)
         (let ((mod (syntax-module id)))
-          (and (not (equal? mod '(primitive)))
+          (and mod
+               (not (equal? mod '(primitive)))
                (cdr mod))))
 
       (define* (syntax-local-binding id #:key (resolve-syntax-parameters? #t))
@@ -2797,7 +2803,7 @@
                                 (syntax-expression id)
                                 (strip-anti-mark (syntax-wrap id))
                                 r
-                                (syntax-module id)
+                                (or (syntax-module id) mod)
                                 resolve-syntax-parameters?))
              (lambda (type value mod)
                (case type
@@ -2812,7 +2818,8 @@
                       (values 'global (cons value (cdr mod)))))
                  ((ellipsis)
                   (values 'ellipsis
-                          (wrap-syntax value (anti-mark (syntax-wrap value)))))
+                          (wrap-syntax value (anti-mark (syntax-wrap value))
+                                       mod)))
                  (else (values 'other #f))))))))
 
       (define (syntax-locally-bound-identifiers id)
@@ -2866,7 +2873,7 @@
             (match-each (syntax-expression e)
                         p
                         (join-wraps w (syntax-wrap e))
-                        (syntax-module e)))
+                        (or (syntax-module e) mod)))
            (else #f))))
 
       (define match-each+
@@ -2979,7 +2986,7 @@
              p
              (join-wraps w (syntax-wrap e))
              r
-             (syntax-module e)))
+             (or (syntax-module e) mod)))
            (else (match* e p w r mod)))))
 
       (set! $sc-dispatch
