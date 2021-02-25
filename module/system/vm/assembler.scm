@@ -545,8 +545,17 @@ N-byte unit."
   ;;
   (constants asm-constants set-asm-constants!)
 
-  ;; A list of instructions needed to initialize the constants.  Will
-  ;; run in a thunk with 2 local variables.
+  ;; A vhash of label to init descriptors, where an init descriptor is
+  ;; #(EMIT-INIT STATIC? PATCHES).  EMIT-INIT, if present, is a
+  ;; procedure taking the asm and the label as arguments.  Unless the
+  ;; object is statically allocatable, in which case it can be loaded
+  ;; via make-non-immediate rather than static-ref, EMIT-INIT should
+  ;; also initialize the corresponding cell for any later static-ref.
+  ;; If STATIC? is true, the value can be loaded with
+  ;; emit-make-non-immediate, otherwise it's emit-static-ref.  A bit
+  ;; confusing but that's how it is.  PATCHES is a list of (DEST-LABEL
+  ;; . FIELD) pairs, indicating locations to which to patch the value.
+  ;; Like asm-constants, order is important.
   ;;
   (inits asm-inits set-asm-inits!)
 
@@ -582,7 +591,7 @@ target."
   (make-asm (make-u32vector 1000) 0 0
             (make-hash-table) '()
             word-size endianness
-            vlist-null '()
+            vlist-null vlist-null
             (make-string-table) 1
             '() '() '()))
 
@@ -1249,52 +1258,77 @@ used to reference it.  If the object is already present in the constant
 table, its existing label is used directly."
   (define (recur obj)
     (intern-constant asm obj))
-  (define (field dst n obj)
-    (let ((src (recur obj)))
-      (if src
-          (if (statically-allocatable? obj)
-              `((static-patch! ,dst ,n ,src))
-              `((static-ref 1 ,src)
-                (static-set! 1 ,dst ,n)))
-          '())))
-  (define (intern obj label)
+  (define (add-desc! label desc)
+    (set-asm-inits! asm (vhash-consq label desc (asm-inits asm))))
+  (define (init-descriptor obj)
+    (let ((label (recur obj)))
+      (cond
+       ((not label) #f)
+       ((vhash-assq label (asm-inits asm)) => cdr)
+       (else
+        (let ((desc (vector #f #t '())))
+          (add-desc! label desc)
+          desc)))))
+  (define (add-patch! dst field obj)
+    (match (init-descriptor obj)
+      (#f #f)
+      ((and desc #(emit-init emit-load patches))
+       (vector-set! desc 2 (acons dst field patches)))))
+  (define (add-init! dst init)
+    (add-desc! dst (vector init #f '())))
+  (define (intern! obj label)
+    (define (patch! field obj) (add-patch! label field obj))
+    (define (init! emit-init) (add-init! label emit-init))
     (cond
      ((pair? obj)
-      (append (field label 0 (car obj))
-              (field label 1 (cdr obj))))
+      (patch! 0 (car obj))
+      (patch! 1 (cdr obj)))
      ((simple-vector? obj)
-      (let lp ((i 0) (inits '()))
-        (if (< i (vector-length obj))
-            (lp (1+ i)
-                (append-reverse (field label (1+ i) (vector-ref obj i))
-                                inits))
-            (reverse inits))))
+      (let lp ((i 0))
+        (when (< i (vector-length obj))
+          (patch! (1+ i) (vector-ref obj i))
+          (lp (1+ i)))))
      ((syntax? obj)
-      (append (field label 1 (syntax-expression obj))
-              (field label 2 (syntax-wrap obj))
-              (field label 3 (syntax-module obj))
-              (field label 4 (syntax-source obj))))
-     ((stringbuf? obj) '())
+      (patch! 1 (syntax-expression obj))
+      (patch! 2 (syntax-wrap obj))
+      (patch! 3 (syntax-module obj))
+      (patch! 4 (syntax-source obj)))
+     ((stringbuf? obj))
      ((static-procedure? obj)
-      `((static-patch! ,label 1 ,(static-procedure-code obj))))
-     ((cache-cell? obj) '())
+      ;; Special case, as we can't load the procedure's code using
+      ;; make-non-immediate.
+      (let* ((code (static-procedure-code obj))
+             (init (lambda (asm label)
+                     (emit-static-patch! asm label 1 code)
+                     #f)))
+        (add-desc! label (vector init #t '()))))
+     ((cache-cell? obj))
      ((symbol? obj)
       (unless (symbol-interned? obj)
         (error "uninterned symbol cannot be saved to object file" obj))
-      `((make-non-immediate 1 ,(recur (symbol->string obj)))
-        (string->symbol 1 1)
-        (static-set! 1 ,label 0)))
+      (let ((str-label (recur (symbol->string obj))))
+        (init! (lambda (asm label)
+                 (emit-make-non-immediate asm 1 str-label)
+                 (emit-string->symbol asm 1 1)
+                 (emit-static-set! asm 1 label 0)
+                 1))))
      ((string? obj)
-      `((static-patch! ,label 1 ,(recur (make-stringbuf obj)))))
+      (patch! 1 (make-stringbuf obj)))
      ((keyword? obj)
-      `((static-ref 1 ,(recur (keyword->symbol obj)))
-        (symbol->keyword 1 1)
-        (static-set! 1 ,label 0)))
+      (let ((sym-label (recur (keyword->symbol obj))))
+        (init! (lambda (asm label)
+                 (emit-static-ref asm 1 sym-label)
+                 (emit-symbol->keyword asm 1 1)
+                 (emit-static-set! asm 1 label 0)
+                 1))))
      ((number? obj)
-      `((make-non-immediate 1 ,(recur (number->string obj)))
-        (string->number 1 1)
-        (static-set! 1 ,label 0)))
-     ((uniform-vector-backing-store? obj) '())
+      (let ((str-label (recur (number->string obj))))
+        (init! (lambda (asm label)
+                 (emit-make-non-immediate asm 1 str-label)
+                 (emit-string->number asm 1 1)
+                 (emit-static-set! asm 1 label 0)
+                 1))))
+     ((uniform-vector-backing-store? obj))
      ((simple-uniform-vector? obj)
       (let ((width (case (array-type obj)
                      ((vu8 u8 s8) 1)
@@ -1306,23 +1340,22 @@ table, its existing label is used directly."
                      ((u64 s64 f64 c64) 8)
                      (else
                       (error "unhandled array type" obj)))))
-        `((static-patch! ,label 2
-                         ,(recur (make-uniform-vector-backing-store
-                                  (uniform-array->bytevector obj)
-                                  width))))))
+        (patch! 2
+                (make-uniform-vector-backing-store
+                 (uniform-array->bytevector obj)
+                 width))))
      ((array? obj)
-      `((static-patch! ,label 1 ,(recur (shared-array-root obj)))))
+      (patch! 1 (shared-array-root obj)))
      (else
       (error "don't know how to intern" obj))))
   (cond
    ((immediate-bits asm obj) #f)
    ((vhash-assoc obj (asm-constants asm)) => cdr)
    (else
-    ;; Note that calling intern may mutate asm-constants and asm-inits.
-    (let* ((label (gensym "constant"))
-           (inits (intern obj label)))
+    (let ((label (gensym "constant")))
+      ;; Note that calling intern may mutate asm-constants and asm-inits.
+      (intern! obj label)
       (set-asm-constants! asm (vhash-cons obj label (asm-constants asm)))
-      (set-asm-inits! asm (append-reverse inits (asm-inits asm)))
       label))))
 
 (define (intern-non-immediate asm obj)
@@ -1742,17 +1775,36 @@ corresponding linker symbol for the start of the section."
   "If there is writable data that needs initialization at runtime, emit
 a procedure to do that and return its label.  Otherwise return
 @code{#f}."
-  (let ((inits (asm-inits asm)))
-    (and (not (null? inits))
+  (let* ((inits (asm-inits asm)))
+    (and (not (vlist-null? inits))
          (let ((label (gensym "init-constants")))
-           (emit-text asm
-                      `((begin-program ,label ())
-                        (assert-nargs-ee/locals 1 1)
-                        ,@(reverse inits)
-                        (reset-frame 1)
-                        (load-constant 0 ,*unspecified*)
-                        (return-values)
-                        (end-program)))
+           (emit-begin-program asm label '())
+           (emit-assert-nargs-ee/locals asm 1 1)
+           (let lp ((n (1- (vlist-length inits))))
+             (match (vlist-ref inits n)
+               ((label . #(#f #t ((dst . field))))
+                ;; Special case in which emit-static-patch is actually
+                ;; an optimization.
+                (emit-static-patch! asm dst field label))
+               ((label . #(emit-init static? patches))
+                (let ((slot-from-init (and emit-init (emit-init asm label))))
+                  (unless (null? patches)
+                    (let ((slot (or slot-from-init
+                                    (begin
+                                      (if static?
+                                          (emit-make-non-immediate asm 1 label)
+                                          (emit-static-ref asm 1 label))
+                                      1))))
+                      (for-each (match-lambda
+                                  ((dst . offset)
+                                   (emit-static-set! asm slot dst offset)))
+                                patches))))))
+             (unless (zero? n)
+               (lp (1- n))))
+           (emit-reset-frame asm 1)
+           (emit-load-constant asm 0 *unspecified*)
+           (emit-return-values asm)
+           (emit-end-program asm)
            label))))
 
 (define (link-data asm data name)
