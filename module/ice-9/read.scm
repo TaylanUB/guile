@@ -882,7 +882,5 @@
   (define (annotate line column datum)
     (datum->syntax #f ; No lexical context.
                    datum
-                   #:source `((filename . ,filename)
-                              (line . ,line)
-                              (column . ,(1- column)))))
+                   #:source (vector filename line (1- column))))
   (%read port annotate syntax->datum))
