@@ -4672,7 +4672,8 @@ R7RS."
                      make-syntax
                      syntax-expression
                      syntax-wrap
-                     syntax-module)))
+                     syntax-module
+                     syntax-sourcev)))
 
 
 
