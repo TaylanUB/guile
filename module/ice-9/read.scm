@@ -403,7 +403,7 @@
             (error "unknown character name ~a" tok))))))))
 
   (define (read-vector)
-    (list->vector (read-parenthesized #\))))
+    (list->vector (map strip-annotation (read-parenthesized #\)))))
 
   (define (read-srfi-4-vector ch)
     (read-array ch))
@@ -438,7 +438,7 @@
     (expect #\u)
     (expect #\8)
     (expect #\()
-    (u8-list->bytevector (read-parenthesized #\))))
+    (u8-list->bytevector (map strip-annotation (read-parenthesized #\)))))
 
   ;; FIXME: We should require a terminating delimiter.
   (define (read-bitvector)
@@ -532,7 +532,7 @@
     (define (read-elements ch rank)
       (unless (eqv? ch #\()
         (error "missing '(' in vector or array literal"))
-      (let ((elts (read-parenthesized #\))))
+      (let ((elts (map strip-annotation (read-parenthesized #\)))))
         (if (zero? rank)
             (begin
               ;; Handle special print syntax of rank zero arrays; see
