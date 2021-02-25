@@ -1292,7 +1292,7 @@ table, its existing label is used directly."
       (patch! 1 (syntax-expression obj))
       (patch! 2 (syntax-wrap obj))
       (patch! 3 (syntax-module obj))
-      (patch! 4 (syntax-source obj)))
+      (patch! 4 (syntax-sourcev obj)))
      ((stringbuf? obj))
      ((static-procedure? obj)
       ;; Special case, as we can't load the procedure's code using
@@ -1986,7 +1986,7 @@ should be .data or .rodata), and return the resulting linker object.
         (write-constant-reference buf (+ pos (* 3 word-size))
                                   (syntax-module obj))
         (write-constant-reference buf (+ pos (* 4 word-size))
-                                  (syntax-source obj)))
+                                  (syntax-sourcev obj)))
 
        ((number? obj)
         (write-placeholder asm buf pos))
