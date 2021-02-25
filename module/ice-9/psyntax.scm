@@ -142,7 +142,8 @@
       (make-syntax (module-ref (current-module) 'make-syntax))
       (syntax-expression (module-ref (current-module) 'syntax-expression))
       (syntax-wrap (module-ref (current-module) 'syntax-wrap))
-      (syntax-module (module-ref (current-module) 'syntax-module)))
+      (syntax-module (module-ref (current-module) 'syntax-module))
+      (syntax-sourcev (module-ref (current-module) 'syntax-sourcev)))
 
   (define-syntax define-expansion-constructors
     (lambda (x)
@@ -267,9 +268,19 @@
           (lambda ()
             ((variable-ref v))))))
 
+    (define (sourcev-filename s) (vector-ref s 0))
+    (define (sourcev-line s) (vector-ref s 1))
+    (define (sourcev-column s) (vector-ref s 2))
+    (define (sourcev->alist sourcev)
+      (define (maybe-acons k v tail) (if v (acons k v tail) tail))
+      (and sourcev
+           (maybe-acons 'filename (sourcev-filename sourcev)
+                        `((line . ,(sourcev-line sourcev))
+                          (column . ,(sourcev-column sourcev))))))
+
     (define (decorate-source e s)
-      (if (and s (supports-source-properties? e))
-          (set-source-properties! e s))
+      (when (and s (supports-source-properties? e))
+        (set-source-properties! e (sourcev->alist s)))
       e)
 
     (define (maybe-name-value! name val)
@@ -280,25 +291,25 @@
 
     ;; output constructors
     (define build-void
-      (lambda (source)
-        (make-void source)))
+      (lambda (sourcev)
+        (make-void (sourcev->alist sourcev))))
 
     (define build-call
-      (lambda (source fun-exp arg-exps)
-        (make-call source fun-exp arg-exps)))
+      (lambda (sourcev fun-exp arg-exps)
+        (make-call (sourcev->alist sourcev) fun-exp arg-exps)))
   
     (define build-conditional
-      (lambda (source test-exp then-exp else-exp)
-        (make-conditional source test-exp then-exp else-exp)))
+      (lambda (sourcev test-exp then-exp else-exp)
+        (make-conditional (sourcev->alist sourcev) test-exp then-exp else-exp)))
   
     (define build-lexical-reference
-      (lambda (type source name var)
-        (make-lexical-ref source name var)))
+      (lambda (type sourcev name var)
+        (make-lexical-ref (sourcev->alist sourcev) name var)))
   
     (define build-lexical-assignment
-      (lambda (source name var exp)
+      (lambda (sourcev name var exp)
         (maybe-name-value! name exp)
-        (make-lexical-set source name var exp)))
+        (make-lexical-set (sourcev->alist sourcev) name var exp)))
   
     (define (analyze-variable mod var modref-cont bare-cont)
       (if (not mod)
@@ -320,32 +331,32 @@
               (else (syntax-violation #f "bad module kind" var mod))))))
 
     (define build-global-reference
-      (lambda (source var mod)
+      (lambda (sourcev var mod)
         (analyze-variable
          mod var
          (lambda (mod var public?) 
-           (make-module-ref source mod var public?))
+           (make-module-ref (sourcev->alist sourcev) mod var public?))
          (lambda (mod var)
-           (make-toplevel-ref source mod var)))))
+           (make-toplevel-ref (sourcev->alist sourcev) mod var)))))
 
     (define build-global-assignment
-      (lambda (source var exp mod)
+      (lambda (sourcev var exp mod)
         (maybe-name-value! var exp)
         (analyze-variable
          mod var
          (lambda (mod var public?) 
-           (make-module-set source mod var public? exp))
+           (make-module-set (sourcev->alist sourcev) mod var public? exp))
          (lambda (mod var)
-           (make-toplevel-set source mod var exp)))))
+           (make-toplevel-set (sourcev->alist sourcev) mod var exp)))))
 
     (define build-global-definition
-      (lambda (source mod var exp)
+      (lambda (sourcev mod var exp)
         (maybe-name-value! var exp)
-        (make-toplevel-define source (and mod (cdr mod)) var exp)))
+        (make-toplevel-define (sourcev->alist sourcev) (and mod (cdr mod)) var exp)))
 
     (define build-simple-lambda
       (lambda (src req rest vars meta exp)
-        (make-lambda src
+        (make-lambda (sourcev->alist src)
                      meta
                      ;; hah, a case in which kwargs would be nice.
                      (make-lambda-case
@@ -354,7 +365,7 @@
 
     (define build-case-lambda
       (lambda (src meta body)
-        (make-lambda src meta body)))
+        (make-lambda (sourcev->alist src) meta body)))
 
     (define build-lambda-case
       ;; req := (name ...)
@@ -368,31 +379,31 @@
       ;; the body of a lambda: anything, already expanded
       ;; else: lambda-case | #f
       (lambda (src req opt rest kw inits vars body else-case)
-        (make-lambda-case src req opt rest kw inits vars body else-case)))
+        (make-lambda-case (sourcev->alist src) req opt rest kw inits vars body else-case)))
 
     (define build-primcall
       (lambda (src name args)
-        (make-primcall src name args)))
+        (make-primcall (sourcev->alist src) name args)))
     
     (define build-primref
       (lambda (src name)
-        (make-primitive-ref src name)))
+        (make-primitive-ref (sourcev->alist src) name)))
     
     (define (build-data src exp)
-      (make-const src exp))
+      (make-const (sourcev->alist src) exp))
 
     (define build-sequence
       (lambda (src exps)
         (if (null? (cdr exps))
             (car exps)
-            (make-seq src (car exps) (build-sequence #f (cdr exps))))))
+            (make-seq (sourcev->alist src) (car exps) (build-sequence #f (cdr exps))))))
 
     (define build-let
       (lambda (src ids vars val-exps body-exp)
         (for-each maybe-name-value! ids val-exps)
         (if (null? vars)
             body-exp
-            (make-let src ids vars val-exps body-exp))))
+            (make-let (sourcev->alist src) ids vars val-exps body-exp))))
 
     (define build-named-let
       (lambda (src ids vars val-exps body-exp)
@@ -404,7 +415,7 @@
             (maybe-name-value! f-name proc)
             (for-each maybe-name-value! ids val-exps)
             (make-letrec
-             src #f
+             (sourcev->alist src) #f
              (list f-name) (list f) (list proc)
              (build-call src (build-lexical-reference 'fun src f-name f)
                          val-exps))))))
@@ -415,7 +426,7 @@
             body-exp
             (begin
               (for-each maybe-name-value! ids val-exps)
-              (make-letrec src in-order? ids vars val-exps body-exp)))))
+              (make-letrec (sourcev->alist src) in-order? ids vars val-exps body-exp)))))
 
 
     (define-syntax-rule (build-lexical-var src id)
@@ -425,12 +436,18 @@
 
     (define-syntax no-source (identifier-syntax #f))
 
+    (define (datum-sourcev datum)
+      (let ((props (source-properties datum)))
+        (and (pair? props)
+             (vector (assq-ref props 'filename)
+                     (assq-ref props 'line)
+                     (assq-ref props 'column)))))
+
     (define source-annotation
       (lambda (x)
         (if (syntax? x)
-            (syntax-source x)
-            (let ((props (source-properties x)))
-              (and (pair? props) props)))))
+            (syntax-sourcev x)
+            (datum-sourcev x))))
 
     (define-syntax-rule (arg-check pred? e who)
       (let ((x e))
@@ -1016,7 +1033,7 @@
       (make-syntax (syntax-expression x)
                    w
                    (or (syntax-module x) defmod)
-                   (syntax-source x)))
+                   (syntax-sourcev x)))
     (define (source-wrap x w s defmod)
       (cond
        ((and (null? (wrap-marks w))
@@ -1026,7 +1043,7 @@
         x)
        ((syntax? x) (wrap-syntax x (join-wraps w (syntax-wrap x)) defmod))
        ((null? x) x)
-       (else (make-syntax x w defmod (or s (source-properties x))))))
+       (else (make-syntax x w defmod (or s (datum-sourcev x))))))
 
     ;; expanding
 
@@ -1605,7 +1622,7 @@
                    ((null? var-ids) tail)
                    ((not (car var-ids))
                     (lp (cdr var-ids) (cdr vars) (cdr vals)
-                        (make-seq src ((car vals)) tail)))
+                        (make-seq (sourcev->alist src) ((car vals)) tail)))
                    (else
                     (let ((var-ids (map (lambda (id)
                                           (if id (syntax->datum id) '_))
@@ -1615,7 +1632,8 @@
                           (vals (map (lambda (expand-expr id)
                                        (if id
                                            (expand-expr)
-                                           (make-seq src (expand-expr)
+                                           (make-seq (sourcev->alist src)
+                                                     (expand-expr)
                                                      (build-void src))))
                                      (reverse vals) (reverse var-ids))))
                       (build-letrec src #t var-ids vars vals tail)))))))
@@ -1978,17 +1996,14 @@
 
     (define (strip x)
       (define (annotate proc datum)
-        (let ((src (proc x)))
-          (when (and (pair? src) (supports-source-properties? datum))
-            (set-source-properties! datum src))
-          datum))
+        (decorate-source datum (proc x)))
       (cond
        ((syntax? x)
-        (annotate syntax-source (strip (syntax-expression x))))
+        (annotate syntax-sourcev (strip (syntax-expression x))))
        ((pair? x)
-        (annotate source-properties (cons (strip (car x)) (strip (cdr x)))))
+        (annotate datum-sourcev (cons (strip (car x)) (strip (cdr x)))))
        ((vector? x)
-        (annotate source-properties (list->vector (strip (vector->list x)))))
+        (annotate datum-sourcev (list->vector (strip (vector->list x)))))
        (else x)))
 
     ;; lexical variables
@@ -2315,7 +2330,7 @@
                                       (make-syntax '#{ $sc-ellipsis }#
                                                    (syntax-wrap #'dots)
                                                    (syntax-module #'dots)
-                                                   (syntax-source #'dots)))))
+                                                   (syntax-sourcev #'dots)))))
                           (let ((ids (list id))
                                 (labels (list (gen-label)))
                                 (bindings (list (make-binding 'ellipsis (source-wrap #'dots w s mod)))))
@@ -2473,7 +2488,7 @@
                                  (syntax-wrap x)
                                  ;; hither the remodulation
                                  mod
-                                 (syntax-source x)))
+                                 (syntax-sourcev x)))
                                ((vector? x)
                                 (let* ((n (vector-length x)) (v (make-vector n)))
                                   (do ((i 0 (fx+ i 1)))
@@ -2739,9 +2754,11 @@
                              (syntax-module id)
                              #f)
                          (cond
-                          ((not source) (source-properties datum))
+                          ((not source) (datum-sourcev datum))
                           ((and (list? source) (and-map pair? source)) source)
-                          (else (syntax-source source))))))
+                          ((and (vector? source) (= 3 (vector-length source)))
+                           source)
+                          (else (syntax-sourcev source))))))
 
     (set! syntax->datum
           ;; accepts any object, since syntax objects may consist partially
