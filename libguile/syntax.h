@@ -28,6 +28,7 @@ SCM_INTERNAL SCM scm_syntax_expression (SCM obj);
 SCM_INTERNAL SCM scm_syntax_wrap (SCM obj);
 SCM_INTERNAL SCM scm_syntax_module (SCM obj);
 SCM_INTERNAL SCM scm_syntax_source (SCM obj);
+SCM_INTERNAL SCM scm_syntax_sourcev (SCM obj);
 
 SCM_INTERNAL void scm_i_syntax_print (SCM obj, SCM port,
                                       scm_print_state *pstate);

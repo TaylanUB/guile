@@ -24,6 +24,7 @@
 # include <config.h>
 #endif
 
+#include "alist.h"
 #include "eval.h"
 #include "gsubr.h"
 #include "keywords.h"
@@ -33,6 +34,7 @@
 #include "srcprop.h"
 #include "threads.h"
 #include "variable.h"
+#include "vectors.h"
 
 #include "syntax.h"
 
@@ -74,6 +76,27 @@ SCM_DEFINE (scm_syntax_p, "syntax?", 1, 0, 0,
 }
 #undef FUNC_NAME
 
+static SCM
+sourcev_to_props (SCM v)
+{
+  SCM props = scm_acons (scm_sym_line, scm_c_vector_ref (v, 1),
+                         scm_acons (scm_sym_column, scm_c_vector_ref (v, 2),
+                                    SCM_EOL));
+  if (scm_is_true (scm_c_vector_ref (v, 0)))
+    props = scm_acons (scm_sym_filename, scm_c_vector_ref (v, 0), props);
+  return props;
+}
+
+static SCM
+props_to_sourcev (SCM props)
+{
+  SCM v = scm_c_make_vector (3, SCM_BOOL_F);
+  scm_c_vector_set_x (v, 0, scm_assq_ref (props, scm_sym_filename));
+  scm_c_vector_set_x (v, 1, scm_assq_ref (props, scm_sym_line));
+  scm_c_vector_set_x (v, 2, scm_assq_ref (props, scm_sym_column));
+  return v;
+}
+
 SCM_DEFINE (scm_make_syntax, "make-syntax", 3, 1, 0,
 	    (SCM exp, SCM wrap, SCM module, SCM source),
 	    "Make a new syntax object.")
@@ -81,7 +104,9 @@ SCM_DEFINE (scm_make_syntax, "make-syntax", 3, 1, 0,
 {
   if (SCM_UNBNDP (source))
     source = scm_source_properties (exp);
-  if (!scm_is_pair (source))
+  if (scm_is_pair (source))
+    source = props_to_sourcev (source);
+  if (!scm_is_vector (source))
     source = SCM_BOOL_F;
 
   SCM ret = scm_words (scm_tc7_syntax | HAS_SOURCE_WORD_FLAG, WORD_COUNT);
@@ -126,13 +151,37 @@ SCM_DEFINE (scm_syntax_module, "syntax-module", 1, 0, 0,
 
 SCM_DEFINE (scm_syntax_source, "syntax-source", 1, 0, 0,
 	    (SCM obj),
-	    "Return the source location information for syntax object @var{obj}.")
+	    "Return the source properties for syntax object @var{obj}, as\n"
+            "an alist possibly containing the keys @code{filename},\n"
+            "@code{line}, and @code{column}.  Return @code{#f} if no\n"
+            "source properties are available.")
 #define FUNC_NAME s_scm_syntax_source
 {
   SCM_VALIDATE_SYNTAX (1, obj);
   if (!(SCM_CELL_WORD (obj, TAG_WORD) & HAS_SOURCE_WORD_FLAG))
     return SCM_BOOL_F;
-  return SCM_CELL_OBJECT (obj, SOURCE_WORD);
+  SCM src = SCM_CELL_OBJECT (obj, SOURCE_WORD);
+  if (scm_is_vector (src))
+    src = sourcev_to_props (src);
+  return src;
+}
+#undef FUNC_NAME
+
+SCM_DEFINE (scm_syntax_sourcev, "syntax-sourcev", 1, 0, 0,
+	    (SCM obj),
+	    "Return the source location information for syntax object\n"
+            "@var{obj}, as a vector of @code{#(@var{filename} @var{line}\n"
+            "@var{column})}, or @code{#f} if no source properties are\n"
+            "available.")
+#define FUNC_NAME s_scm_syntax_sourcev
+{
+  SCM_VALIDATE_SYNTAX (1, obj);
+  if (!(SCM_CELL_WORD (obj, TAG_WORD) & HAS_SOURCE_WORD_FLAG))
+    return SCM_BOOL_F;
+  SCM src = SCM_CELL_OBJECT (obj, SOURCE_WORD);
+  if (scm_is_null (src) || scm_is_pair (src))
+    src = props_to_sourcev (src);
+  return src;
 }
 #undef FUNC_NAME
 
