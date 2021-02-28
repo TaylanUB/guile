@@ -874,7 +874,8 @@
                                       (line . ,line)
                                       (column . ,(1- column)))))
           datum)
-        identity))
+        (lambda (line column datum)
+          datum)))
   (%read port annotate identity))
 
 (define* (read-syntax #:optional (port (current-input-port)))
