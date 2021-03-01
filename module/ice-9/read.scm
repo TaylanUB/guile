@@ -41,7 +41,6 @@
 
 (define-module (ice-9 read)
   #:use-module (srfi srfi-11)
-  #:use-module (ice-9 textual-ports)
   #:use-module (rnrs bytevectors)
   #:replace (read)
   #:export (read-syntax))
@@ -419,7 +418,7 @@
                          (next)
                          (lp (1+ i)))
                        (begin
-                         (unget-char port ch)
+                         (unread-char port ch)
                          #f))))))))
 
   (define (read-false-or-srfi-4-vector)
