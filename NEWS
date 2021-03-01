@@ -41,6 +41,42 @@ libraries via also adding the ".libs" subdirectories of
 `LTDL_LIBRARY_PATH' elements.  See "Foreign Libraries" in the
 documentation for a full discussion.
 
+** New `read' implementation in Scheme
+
+The new `(ice-9 read)' module implements a reader, in Scheme.  Compared
+to the C reader (which still exists for bootstrapping reasons), the new
+implementation is more maintainable, more secure, more debuggable, all
+while faithfully reproducing all quirks from Guile's legacy reader
+implemented in C.  Also, the Scheme reader is finally compatible with
+suspendable ports, allowing REPL implementations to be built with
+lightweight concurrency packages such as the third-party "Fibers"
+library.  The Scheme implementation is currently about 60% as fast as
+the C implementation, and we hope to close the gap over time.  Bug
+reports very welcome.
+
+** Scheme compiler uses `read-syntax' for better debugging
+
+The new Scheme reader also shares implementation with the new
+`read-syntax' procedure, which annotates each datum with source location
+information.  Guile's compiler can use this to provide better
+source-level debugging for Scheme programs.  Note that this can slightly
+increase compiled file sizes, though this is mitigated by some assembler
+optimizations.
+
+** Syntax objects record source locations
+
+When compiling a file that defines a macro, the output will usually
+include a number of syntax objects as literals.  Previously, these
+literals had no source information; now they do.  This should improve
+debugging.
+
+** Optimized run-time relocations
+
+The code that patches references between statically-allocated Scheme
+data has been optimized to be about 30% shorter than before or so, which
+can significantly decrease compiled file size and run-time
+initialization latency.
+
 ** Updated Gnulib
 
 The Gnulib compatibility library has been updated, for the first time
@@ -59,11 +95,37 @@ See "Bytevector Ports" in the manual.
 
 ** `GUILE_EXTENSIONS_DIR' environment variable.
 
+FIXME
+
+** `mkdtemp' and `mkstemp'
+
+See "File System" in the manual.  There is still `mkstemp!' but we
+recommend that new code uses `mkstemp', which does not mutate the
+contents of the "template" argument string.
+
 ** `(system foreign-library)' module
 
 See the newly reorganized "Foreign Function Interface", for details.
 These new interfaces replace `dynamic-link', `dynamic-pointer' and
 similar, which will eventually be deprecated.
+
+** `read-syntax' and the `(ice-9 read)' module
+** `syntax-sourcev'
+** `quote-syntax'
+
+
+** Optimized "eof-object?"
+
+* Bug fixes
+
+** Fix reverse-list->string docstring
+** Fix R7RS "member" result when no item found
+** Fix make-transcoded-port on input+output ports
+** Fix many bugs that prevented Guile from building on MinGW
+** Fix many bugs that prevented Guile's test suite from running on MinGW
+
+Thanks to Andrey Ivanov, Rob Browning, Erik Dominikus, Göran Weinholt,
+and Michael Gran.
 
 * New deprecations
 
