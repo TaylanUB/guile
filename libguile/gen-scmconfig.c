@@ -377,10 +377,12 @@ main (int argc, char *argv[])
   pf ("/* Define to 1 if there is an auxiliary stack, as in ia64.  */\n");
   pf ("#define SCM_HAVE_AUXILIARY_STACK %d\n", SCM_I_GSC_HAVE_AUXILIARY_STACK);
 
-#ifdef GUILE_MINI_GMP
-  pf ("#define GUILE_MINI_GMP 1\n");
+  pf ("\n");
+  pf ("/* Define to 1 to use mini GMP.  */\n");
+#ifdef ENABLE_MINI_GMP
+  pf ("#define SCM_ENABLE_MINI_GMP 1\n");
 #else
-  pf ("#undef GUILE_MINI_GMP\n");
+  pf ("#undef SCM_ENABLE_MINI_GMP\n");
 #endif
 
   printf ("#endif\n");

@@ -22,10 +22,11 @@
 
 
 
+#include "libguile/scmconfig.h"
 #include "libguile/error.h"
 #include "libguile/gc.h"
 #include "libguile/print.h"
-#if GUILE_MINI_GMP
+#if SCM_ENABLE_MINI_GMP
 #include "libguile/mini-gmp.h"
 #else
 #include <gmp.h>

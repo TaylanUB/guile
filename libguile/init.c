@@ -31,7 +31,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#if GUILE_MINI_GMP
+#if ENABLE_MINI_GMP
 #include "mini-gmp.h"
 #else
 #include <gmp.h>

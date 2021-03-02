@@ -651,19 +651,24 @@ PKG_CHECK_MODULES([GMP],[gmp],
   [],
   [$enable_mini_gmp=yes])
 
+SCM_I_GSC_ENABLE_MINI_GMP=0
 AC_ARG_ENABLE(mini-gmp,
-  [  --enable-mini-gmp       use mini-gmp instead of the full GMP library])
-if test "$enable_mini_gmp" = yes; then
-  AC_DEFINE([GUILE_MINI_GMP], 1,
+  [AS_HELP_STRING([--enable-mini-gmp],
+                  [use mini-gmp instead of the full GMP library])])
+
+if test "$enable_mini_gmp" = yes || test "$enable_mini_gmp" = y; then
+  SCM_I_GSC_ENABLE_MINI_GMP=1
+  AC_DEFINE([ENABLE_MINI_GMP], 1,
       [Define this if you want to use mini-gmp.])
 else
   LIBS="$GMP_LIBS $LIBS"
   CFLAGS="$GMP_CFLAGS $CFLAGS"
 fi
+AC_SUBST([SCM_I_GSC_ENABLE_MINI_GMP])
 AM_CONDITIONAL([USE_MINI_GMP], [test "x$enable_mini_gmp" = "xyes"])
 
 AC_CHECK_DECLS([mpz_inits], [], [],
-  [[#if GUILE_MINI_GMP
+  [[#if ENABLE_MINI_GMP
     #include "libguile/mini-gmp.h"
     #else
     #include <gmp.h>

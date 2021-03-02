@@ -29,7 +29,7 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-#if GUILE_MINI_GMP
+#if SCM_ENABLE_MINI_GMP
 #include "libguile/mini-gmp.h"
 #else
 #include <gmp.h>

@@ -399,7 +399,7 @@ scm_i_big2dbl_2exp (SCM b, long *expon_p)
   {
     long expon;
     double signif;
-#if GUILE_MINI_GMP
+#if ENABLE_MINI_GMP
     int iexpon;
     signif = mpz_get_d (SCM_I_BIG_MPZ (b));
     signif = frexp (signif, &iexpon);

@@ -36,7 +36,7 @@
 #include "generalized-vectors.h"
 #include "gsubr.h"
 #include "list.h"
-#if GUILE_MINI_GMP
+#if ENABLE_MINI_GMP
 #include "mini-gmp.h"
 #else
 #include <gmp.h>
