@@ -1992,8 +1992,44 @@ scm_init_filesys ()
 #ifdef O_LARGEFILE  
   scm_c_define ("O_LARGEFILE", scm_from_int (O_LARGEFILE));
 #endif
+#ifdef O_IGNORE_CTTY
+  scm_c_define ("O_IGNORE_CTTY", scm_from_int (O_IGNORE_CTTY));
+#endif
+#ifdef O_NOLINK
+  scm_c_define ("O_NOLINK", scm_from_int (O_NOLINK));
+#endif
 #ifdef O_NOTRANS
   scm_c_define ("O_NOTRANS", scm_from_int (O_NOTRANS));
+#endif
+#ifdef O_NOFOLLOW
+  scm_c_define ("O_NOFOLLOW", scm_from_int (O_NOFOLLOW));
+#endif
+#ifdef O_PATH
+  scm_c_define ("O_PATH", scm_from_int (O_PATH));
+#endif
+#ifdef O_TMPFILE
+  scm_c_define ("O_TMPFILE", scm_from_int (O_TMPFILE));
+#endif
+#ifdef O_SHLOCK
+  scm_c_define ("O_SHLOCK", scm_from_int (O_SHLOCK));
+#endif
+#ifdef O_EXLOCK
+  scm_c_define ("O_EXLOCK", scm_from_int (O_EXLOCK));
+#endif
+#ifdef O_ASYNC
+  scm_c_define ("O_ASYNC", scm_from_int (O_ASYNC));
+#endif
+#ifdef O_NOATIME
+  scm_c_define ("O_NOATIME", scm_from_int (O_NOATIME));
+#endif
+#ifdef O_DIRECTORY
+  scm_c_define ("O_DIRECTORY", scm_from_int (O_DIRECTORY));
+#endif
+#ifdef O_CLOEXEC
+  scm_c_define ("O_CLOEXEC", scm_from_int (O_CLOEXEC));
+#endif
+#ifdef O_DIRECT
+  scm_c_define ("O_DIRECT", scm_from_int (O_DIRECT));
 #endif
 
 #ifdef F_DUPFD  
