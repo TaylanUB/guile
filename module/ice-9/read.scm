@@ -500,7 +500,7 @@
       (let lp ((ch ch) (chars '()))
         (when (eof-object? ch)
           (error "unexpected end of input while reading array"))
-        (if (memv ch '(#\( #\@ @\:))
+        (if (memv ch '(#\( #\@ #\:))
             (values ch
                     (if (null? chars)
                         #t
