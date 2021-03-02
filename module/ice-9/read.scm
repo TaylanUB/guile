@@ -524,7 +524,7 @@
                         (list lbnd (+ lbnd (1- len))))
                     lbnd))))
     (define (read-shape ch alt)
-      (if (memv ch '(#\@ @\:))
+      (if (memv ch '(#\@ #\:))
           (let*-values (((ch head) (read-dimension ch))
                         ((ch tail) (read-shape ch '())))
             (values ch (cons head tail)))

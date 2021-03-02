@@ -994,7 +994,7 @@
 ;;; printing arrays
 ;;;
 
-(with-test-prefix/c&e "printing arrays"
+(with-test-prefix/c&e "printing and reading arrays"
   (pass-if-equal "writing 1D arrays that aren't vectors"
     "#1(b c)"
     (format #f "~a" (make-shared-array #(a b c)
@@ -1016,6 +1016,10 @@
   (pass-if-equal "empty 3-array with last nonempty dim."
       "#3:0:0:1()"
       (format #f "~a" (make-array 1 0 0 1)))
+
+  (pass-if-equal "empty typed 3-array with last nonempty dim."
+      "#3f64:0:0:1()"
+      (format #f "~a" (make-typed-array 'f64 1 0 0 1)))
   
   (pass-if-equal "empty 3-array with middle nonempty dim."
       "#3:0:1:0()"
