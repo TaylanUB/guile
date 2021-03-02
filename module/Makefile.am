@@ -27,7 +27,7 @@ modpath =
 VM_TARGETS := system/vm/assembler.go system/vm/disassembler.go
 $(VM_TARGETS): $(top_builddir)/libguile/vm-operations.h
 
-ice-9/boot-9.go: ice-9/boot-9.scm ice-9/quasisyntax.scm ice-9/r6rs-libraries.scm ice-9/r7rs-libraries.scm
+ice-9/boot-9.go: ice-9/boot-9.scm ice-9/quasisyntax.scm ice-9/r6rs-libraries.scm ice-9/r7rs-libraries.scm ice-9/read.scm
 ice-9/match.go: ice-9/match.scm ice-9/match.upstream.scm
 srfi/srfi-64.go: srfi/srfi-64.scm srfi/srfi-64/testing.scm
 $(nobase_ccache_DATA): ../bootstrap/ice-9/eval.go
@@ -146,7 +146,6 @@ SOURCES =					\
   ice-9/q.scm					\
   ice-9/r5rs.scm				\
   ice-9/rdelim.scm				\
-  ice-9/read.scm				\
   ice-9/receive.scm				\
   ice-9/regex.scm				\
   ice-9/runq.scm				\

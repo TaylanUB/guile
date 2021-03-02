@@ -3428,7 +3428,7 @@
                          (lambda (p)
                            (cons (make-syntax 'begin '((top)) '(hygiene guile))
                                  (let lp ()
-                                   (let ((x (read p)))
+                                   (let ((x (read-syntax p)))
                                      (if (eof-object? x) '() (cons (datum->syntax filename x) (lp)))))))))
                      tmp)
               (syntax-violation

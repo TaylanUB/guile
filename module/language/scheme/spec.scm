@@ -1,6 +1,6 @@
 ;;; Guile Scheme specification
 
-;; Copyright (C) 2001, 2009, 2010, 2011, 2012 Free Software Foundation, Inc.
+;; Copyright (C) 2001, 2009, 2010, 2011, 2012, 2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -21,7 +21,6 @@
 (define-module (language scheme spec)
   #:use-module (system base compile)
   #:use-module (system base language)
-  #:use-module (ice-9 read)
   #:use-module (language scheme compile-tree-il)
   #:use-module (language scheme decompile-tree-il)
   #:export (scheme))

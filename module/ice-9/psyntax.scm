@@ -3267,7 +3267,7 @@ names."
           ;; In Guile, (cons #'a #'b) is the same as #'(a . b).
           (cons #'begin
                 (let lp ()
-                  (let ((x (read p)))
+                  (let ((x (read-syntax p)))
                     (if (eof-object? x)
                         #'()
                         (cons (datum->syntax #'filename x) (lp))))))))))))

@@ -109,7 +109,7 @@ See the newly reorganized "Foreign Function Interface", for details.
 These new interfaces replace `dynamic-link', `dynamic-pointer' and
 similar, which will eventually be deprecated.
 
-** `read-syntax' and the `(ice-9 read)' module
+** `read-syntax'
 ** `syntax-sourcev'
 ** `quote-syntax'
 

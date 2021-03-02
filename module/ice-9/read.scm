@@ -39,24 +39,12 @@
 ;; #@-(1 2 3) => #(1 2 3)
 ;; (#*10101010102) => (#*1010101010 2)
 
-(define-module (ice-9 read)
-  #:use-module (srfi srfi-11)
-  #:use-module (rnrs bytevectors)
-  #:replace (read)
-  #:export (read-syntax))
-
-(define read-hash-procedures
-  (fluid->parameter %read-hash-procedures))
-
-(define (read-hash-procedure ch)
-  (assq-ref (read-hash-procedures) ch))
-
-(define (read-hash-extend ch proc)
-  (let ((alist (read-hash-procedures)))
-    (read-hash-procedures
-     (if proc
-         (assq-set! alist ch proc)
-         (assq-remove! alist ch)))))
+(define-syntax let*-values
+  (syntax-rules ()
+    ((_ () . body) (let () . body))
+    ((_ ((vars expr) . binds) . body)
+     (call-with-values (lambda () expr)
+       (lambda vars (let*-values binds . body))))))
 
 (define bitfield:record-positions? 0)
 (define bitfield:case-insensitive? 2)
@@ -437,7 +425,8 @@
     (expect #\u)
     (expect #\8)
     (expect #\()
-    (u8-list->bytevector (map strip-annotation (read-parenthesized #\)))))
+    (list->typed-array 'vu8 1
+                       (map strip-annotation (read-parenthesized #\)))))
 
   ;; FIXME: We should require a terminating delimiter.
   (define (read-bitvector)
@@ -478,9 +467,9 @@
         (and (not (eof-object? ch))
              (let ((digit (- (char->integer ch) (char->integer #\0))))
                (and (<= 0 digit 9) digit))))
-      (let-values (((sign ch) (if (eqv? ch #\-)
-                                  (values -1 (next))
-                                  (values 1 ch))))
+      (let*-values (((sign ch) (if (eqv? ch #\-)
+                                   (values -1 (next))
+                                   (values 1 ch))))
         (let lp ((ch ch) (res #f))
           (cond
            ((decimal-digit ch)
@@ -489,7 +478,7 @@
            (else
             (values ch (if res (* res sign) alt)))))))
     (define (read-rank ch)
-      (let-values (((ch rank) (read-decimal-integer ch 1)))
+      (let*-values (((ch rank) (read-decimal-integer ch 1)))
         (when (< rank 0)
           (error "array rank must be non-negative"))
         (when (eof-object? ch)

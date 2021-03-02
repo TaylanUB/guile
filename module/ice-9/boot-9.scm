@@ -375,6 +375,13 @@ If returning early, return the return value of F."
 (define (resolve-module . args)
   #f)
 
+;; The definition of "include" needs read-syntax.  Replaced later.
+(define (read-syntax port)
+  (let ((datum (read port)))
+    (if (eof-object? datum)
+        datum
+        (datum->syntax #f datum))))
+
 ;; API provided by psyntax
 (define syntax-violation #f)
 (define datum->syntax #f)
@@ -2215,6 +2222,19 @@ name extensions listed in %load-extensions."
 ;;;
 ;;; Reader code for various "#c" forms.
 ;;;
+
+(define read-hash-procedures
+  (fluid->parameter %read-hash-procedures))
+
+(define (read-hash-procedure ch)
+  (assq-ref (read-hash-procedures) ch))
+
+(define (read-hash-extend ch proc)
+  (let ((alist (read-hash-procedures)))
+    (read-hash-procedures
+     (if proc
+         (assq-set! alist ch proc)
+         (assq-remove! alist ch)))))
 
 (define read-eval? (make-fluid #f))
 (read-hash-extend #\.
@@ -4618,6 +4638,19 @@ R7RS."
 (module-use! the-root-module (resolve-interface '(ice-9 ports)))
 ;; Allow users of (guile) to see port bindings.
 (module-use! the-scm-module (resolve-interface '(ice-9 ports)))
+
+
+
+;;; {`read' implementation in Scheme.}
+;;;
+;;;
+
+(call-with-values (lambda ()
+                    (include-from-path "ice-9/read.scm")
+                    (values read read-syntax))
+  (lambda (read* read-syntax*)
+    (set! read read*)
+    (set! read-syntax read-syntax*)))
 
 
 

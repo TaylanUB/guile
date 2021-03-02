@@ -1,6 +1,6 @@
 ;;;; bytevectors.test --- R6RS bytevectors. -*- mode: scheme; coding: utf-8; -*-
 ;;;;
-;;;; Copyright (C) 2009-2015, 2018 Free Software Foundation, Inc.
+;;;; Copyright (C) 2009-2015, 2018, 2021 Free Software Foundation, Inc.
 ;;;;
 ;;;; Ludovic Courtès
 ;;;;
@@ -645,11 +645,11 @@
     (with-input-from-string "#vu8 (1 2 3)" read))
 
   (pass-if-exception "negative integers"
-    exception:wrong-type-arg
+    exception:out-of-range
     (with-input-from-string "#vu8(-1 -2 -3)" read))
 
   (pass-if-exception "out-of-range integers"
-    exception:wrong-type-arg
+    exception:out-of-range
     (with-input-from-string "#vu8(0 256)" read)))
 
 
