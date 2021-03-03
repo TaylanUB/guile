@@ -1,4 +1,4 @@
-/* Copyright 1995-1997,1999-2001,2003-2004,2006-2012,2014-2020
+/* Copyright 1995-1997,1999-2001,2003-2004,2006-2012,2014-2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -1943,12 +1943,12 @@ scm_read_expression (SCM port, scm_t_read_opts *opts)
 
 static void init_read_options (SCM port, scm_t_read_opts *opts);
 
-SCM_DEFINE (scm_read, "read", 0, 1, 0, 
+SCM_DEFINE (scm_primitive_read, "primitive-read", 0, 1, 0,
             (SCM port),
 	    "Read an s-expression from the input port @var{port}, or from\n"
 	    "the current input port if @var{port} is not specified.\n"
 	    "Any whitespace before the next token is discarded.")
-#define FUNC_NAME s_scm_read
+#define FUNC_NAME s_scm_primitive_read
 {
   scm_t_read_opts opts;
   int c;
@@ -1965,6 +1965,19 @@ SCM_DEFINE (scm_read, "read", 0, 1, 0,
   scm_ungetc (c, port);
 
   return (scm_read_expression (port, &opts));
+}
+#undef FUNC_NAME
+
+static SCM scm_read_var;
+
+SCM
+scm_read (SCM port)
+#define FUNC_NAME "read"
+{
+  if (SCM_UNBNDP (port))
+    return scm_call_0 (scm_variable_ref (scm_read_var));
+
+  return scm_call_1 (scm_variable_ref (scm_read_var), port);
 }
 #undef FUNC_NAME
 
@@ -2399,4 +2412,7 @@ scm_init_read ()
 
   scm_init_opts (scm_read_options, scm_read_opts);
 #include "read.x"
+
+  scm_read_var = scm_c_define
+    ("read", scm_variable_ref (scm_c_lookup (s_scm_primitive_read)));
 }

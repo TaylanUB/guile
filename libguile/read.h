@@ -1,7 +1,7 @@
 #ifndef SCM_READ_H
 #define SCM_READ_H
 
-/* Copyright 1995-1996,2000,2006,2008-2009,2018
+/* Copyright 1995-1996,2000,2006,2008-2009,2018,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -48,6 +48,8 @@
 
 
 SCM_API SCM scm_sym_dot;
+
+SCM_INTERNAL SCM scm_primitive_read (SCM port);
 
 SCM_API SCM scm_read_options (SCM setting);
 SCM_API SCM scm_read (SCM port);
