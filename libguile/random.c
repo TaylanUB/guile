@@ -30,17 +30,19 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "scm.h"
+#if SCM_ENABLE_MINI_GMP
+#include "mini-gmp.h"
+#else
+#include <gmp.h>
+#endif
+
 #include "arrays.h"
 #include "feature.h"
 #include "generalized-arrays.h"
 #include "generalized-vectors.h"
 #include "gsubr.h"
 #include "list.h"
-#if ENABLE_MINI_GMP
-#include "mini-gmp.h"
-#else
-#include <gmp.h>
-#endif
 #include "modules.h"
 #include "numbers.h"
 #include "numbers.h"

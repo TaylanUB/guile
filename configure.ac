@@ -647,32 +647,25 @@ AC_CACHE_SAVE
 
 dnl GMP tests
 
-PKG_CHECK_MODULES([GMP],[gmp],
-  [],
-  [$enable_mini_gmp=yes])
-
 SCM_I_GSC_ENABLE_MINI_GMP=0
 AC_ARG_ENABLE(mini-gmp,
   [AS_HELP_STRING([--enable-mini-gmp],
                   [use mini-gmp instead of the full GMP library])])
 
-if test "$enable_mini_gmp" = yes || test "$enable_mini_gmp" = y; then
+if test "x$enable_mini_gmp" = xyes || test "x$enable_mini_gmp" = xy; then
   SCM_I_GSC_ENABLE_MINI_GMP=1
-  AC_DEFINE([ENABLE_MINI_GMP], 1,
-      [Define this if you want to use mini-gmp.])
 else
-  LIBS="$GMP_LIBS $LIBS"
-  CFLAGS="$GMP_CFLAGS $CFLAGS"
+  AC_LIB_HAVE_LINKFLAGS([gmp],[],[#include <gmp.h>], [mpz_import (0,0,0,0,0,0,0);])
+  if test "x$HAVE_LIBGMP" != "xyes"; then
+    AC_MSG_ERROR([GNU MP 4.1 or greater not found])
+  fi
+  if test "x$LIBGMP_PREFIX" != "x"; then
+    CPPFLAGS="-I$LIBGMP_PREFIX $CPPFLAGS"
+  fi
+  AC_CHECK_DECLS([mpz_inits], [], [], [[#include <gmp.h>]])
 fi
 AC_SUBST([SCM_I_GSC_ENABLE_MINI_GMP])
 AM_CONDITIONAL([USE_MINI_GMP], [test "x$enable_mini_gmp" = "xyes"])
-
-AC_CHECK_DECLS([mpz_inits], [], [],
-  [[#if ENABLE_MINI_GMP
-    #include "libguile/mini-gmp.h"
-    #else
-    #include <gmp.h>
-    #endif]])
 
 dnl GNU libunistring is checked for by Gnulib's `libunistring' module.
 if test "x$LTLIBUNISTRING" = "x"; then

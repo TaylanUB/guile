@@ -35,7 +35,9 @@
 #include <alloca.h>
 #include <assert.h>
 
-#if ENABLE_MINI_GMP
+#include "scm.h"
+
+#if SCM_ENABLE_MINI_GMP
 #include "mini-gmp.h"
 #else
 #include <gmp.h>

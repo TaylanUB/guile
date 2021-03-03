@@ -379,7 +379,7 @@ main (int argc, char *argv[])
 
   pf ("\n");
   pf ("/* Define to 1 to use mini GMP.  */\n");
-#ifdef ENABLE_MINI_GMP
+#if SCM_I_GSC_ENABLE_MINI_GMP == 1
   pf ("#define SCM_ENABLE_MINI_GMP 1\n");
 #else
   pf ("#undef SCM_ENABLE_MINI_GMP\n");
