@@ -602,7 +602,7 @@
        ((eof-object? ch)
         (error "unexpected end of input after #"))
        ((read-hash-procedure ch)
-        => (lambda (proc) (proc ch)))
+        => (lambda (proc) (proc ch port)))
        (else
         (case ch
           ((#\\) (read-character))
