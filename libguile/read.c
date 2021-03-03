@@ -1388,31 +1388,13 @@ scm_read_extended_symbol (scm_t_wchar chr, SCM port)
 
 /* Top-level token readers, i.e., dispatchers.  */
 
-static SCM
-scm_read_sharp_extension (int chr, SCM port)
-{
-  SCM proc;
-
-  proc = scm_get_hash_procedure (chr);
-  if (scm_is_true (scm_procedure_p (proc)))
-    return scm_call_2 (proc, SCM_MAKE_CHAR (chr), port);
-
-  return SCM_UNSPECIFIED;
-}
-
 /* The reader for the sharp `#' character.  It basically dispatches reads
    among the above token readers.   */
 static SCM
 scm_read_sharp (scm_t_wchar chr, SCM port)
 #define FUNC_NAME "scm_lreadr"
 {
-  SCM result;
-
   chr = scm_getc (port);
-
-  result = scm_read_sharp_extension (chr, port);
-  if (!scm_is_eq (result, SCM_UNSPECIFIED))
-    return result;
 
   switch (chr)
     {
@@ -1466,27 +1448,13 @@ scm_read_sharp (scm_t_wchar chr, SCM port)
       return scm_read_syntax (chr, port);
     case 'n':
       return scm_read_nil (chr, port);
+    case '|':
+      return scm_read_r6rs_block_comment (chr, port);
     default:
-      result = scm_read_sharp_extension (chr, port);
-      if (scm_is_eq (result, SCM_UNSPECIFIED))
-	{
-	  /* To remain compatible with 1.8 and earlier, the following
-	     characters have lower precedence than `read-hash-extend'
-	     characters.  */
-	  switch (chr)
-	    {
-	    case '|':
-	      return scm_read_r6rs_block_comment (chr, port);
-	    default:
-	      scm_i_input_error (FUNC_NAME, port, "Unknown # object: ~S",
-				 scm_list_1 (SCM_MAKE_CHAR (chr)));
-	    }
-	}
-      else
-	return result;
+      scm_i_input_error (FUNC_NAME, port, "Unknown # object: ~S",
+                         scm_list_1 (SCM_MAKE_CHAR (chr)));
+      return SCM_UNSPECIFIED;
     }
-
-  return SCM_UNSPECIFIED;
 }
 #undef FUNC_NAME
 
