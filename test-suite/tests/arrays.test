@@ -994,7 +994,7 @@
 ;;; printing arrays
 ;;;
 
-(with-test-prefix/c&e "printing and reading arrays"
+(with-test-prefix/c&e "printing arrays"
   (pass-if-equal "writing 1D arrays that aren't vectors"
     "#1(b c)"
     (format #f "~a" (make-shared-array #(a b c)
@@ -1057,3 +1057,37 @@
       "#3@1@-1@1(((1)) ((1)) ((1)))"
       (format #f "~a" (make-array 1 '(1 3) '(-1 -1) '(1 1)))))
 
+;;;
+;;; reading arrays
+;;;
+
+(with-test-prefix/c&e "reading arrays"
+  
+  (pass-if "empty 3-array with first nonempty dim I"
+    (array-equal? (make-array 1 1 0 0)
+                  (call-with-input-string "#3(())" read)))
+  (pass-if "empty 3-array with first nonempty dim II"
+    (array-equal? (make-array 1 1 0 0)
+                  #3(())))
+  
+  (pass-if "empty 3-array with middle nonempty dim I"
+    (array-equal? (make-array 1 0 1 0)
+                  (call-with-input-string "#3:0:1:0()" read)))
+  (pass-if "empty 3-array with middle nonempty dim II"
+    (array-equal? (make-array 1 0 1 0)
+                  #3:0:1:0()))
+
+  (pass-if "empty typed 3-array with middle nonempty dim I"
+    (array-equal? (make-typed-array 'f64 1 0 1 0)
+                  (call-with-input-string "#3f64:0:1:0()" read)))
+  (pass-if "empty typed 3-array with middle nonempty dim II"
+    (array-equal? (make-typed-array 'f64 1 0 1 0)
+                  #3f64:0:1:0()))
+
+  (pass-if "array with specified size I"
+    (array-equal? #f64(1 2 3)
+                  (call-with-input-string "#f64:3(1 2 3)" read)))
+  (pass-if "array with specified size II"
+    (array-equal? #f64(1 2 3)
+                  #f64:3(1 2 3))))
+  

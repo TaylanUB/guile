@@ -507,10 +507,8 @@
           (error "unexpected end of input while reading array"))
         (values ch
                 (if len
-                    (if (zero? lbnd)
-                        len
-                        (list lbnd (+ lbnd (1- len))))
-                    lbnd))))
+                  (list lbnd (+ lbnd (1- len)))
+                  lbnd))))
     (define (read-shape ch alt)
       (if (memv ch '(#\@ #\:))
           (let*-values (((ch head) (read-dimension ch))
