@@ -595,7 +595,7 @@
         (case ch
           ((#\\) (read-character))
           ((#\() (read-vector))
-          ((#\s #\u \c) (read-srfi-4-vector ch))
+          ((#\s #\u #\c) (read-srfi-4-vector ch))
           ((#\f) (read-false-or-srfi-4-vector))
           ((#\v) (read-bytevector))
           ((#\*) (read-bitvector))
