@@ -1,4 +1,4 @@
-/* Copyright 1995-2001,2003-2004,2006-2019
+/* Copyright 1995-2001,2003-2004,2006-2019,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -1948,14 +1948,7 @@ peek_iconv_codepoint (SCM port, SCM *buf, size_t *cur, size_t *len)
           *len = input_size;
           if (input_size == 0)
             /* Normal EOF.  */
-            {
-              /* Make sure iconv descriptors have been opened even if
-                 there were no bytes, to be sure that a decoding error
-                 is signalled if the encoding itself was invalid.  */
-              scm_port_acquire_iconv_descriptors (port, NULL, NULL);
-              scm_port_release_iconv_descriptors (port);
-              return EOF;
-            }
+            return EOF;
 
           /* EOF found in the middle of a multibyte character. */
           if (scm_is_eq (SCM_PORT (port)->conversion_strategy,

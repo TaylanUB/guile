@@ -1314,7 +1314,7 @@
 
   (pass-if-exception "set-port-encoding!, wrong encoding"
     exception:miscellaneous-error
-    (let ((p (open-input-string "")))
+    (let ((p (open-input-string "q")))
       (set-port-encoding! p "does-not-exist")
       (read p)))
 
