@@ -708,7 +708,7 @@
        (read-mixed-case-symbol ch))))
 
   (define (read-neoteric ch)
-    (let lp ((expr (read-expr ch)))
+    (let lp ((expr (read-expr* ch)))
       ;; 'expr' is the first component of the neoteric expression.  If
       ;; the next character is '(', '[', or '{', (without any
       ;; intervening whitespace), we use it to construct a new
