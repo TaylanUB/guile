@@ -314,7 +314,7 @@
                   ((#\u)
                    (read-fixed-hex-escape 4))
                   ((#\U)
-                   (read-fixed-hex-escape 8))
+                   (read-fixed-hex-escape 6))
                   (else
                    (error "invalid character in escape sequence: ~S" ch)))
                 out))))))
