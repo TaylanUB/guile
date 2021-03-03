@@ -755,7 +755,7 @@
     (let lp ((ch (next)))
       (cond
        ((eof-object? ch)
-        (error "unexpected end of input while looking for !#"))
+        (error "unterminated `#! ... !#' comment"))
        ((eqv? ch #\!)
         (let ((ch (next)))
           (if (eqv? ch #\#)
