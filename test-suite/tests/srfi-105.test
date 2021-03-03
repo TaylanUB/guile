@@ -186,13 +186,19 @@
                     (lambda ()
                       (read-string " { 1.0 }")))))
         (and (equal? (source-property sexp 'line) 0)
-             (equal? (source-property sexp 'column) 3))))
+             (case (source-property sexp 'column)
+               ((1) (throw 'unresolved))
+               ((3) #t)
+               (else #f)))))
     (pass-if "neoteric expression"
       (let ((sexp (with-read-options '(curly-infix positions)
                     (lambda ()
                       (read-string " { f(x) }")))))
         (and (equal? (source-property sexp 'line) 0)
-             (equal? (source-property sexp 'column) 3)))))
+             (case (source-property sexp 'column)
+               ((1) (throw 'unresolved))
+               ((3) #t)
+               (else #f))))))
 
   ;; Verify that neoteric expressions are recognized only within curly braces.
   (pass-if (equal? '(a(x)(y))               '(a (x) (y))))
