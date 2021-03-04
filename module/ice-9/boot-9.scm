@@ -869,9 +869,19 @@ VALUE."
 ;;; {Arrays}
 ;;;
 
-(define (array-shape a)
+(define (array-shape array)
+  "Return a list as long as the rank of @var{array}, where each element
+is a two-element list containing the lower and upper bounds of the
+corresponding dimension.
+
+@lisp
+(array-dimensions (make-array 'foo '(-1 3) 5)) @result{} ((-1 3) (0 5))
+@end lisp
+
+See also: @code{array-dimensions}, @code{array-rank}."
+
   (map (lambda (ind) (if (number? ind) (list 0 (+ -1 ind)) ind))
-       (array-dimensions a)))
+       (array-dimensions array)))
 
 
 
