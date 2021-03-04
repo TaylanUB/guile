@@ -1,6 +1,6 @@
 ;;; Syntax utilities
 
-;;; Copyright (C) 2017 Free Software Foundation, Inc.
+;;; Copyright (C) 2017, 2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -30,4 +30,13 @@
 (define (print-syntax obj port)
   ;; FIXME: Use syntax->datum instad of syntax-expression, when
   ;; syntax->datum can operate on new syntax objects.
-  (format port "#<syntax ~s>" (syntax-expression obj)))
+  (let ((src (syntax-sourcev obj)))
+    (if src
+        (format port "#<syntax:~a:~a:~a ~s>"
+                (cond
+                 ((vector-ref src 0) => basename)
+                 (else "unknown file"))
+                (1+ (vector-ref src 1))
+                (vector-ref src 2)
+                (syntax-expression obj))
+        (format port "#<syntax ~s>" (syntax-expression obj)))))
