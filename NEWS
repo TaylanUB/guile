@@ -30,7 +30,7 @@ standard "dlopen" interface, providing a limited shim for platforms with
 similar functionality exposed under different names (MinGW).
 
 This change has a few practical impacts to Guile users.  There is a new
-library search path variable, `GUILE_EXTENSIONS_DIR'.  Also, errors when
+library search path variable, `GUILE_EXTENSIONS_PATH'.  Also, errors when
 loading a library fails now have better errors.  And Guile no longer has
 a libltdl dependency.
 
@@ -96,9 +96,9 @@ See "Ports" in the manual.
 
 See "Bytevector Ports" in the manual.
 
-** `GUILE_EXTENSIONS_DIR' environment variable.
+** `GUILE_EXTENSIONS_PATH' environment variable.
 
-FIXME
+See "Environment Variables" in the manual.
 
 ** `mkdtemp' and `mkstemp'
 
