@@ -199,9 +199,9 @@
                                  (cons* op x (cdr tail))))))))))
       (cond
        ((not (eqv? rdelim #\})) ret) ; Only on {...} lists.
-       ((not (pair? ret)) ret)            ; {} => ()
-       ((not (pair? (cdr ret))) (car ret)); {x} => x
-       ((not (pair? (cddr ret))) ret)     ; {x y} => (x y)
+       ((not (pair? ret)) ret)       ; {} => (); {.x} => x
+       ((null? (cdr ret)) (car ret)); {x} => x
+       ((and (pair? (cdr ret)) (null? (cddr ret))) ret) ; {x y} => (x y)
        ((extract-infix-list ret))   ; {x + y + ... + z} => (+ x y ... z)
        (else (cons '$nfx$ ret))))   ; {x y . z} => ($nfx$ x y . z)
     (define curly? (eqv? rdelim #\}))
