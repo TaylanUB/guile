@@ -644,13 +644,19 @@ context corresponding to the identifier @var{template-id}.  If
 @var{template-id} is false, the datum will have no lexical context
 information.
 
-Syntax objects have an associated source location.  @xref{Source
-Properties}.  If a syntax object is passed as @var{source}, the
-resulting syntax object will have the source properties of @var{source}.
-Otherwise if @var{source} is a source properties alist, those will be
-the source properties of the resulting syntax object.  Otherwise if
-@var{source} is false, the source properties are computed as
-@code{(source-properties @var{datum})}.
+Syntax objects have an associated source location.  Internally this is
+represented as a 3-element vector of filename, line, and column.
+Usually this location ultimately is provided by @code{read-syntax};
+@xref{Annotated Scheme Read}.
+
+If a syntax object is passed as @var{source}, the resulting syntax
+object will have the source location of @var{source}.  Otherwise if
+@var{source} is a 3-element source location vector, that vector will be
+the source location of the resulting syntax object.  If @var{source} is
+a source properties alist, those will be parsed and set as the source
+location of the resulting syntax object.  Otherwise if @var{source} is
+false, the source properties are looked up from @code{(source-properties
+@var{datum})}.  @xref{Source Properties}.
 @end deffn
 
 For completeness, we should mention that it is possible to strip the metadata

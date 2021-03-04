@@ -43,16 +43,19 @@ documentation for a full discussion.
 
 ** New `read' implementation in Scheme
 
-The new `(ice-9 read)' module implements a reader, in Scheme.  Compared
-to the C reader (which still exists for bootstrapping reasons), the new
+Guile's `read' procedure has been rewritten in Scheme.  Compared to the
+C reader (which still exists for bootstrapping reasons), the new
 implementation is more maintainable, more secure, more debuggable, all
-while faithfully reproducing all quirks from Guile's legacy reader
+while faithfully reproducing all quirks from Guile's previous reader
 implemented in C.  Also, the Scheme reader is finally compatible with
 suspendable ports, allowing REPL implementations to be built with
 lightweight concurrency packages such as the third-party "Fibers"
-library.  The Scheme implementation is currently about 60% as fast as
-the C implementation, and we hope to close the gap over time.  Bug
-reports very welcome.
+library.  Calls to `read' from Scheme as well as calls to `scm_read'
+from C use the new reader.
+
+The Scheme implementation is currently about 60% as fast as the
+now-inaccessible C implementation, and we hope to close the gap over
+time.  Bug reports very welcome.
 
 ** Scheme compiler uses `read-syntax' for better debugging
 
@@ -110,9 +113,11 @@ These new interfaces replace `dynamic-link', `dynamic-pointer' and
 similar, which will eventually be deprecated.
 
 ** `read-syntax'
+
+See "Annotated Scheme Read" in the manual.
+
 ** `syntax-sourcev'
 ** `quote-syntax'
-
 
 ** Optimized "eof-object?"
 

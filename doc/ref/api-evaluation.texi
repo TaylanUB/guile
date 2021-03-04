@@ -13,6 +13,7 @@ loading, evaluating, and compiling Scheme code at run time.
 @menu
 * Scheme Syntax::               Standard and extended Scheme syntax.
 * Scheme Read::                 Reading Scheme code.
+* Annotated Scheme Read::       Reading Scheme code, for the compiler.
 * Scheme Write::                Writing Scheme values to a port.
 * Fly Evaluation::              Procedures for on the fly evaluation.
 * Compilation::                 How to compile Scheme files and procedures.
@@ -384,6 +385,57 @@ For more information on the effect of the @code{r6rs-hex-escapes} and
 
 For more information on the @code{r7rs-symbols} option, see
 (@pxref{Symbol Read Syntax}).
+
+
+@node Annotated Scheme Read
+@subsection Reading Scheme Code, For the Compiler
+
+When something goes wrong with a Scheme program, the user will want to
+know how to fix it.  This starts with identifying where the error
+occured: we want to associate a source location with each component part
+of source code, and propagate that source location information through
+to the compiler or interpreter.
+
+For that, Guile provides @code{read-syntax}.
+
+@deffn {Scheme Procedure} read-syntax [port]
+Read an s-expression from the input port @var{port}, or from the current
+input port if @var{port} is not specified.
+
+If, after skipping white space and comments, no more bytes are available
+from @var{port}, return the end-of-file object.  @xref{Binary I/O}.
+Otherwise, return an annotated datum.  An annotated datum is a syntax
+object which associates a source location with a datum.  For example:
+
+@example
+(call-with-input-string "  foo" read-syntax)
+; @result{} #<syntax:unknown file:1:2 foo>
+(call-with-input-string "(foo)" read-syntax)
+; @result{}
+; #<syntax:unknown file:1:0
+;   (#<syntax unknown file:1:1 foo>)>
+@end example
+
+As the second example shows, all fields of pairs and vectors are also
+annotated, recursively.
+@end deffn
+
+Most users are familiar with syntax objects in the context of macros,
+which use syntax objects to associate scope information with
+identifiers.  @xref{Macros}.  Here we use syntax objects to associate
+source location information with any datum, but without attaching scope
+information.  The Scheme compiler (@code{compile}) and the interpreter
+(@code{eval}) can accept syntax objects directly as input, allowing them
+to associate source information with resulting code.
+@xref{Compilation}, and @xref{Fly Evaluation}.
+
+Note that there is a legacy interface for getting source locations into
+the Scheme compiler or interpreter, which is to use a side table that
+associates ``source properties'' with each subdatum returned by
+@code{read}, instead of wrapping the datums directly as in
+@code{read-syntax}.  This has the disadvantage of not being able to
+annotate all kinds of datums.  @xref{Source Properties}, for more
+information.
 
 
 @node Scheme Write

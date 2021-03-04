@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Guile Reference Manual.
-@c Copyright (C)  1996, 1997, 2000, 2001, 2002, 2003, 2004, 2007, 2010, 2011, 2012, 2013, 2014, 2018
+@c Copyright (C)  1996, 1997, 2000, 2001, 2002, 2003, 2004, 2007, 2010, 2011, 2012, 2013, 2014, 2018, 2021
 @c   Free Software Foundation, Inc.
 @c See the file guile.texi for copying conditions.
 
@@ -245,35 +245,24 @@ frame. See its source code for more details.
 @node Source Properties
 @subsection Source Properties
 
+How best to associate source locations with datums parsed from a port?
+The right way to do this is to annotate all components of each parsed
+datum.  @xref{Annotated Scheme Read}, for more on @code{read-syntax}.
+
 @cindex source properties
-As Guile reads in Scheme code from file or from standard input, it
-remembers the file name, line number and column number where each
-expression begins. These pieces of information are known as the
-@dfn{source properties} of the expression. Syntax expanders and the
-compiler propagate these source properties to compiled procedures, so
-that, if an error occurs when evaluating the transformed expression,
-Guile's debugger can point back to the file and location where the
-expression originated.
+Guile only switched to use @code{read-syntax} in 2021, however.  For the
+previous thirty years, it used a mechanism known as @dfn{source
+properties}.
 
-The way that source properties are stored means that Guile cannot
-associate source properties with individual symbols, keywords,
-characters, booleans, or small integers.  This can be seen by typing
-@code{(xxx)} and @code{xxx} at the Guile prompt (where the variable
-@code{xxx} has not been defined):
+As Guile reads in Scheme code from file or from standard input, it can
+record remembers the file name, line number and column number where each
+expression begins in a side table.
 
-@example
-scheme@@(guile-user)> (xxx)
-<unnamed port>:4:1: In procedure module-lookup:
-<unnamed port>:4:1: Unbound variable: xxx
-
-scheme@@(guile-user)> xxx
-ERROR: In procedure module-lookup:
-ERROR: Unbound variable: xxx
-@end example
-
-@noindent
-In the latter case, no source properties were stored, so the error
-doesn't have any source information.
+The way that source properties are stored means that Guile can only
+associate source properties with freshly allocated objects.  This
+notably excludes individual symbols, keywords, characters, booleans, or
+small integers.  This limitation finally motivated the switch to
+@code{read-syntax}.
 
 @deffn {Scheme Procedure} supports-source-properties? obj
 @deffnx {C Function} scm_supports_source_properties_p (obj)
@@ -283,7 +272,9 @@ otherwise return #f.
 
 The recording of source properties is controlled by the read option
 named ``positions'' (@pxref{Scheme Read}).  This option is switched
-@emph{on} by default.
+@emph{on} by default.  Now that @code{read-syntax} is available,
+however, Guile may change the default for this flag to off in the
+future.
 
 The following procedures can be used to access and set the source
 properties of read expressions.
