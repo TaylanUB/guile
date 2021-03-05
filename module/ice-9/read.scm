@@ -222,7 +222,7 @@
            ;; return `.', but not as part of a dotted pair: as in
            ;; #{.}#.  Indeed an example is here!
            (if (and (eqv? ch #\.) (eq? (strip-annotation expr) '#{.}#))
-               (let* ((tail (read-expr (next-non-whitespace)))
+               (let* ((tail (read-subexpression "tail of improper list"))
                       (close (next-non-whitespace)))
                  (unless (eqv? close rdelim)
                    (error "missing close paren: ~A" close))
@@ -452,13 +452,10 @@
        #f)))
 
   (define (read-keyword)
-    (let ((ch (next-non-whitespace)))
-      (when (eof-object? ch)
-        (error "end of input while reading keyword"))
-      (let ((expr (strip-annotation (read-expr ch))))
-        (unless (symbol? expr)
-          (error "keyword prefix #: not followed by a symbol: ~a" expr))
-        (symbol->keyword expr))))
+    (let ((expr (strip-annotation (read-subexpression "keyword"))))
+      (unless (symbol? expr)
+        (error "keyword prefix #: not followed by a symbol: ~a" expr))
+      (symbol->keyword expr)))
 
   (define (read-array ch)
     (define (read-decimal-integer ch alt)
@@ -606,14 +603,16 @@
           ((#\i #\e #\b #\B #\o #\O #\d #\D #\x #\X #\I #\E)
            (read-number-and-radix ch))
           ((#\{) (read-extended-symbol))
-          ((#\') (list 'syntax (read-expr (next-non-whitespace))))
-          ((#\`) (list 'quasisyntax (read-expr (next-non-whitespace))))
+          ((#\') (list 'syntax (read-subexpression "syntax expression")))
+          ((#\`) (list 'quasisyntax
+                       (read-subexpression "quasisyntax expression")))
           ((#\,)
            (if (eqv? #\@ (peek))
                (begin
                  (next)
-                 (list 'unsyntax-splicing (read-expr (next-non-whitespace))))
-               (list 'unsyntax (read-expr (next-non-whitespace)))))
+                 (list 'unsyntax-splicing
+                       (read-subexpression "unsyntax-splicing expression")))
+               (list 'unsyntax (read-subexpression "unsyntax expression"))))
           ((#\n) (read-nil))
           (else
            (error "Unknown # object: ~S" ch)))))))
@@ -659,16 +658,16 @@
            (string->symbol (read-string ch))
            (read-mixed-case-symbol ch)))
       ((#\')
-       (list 'quote (read-expr (next-non-whitespace))))
+       (list 'quote (read-subexpression "quoted expression")))
       ((#\`)
-       (list 'quasiquote (read-expr (next-non-whitespace))))
+       (list 'quasiquote (read-subexpression "quasiquoted expression")))
       ((#\,)
        (cond
         ((eqv? #\@ (peek))
          (next)
-         (list 'unquote-splicing (read-expr (next-non-whitespace))))
+         (list 'unquote-splicing (read-subexpression "subexpression of ,@")))
         (else
-         (list 'unquote (read-expr (next-non-whitespace))))))
+         (list 'unquote (read-subexpression "unquoted expression")))))
       ((#\#)
        ;; FIXME: read-sharp should recur if we read a comment
        (read-sharp))
@@ -685,10 +684,8 @@
       ((#\:)
        (if (eq? (keyword-style) keyword-style-prefix)
            ;; FIXME: Don't skip whitespace here.
-           (let ((ch (next-non-whitespace)))
-             (when (eof-object? ch)
-               (error "unexpected end of input while reading :keyword"))
-             (symbol->keyword (strip-annotation (read-expr ch))))
+           (let ((sym (read-subexpression ":keyword")))
+             (symbol->keyword (strip-annotation sym)))
            (read-mixed-case-symbol ch)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\+ #\- #\.)
        (read-number ch))
@@ -809,6 +806,12 @@
        (else
         (skip-r6rs-block-comment)))))
 
+  (define (read-subexpression what)
+    (let ((ch (next-non-whitespace)))
+      (when (eof-object? ch)
+        (error (string-append "unexpected end of input while reading " what)))
+      (read-expr ch)))
+
   (define (next-non-whitespace)
     (let lp ((ch (next)))
       (case ch
@@ -821,10 +824,7 @@
             (lp (process-shebang)))
            ((#\;)
             (next)
-            (let ((ch (next-non-whitespace)))
-              (when (eof-object? ch)
-                (error "no expression after #; comment"))
-              (read-expr ch))
+            (read-subexpression "#; comment")
             (next-non-whitespace))
            ((#\|)
             (if (read-hash-procedure #\|)

@@ -489,7 +489,7 @@
     (eof-object? (with-input-from-string "#;foo" read)))
 
   (pass-if-exception "#;"
-    exception:missing-expression
+    exception:eof
     (with-input-from-string "#;" read))
   (pass-if-exception "#;("
     exception:eof
