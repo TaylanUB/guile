@@ -255,14 +255,14 @@ previous thirty years, it used a mechanism known as @dfn{source
 properties}.
 
 As Guile reads in Scheme code from file or from standard input, it can
-record remembers the file name, line number and column number where each
+record the file name, line number and column number where each
 expression begins in a side table.
 
-The way that source properties are stored means that Guile can only
-associate source properties with freshly allocated objects.  This
-notably excludes individual symbols, keywords, characters, booleans, or
-small integers.  This limitation finally motivated the switch to
-@code{read-syntax}.
+The way that this side table associates datums with source properties
+has a limitation, however: Guile can only associate source properties
+with freshly allocated objects.  This notably excludes individual
+symbols, keywords, characters, booleans, or small integers.  This
+limitation finally motivated the switch to @code{read-syntax}.
 
 @deffn {Scheme Procedure} supports-source-properties? obj
 @deffnx {C Function} scm_supports_source_properties_p (obj)
