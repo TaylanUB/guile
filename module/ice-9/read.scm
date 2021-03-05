@@ -407,7 +407,7 @@
                          (next)
                          (lp (1+ i)))
                        (begin
-                         (unread-char port ch)
+                         (unread-char ch port)
                          #f))))))))
 
   (define (read-false-or-srfi-4-vector)
