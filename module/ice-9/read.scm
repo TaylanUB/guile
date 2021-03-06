@@ -621,7 +621,7 @@
                (list 'unsyntax (read-subexpression "unsyntax expression"))))
           ((#\n) (read-nil))
           (else
-           (error "Unknown # object: ~S" ch)))))))
+           (error "Unknown # object: ~S" (string #\# ch))))))))
 
   (define (read-number ch)
     (let* ((str (read-token ch)))
