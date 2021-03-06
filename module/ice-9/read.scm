@@ -249,8 +249,12 @@
               (cond
                ((hex-digit ch) => (lambda (digit) (lp (+ (* 16 res) digit))))
                ((eqv? ch #\;) (integer->char res))
+               ((eof-object? ch)
+                (error "unexpected end of input in character escape sequence"))
                (else
                 (error "invalid character in escape sequence: ~S" ch)))))))
+       ((eof-object? ch)
+        (error "unexpected end of input in character escape sequence"))
        (else
         (error "invalid character in escape sequence: ~S" ch)))))
 
@@ -263,6 +267,8 @@
              ((hex-digit ch) =>
               (lambda (digit)
                 (lp (1- len) (+ (* res 16) digit))))
+             ((eof-object? ch)
+              (error "unexpected end of input in character escape sequence"))
              (else
               (error "invalid character in escape sequence: ~S" ch)))))))
 
