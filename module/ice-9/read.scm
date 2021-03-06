@@ -544,7 +544,7 @@
   (define (read-number-and-radix ch)
     (let ((tok (string-append "#" (read-token ch))))
       (or (string->number tok)
-          (error "unknown # object" tok))))
+          (error "unknown # object: ~S" tok))))
 
   (define (read-extended-symbol)
     (define (next-not-eof)
