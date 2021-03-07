@@ -731,16 +731,18 @@
                     (read-neoteric ch)))))
 
   (define (read-directive)
-    (let ((ch (next)))
+    (define (directive-char? ch)
+      (and (char? ch)
+           (or (eqv? ch #\-)
+               (char-alphabetic? ch)
+               (char-numeric? ch))))
+    (let ((ch (peek)))
       (cond
-       ((eof-object? ch)
-        (error "unexpected end of input after #!"))
+       ((directive-char? ch)
+        (next)
+        (string->symbol (take-while ch directive-char?)))
        (else
-        (string->symbol
-         (take-while ch (lambda (ch)
-                          (or (eqv? ch #\-)
-                              (char-alphabetic? ch)
-                              (char-numeric? ch)))))))))
+        #f))))
 
   (define (skip-scsh-comment)
     (let lp ((ch (next)))

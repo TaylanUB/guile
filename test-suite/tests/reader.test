@@ -184,7 +184,22 @@
                      (read-string "'(foo bar]"))
 
   (pass-if-exception "paren mismatch (4)" exception:mismatched-paren
-                     (read-string "'[foo bar)")))
+    (read-string "'[foo bar)"))
+
+  (pass-if-equal '(#f 1) (read-string "(#f1)"))
+  (pass-if-equal '(#f a) (read-string "(#fa)"))
+  (pass-if-equal '(#f a) (read-string "(#Fa)"))
+  (pass-if-equal '(#t 1) (read-string "(#t1)"))
+  (pass-if-equal '(#t r) (read-string "(#tr)"))
+  (pass-if-equal '(#t r) (read-string "(#Tr)"))
+  (pass-if-equal '(#t) (read-string "(#TrUe)"))
+  (pass-if-equal '(#t) (read-string "(#TRUE)"))
+  (pass-if-equal '(#t) (read-string "(#true)"))
+  (pass-if-equal '(#f) (read-string "(#false)"))
+  (pass-if-equal '(#f) (read-string "(#FALSE)"))
+  (pass-if-equal '(#f) (read-string "(#FaLsE)"))
+
+  (pass-if (eof-object? (read-string "#!!#"))))
 
 
 
