@@ -657,7 +657,7 @@ if test "x$enable_mini_gmp" = xyes || test "x$enable_mini_gmp" = xy; then
 else
   AC_LIB_HAVE_LINKFLAGS([gmp],[],[#include <gmp.h>], [mpz_import (0,0,0,0,0,0,0);])
   if test "x$HAVE_LIBGMP" != "xyes"; then
-    AC_MSG_ERROR([GNU MP 4.1 or greater not found])
+    AC_MSG_ERROR([GNU MP 4.1 or greater not found; either install it, or pass '--enable-mini-gmp' to use included less-optimal arbitrary-precision integer support.])
   fi
   if test "x$LIBGMP_PREFIX" != "x"; then
     CPPFLAGS="-I$LIBGMP_PREFIX $CPPFLAGS"
