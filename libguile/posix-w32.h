@@ -91,6 +91,10 @@ SCM_INTERNAL int getpriority (int which, int who);
 SCM_INTERNAL int setpriority (int which, int who, int nice_val);
 SCM_INTERNAL int sched_getaffinity (int pid, size_t mask_size, cpu_set_t *mask);
 SCM_INTERNAL int sched_setaffinity (int pid, size_t mask_size, cpu_set_t *mask);
+SCM_INTERNAL void *dlopen_w32 (const char *name, int flags);
+SCM_INTERNAL void *dlsym_w32 (void *handle, const char *name);
+SCM_INTERNAL int dlclose_w32 (void *handle);
+SCM_INTERNAL char *dlerror_w32 (void);
 
 #define HAVE_UNAME 1
 #define HAVE_WAITPID 1
@@ -100,5 +104,10 @@ SCM_INTERNAL int sched_setaffinity (int pid, size_t mask_size, cpu_set_t *mask);
 #define HAVE_SETPRIORITY 1
 #define HAVE_SCHED_GETAFFINITY 1
 #define HAVE_SCHED_SETAFFINITY 1
+
+#define RTLD_NOW 1
+#define RTLD_LAZY 2
+#define RTLD_GLOBAL 4
+#define RTLD_LOCAL 8
 
 #endif /* SCM_POSIX_W32_H */

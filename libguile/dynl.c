@@ -28,7 +28,15 @@
 # include <config.h>
 #endif
 
+#ifdef __MINGW32__
+#include "posix-w32.h"
+#define dlopen(_nam,_flg) (dlopen_w32((_nam),(_flg)))
+#define dlsym(_hndl,_nam) (dlsym_w32((_hndl),(_nam)))
+#define dlclose(_hndl)    (dlclose_w32((_hndl)))
+#define dlerror()         (dlerror_w32())
+#else
 #include <dlfcn.h>
+#endif
 
 #include "boolean.h"
 #include "deprecation.h"

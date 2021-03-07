@@ -21,7 +21,7 @@
 # include <config.h>
 #endif
 
-# define WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <c-strcase.h>
 #include <process.h>
@@ -1207,4 +1207,52 @@ sched_setaffinity (int pid, size_t mask_size, cpu_set_t *mask)
     }
 
   return -1;
+}
+
+/* This only implements the absolute minimum features for
+   foreign-library.scm. */
+void *
+dlopen_w32 (const char *name, int flags)
+{
+  void *ret = NULL;
+  if (name == NULL || *name == '\0')
+    return (void *) GetModuleHandle (NULL);
+  ret = (void *) LoadLibrary (name);
+  GetModuleHandleEx (0, name, (HMODULE *) & ret);
+  return ret;
+}
+
+void *
+dlsym_w32 (void *handle, const char *name)
+{
+  return (void *) GetProcAddress ((HMODULE) handle, name);
+}
+
+int
+dlclose_w32 (void *handle)
+{
+  FreeLibrary ((HMODULE) handle);
+  return 0;
+}
+
+#define DLERROR_LEN 80
+static char dlerror_str[DLERROR_LEN + 1];
+
+char *
+dlerror_w32 ()
+{
+  char *msg_buf;
+  DWORD dw = GetLastError ();
+  FormatMessage (FORMAT_MESSAGE_ALLOCATE_BUFFER |
+		 FORMAT_MESSAGE_FROM_SYSTEM |
+		 FORMAT_MESSAGE_IGNORE_INSERTS,
+		 NULL,
+		 dw,
+		 MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),
+		 (LPTSTR) & msg_buf, 0, NULL);
+  if (dw == 0)
+    snprintf (dlerror_str, DLERROR_LEN, "No error");
+  else
+    snprintf (dlerror_str, DLERROR_LEN, "error %ld: %s", (long) dw, msg_buf);
+  return dlerror_str;
 }
