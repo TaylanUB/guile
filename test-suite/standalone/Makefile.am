@@ -1,7 +1,7 @@
 ## Process this file with automake to produce Makefile.in.
 ##
 ## Copyright 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-##   2011, 2012, 2013, 2014, 2020 Free Software Foundation, Inc.
+##   2011, 2012, 2013, 2014, 2020, 2021 Free Software Foundation, Inc.
 ##
 ## This file is part of GUILE.
 ##
@@ -115,7 +115,7 @@ if HAVE_SHARED_LIBRARIES
 noinst_LTLIBRARIES += libtest-asmobs.la
 libtest_asmobs_la_SOURCES = test-asmobs-lib.c
 libtest_asmobs_la_CFLAGS = ${test_cflags}
-libtest_asmobs_la_LDFLAGS = -module -no-undefined -rpath `pwd` # so libtool will really build an .so
+libtest_asmobs_la_LDFLAGS = -module -avoid-version -no-undefined -rpath `pwd` # so libtool will really build an .so
 libtest_asmobs_la_LIBADD = $(LIBGUILE_LDADD)
 BUILT_SOURCES += test-asmobs-lib.x
 check_SCRIPTS += test-asmobs
@@ -125,7 +125,7 @@ TESTS += test-asmobs
 noinst_LTLIBRARIES += libtest-ffi.la
 libtest_ffi_la_SOURCES = test-ffi-lib.c
 libtest_ffi_la_CFLAGS = ${test_cflags}
-libtest_ffi_la_LDFLAGS = -module -no-undefined -rpath `pwd` # so libtool will really build an .so
+libtest_ffi_la_LDFLAGS = -module -avoid-version -no-undefined -rpath `pwd` # so libtool will really build an .so
 libtest_ffi_la_LIBADD = $(LIBGUILE_LDADD)
 check_SCRIPTS += test-ffi
 TESTS += test-ffi
@@ -239,7 +239,7 @@ if HAVE_SHARED_LIBRARIES
 noinst_LTLIBRARIES += libtest-extensions.la
 libtest_extensions_la_SOURCES = test-extensions-lib.c
 libtest_extensions_la_CFLAGS = ${test_cflags}
-libtest_extensions_la_LDFLAGS = -module -no-undefined -rpath `pwd` # so libtool will really build an .so
+libtest_extensions_la_LDFLAGS = -module -avoid-version -no-undefined -rpath `pwd` # so libtool will really build an .so
 libtest_extensions_la_LIBADD = $(LIBGUILE_LDADD) $(top_builddir)/lib/libgnu.la
 check_SCRIPTS += test-extensions
 TESTS += test-extensions
