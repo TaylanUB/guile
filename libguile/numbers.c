@@ -1,4 +1,4 @@
-/* Copyright 1995-2016,2018-2020
+/* Copyright 1995-2016,2018-2021
      Free Software Foundation, Inc.
 
    Portions Copyright 1990-1993 by AT&T Bell Laboratories and Bellcore.
@@ -156,10 +156,24 @@ VARARG_MPZ_ITERATOR (mpz_clear)
 /* the macro above will not work as is with fractions */
 
 
-/* Default to 1, because as we used to hard-code `free' as the
-   deallocator, we know that overriding these functions with
-   instrumented `malloc' / `free' is OK.  */
-int scm_install_gmp_memory_functions = 1;
+/* In the context of Guile, it's most efficient for GMP to use libgc to
+   allocate MPZ values.  That way Guile doesn't need to install
+   finalizers, which have significant overhead.  Using libgc to allocate
+   digits also allows Guile's GC to adequately measure the memory cost
+   of MPZ values.
+
+   However, if the Guile process is linked to some other user of GMP,
+   then probably the references from the other user of GMP to MPZ values
+   aren't visible to the garbage collector.  So libgc could prematurely
+   collect values from that other GMP user.
+
+   This isn't theoretical -- it happens for Guile-GnuTLS.  GnuTLS uses
+   GMP, and so does Guile.  But if Guile installs libgc as the allocator
+   for MPZ values, we break GnuTLS.
+
+   Therefore we only install libgc as the GMP allocator if we are using
+   mini-gmp, which we know isn't shared with any external library.  */
+int scm_install_gmp_memory_functions = SCM_ENABLE_MINI_GMP;
 static SCM flo0;
 static SCM exactly_one_half;
 static SCM flo_log10e;
