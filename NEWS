@@ -41,6 +41,51 @@ libraries via also adding the ".libs" subdirectories of
 `LTDL_LIBRARY_PATH' elements.  See "Foreign Libraries" in the
 documentation for a full discussion.
 
+** Fix important incompatibility with GnuTLS
+
+Guile uses the GNU multi-precision (GMP) library to implement
+arbitrary-precision integers (bignums) and fractions.  Usually Guile is
+built to dynamically link to libgmp.  In this configuration, any other
+user of GMP in the process uses the same libgmp instance, with the same
+shared state.
+
+An important piece of shared state is the GMP allocator, responsible for
+allocating storage for the digits of large integers.  For Guile it's
+most efficient to install libgc as the GMP allocator.  That way Guile
+doesn't need to install finalizers, which have significant overhead, to
+free GMP values when Guile bignums are collected.  Using libgc to
+allocate digits also allows Guile's GC to adequately measure the memory
+cost of these values.
+
+However, if the Guile process is linked to some other user of GMP, then
+probably the references from the other library to GMP values aren't
+visible to the garbage collector.  In this case libgc could prematurely
+collect values from that other GMP user.
+
+This isn't theoretical, sadly: it happens for Guile-GnuTLS.  GnuTLS uses
+GMP, and so does Guile.  Since Guile 2.0.4, Guile has installed libgc as
+the GMP allocator, so since then, Guile-GnuTLS has been buggy.
+
+Therefore, the default is now to not install libgc as the GMP allocator.
+This may slow down some uses of bignums.
+
+** New build option: --enable-mini-gmp
+
+For some users, it would be preferable to bundle a private copy of the
+GMP bignum library into Guile.  Some users would like to avoid the extra
+dependency.  Others would like to use libgc to manage GMP values, while
+not perturbing the GMP allocator for other GMP users.
+
+For these cases, Guile now has an --enable-mini-gmp configure option,
+which will use a stripped-down version of GMP, bundled with Guile.  This
+code doesn't have all the algorithmic optimizations of full GMP, but
+implements the same API in a basic way.  It can be more optimal in a
+Guile context, given that it can use libgc to allocate its data.
+
+Note that a build with --enable-mini-gmp is not ABI-compatible with a
+"stock" build, as functions that use GMP types (scm_to_mpz,
+scm_from_mpz) are not exported.
+
 ** New `read' implementation in Scheme
 
 Guile's `read' procedure has been rewritten in Scheme.  Compared to the
