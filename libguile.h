@@ -1,7 +1,7 @@
 #ifndef SCM_LIBGUILE_H
 #define SCM_LIBGUILE_H
 
-/* Copyright 1995-1998,2000-2004,2006,2008-2014,2018,2020
+/* Copyright 1995-1998,2000-2004,2006,2008-2014,2018,2020-2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -25,18 +25,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 #include "libguile/scm.h"
-#ifdef __cplusplus
-}
-#endif
-#if SCM_ENABLE_MINI_GMP
-#include "libguile/mini-gmp.h"
-#else
-#include <gmp.h>
-#endif
-#ifdef __cplusplus
-extern "C" {
-#endif
+
 #include "libguile/alist.h"
 #include "libguile/array-handle.h"
 #include "libguile/array-map.h"

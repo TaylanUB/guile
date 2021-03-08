@@ -1,7 +1,7 @@
 #ifndef SCM_NUMBERS_H
 #define SCM_NUMBERS_H
 
-/* Copyright 1995-1996,1998,2000-2006,2008-2011,2013-2014,2016-2018
+/* Copyright 1995-1996,1998,2000-2006,2008-2011,2013-2014,2016-2018,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -22,11 +22,24 @@
 
 
 
-#include "libguile/scm.h"
+#include "libguile/scmconfig.h"
+
+/* gmp.h needs to be included with C++ linkage, if including Guile
+   headers from a C++ compiler.  */
+#ifdef __cplusplus
+extern "C++" {
+#endif
+
 #if SCM_ENABLE_MINI_GMP
+#ifdef BUILDING_LIBGUILE
 #include "libguile/mini-gmp.h"
+#endif
 #else
 #include <gmp.h>
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #include "libguile/error.h"
@@ -156,7 +169,10 @@ typedef long scm_t_inum;
 #define SCM_COMPLEX_IMAG(x) (((scm_t_complex *) SCM2PTR (x))->imag)
 
 /* Each bignum is just an mpz_t stored in a double cell starting at word 1. */
+#if defined BUILDING_LIBGUILE || SCM_ENABLE_MINI_GMP == 0
 #define SCM_I_BIG_MPZ(x) (*((mpz_t *) (SCM_CELL_OBJECT_LOC((x),1))))
+#endif
+
 #define SCM_BIGP(x) (SCM_HAS_TYP16 (x, scm_tc16_big))
 
 #define SCM_NUMBERP(x) (SCM_I_INUMP(x) || SCM_NUMP(x))
@@ -401,8 +417,13 @@ SCM_API SCM          scm_from_int64  (int64_t x);
 SCM_API uint64_t     scm_to_uint64   (SCM x);
 SCM_API SCM          scm_from_uint64 (uint64_t x);
 
+#if defined BUILDING_LIBGUILE && SCM_ENABLE_MINI_GMP
+SCM_INTERNAL void scm_to_mpz (SCM x, mpz_t rop);
+SCM_INTERNAL SCM  scm_from_mpz (mpz_t rop);
+#elif !SCM_ENABLE_MINI_GMP
 SCM_API void scm_to_mpz (SCM x, mpz_t rop);
 SCM_API SCM  scm_from_mpz (mpz_t rop);
+#endif
 
 
 /* The conversion functions for other types are aliased to the
