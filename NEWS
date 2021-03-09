@@ -69,6 +69,10 @@ the GMP allocator, so since then, Guile-GnuTLS has been buggy.
 Therefore, the default is now to not install libgc as the GMP allocator.
 This may slow down some uses of bignums.
 
+In some future, Guile may switch to GMP's more low-level "MPN" API for
+working with bignums, which would allow us to regain the ability to use
+GC-managed digit storage in all configurations.
+
 ** New build option: --enable-mini-gmp
 
 For some users, it would be preferable to bundle a private copy of the
@@ -85,6 +89,9 @@ Guile context, given that it can use libgc to allocate its data.
 Note that a build with --enable-mini-gmp is not ABI-compatible with a
 "stock" build, as functions that use GMP types (scm_to_mpz,
 scm_from_mpz) are not exported.
+
+Thanks to Niels Möller and other GMP developers for their mini-gmp
+implementation!
 
 ** New `read' implementation in Scheme
 
