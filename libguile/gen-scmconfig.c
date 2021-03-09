@@ -382,7 +382,7 @@ main (int argc, char *argv[])
 #if SCM_I_GSC_ENABLE_MINI_GMP == 1
   pf ("#define SCM_ENABLE_MINI_GMP 1\n");
 #else
-  pf ("#undef SCM_ENABLE_MINI_GMP\n");
+  pf ("#define SCM_ENABLE_MINI_GMP 0\n");
 #endif
 
   printf ("#endif\n");
