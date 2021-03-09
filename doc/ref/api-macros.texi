@@ -799,6 +799,24 @@ Note that @code{with-ellipsis} does not affect the ellipsis identifier
 of the generated code, unless @code{with-ellipsis} is included around
 the generated code.
 
+@subsubsection Syntax objects can be data too
+
+Generally speaking, you want the macro expander to pick apart all syntax
+objects in a source term.  The source and scope annotations attached to
+the syntax object are of interest to how the macro expander computes the
+result, but no syntax object itself should appear in the expanded
+term---usually.  Sometimes, though, a macro will want a syntax object to
+appear in the expanded output.  Normally you would just use @code{quote}
+to introduce the syntax object as a value, but the expander strips
+syntax objects from subexpression of @code{quote}.  For this rare use
+case, Guile has @code{quote-syntax}, which does not strip its
+subexpression.
+
+@deffn {Syntax} quote-syntax form
+Expand to the syntax object @code{form}, as a constant literal.  Like
+@code{quote}, but without calling @code{syntax->datum}.
+@end deffn
+
 @node Syntax Transformer Helpers
 @subsection Syntax Transformer Helpers
 

@@ -138,6 +138,10 @@ The Gnulib compatibility library has been updated, for the first time
 since 2017 or so.  We expect no functional change but look forward to
 any bug reports.
 
+** Optimized "eof-object?"
+
+This predicate is now understood by the compiler.
+
 * New interfaces and functionality
 
 ** `call-with-port'
@@ -168,10 +172,11 @@ similar, which will eventually be deprecated.
 
 See "Annotated Scheme Read" in the manual.
 
-** `syntax-sourcev'
 ** `quote-syntax'
 
-** Optimized "eof-object?"
+See "Syntax Case" in the manual.
+
+** `syntax-sourcev'
 
 * Bug fixes
 
