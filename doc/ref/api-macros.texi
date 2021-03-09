@@ -862,6 +862,13 @@ Return the name of the module whose source contains the identifier
 @var{id}.
 @end deffn
 
+@deffn {Scheme Procedure} syntax-sourcev stx
+Like @code{syntax-source}, but returns its result in a more compact
+@code{#(@var{filename} @var{line} @var{column})} format.  This format is
+used as the internal representation of source locations for syntax
+objects.
+@end deffn
+
 @deffn {Scheme Procedure} syntax-local-binding id [#:resolve-syntax-parameters?=#t]
 Resolve the identifer @var{id}, a syntax object, within the current
 lexical environment, and return two values, the binding type and a

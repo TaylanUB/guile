@@ -178,6 +178,8 @@ See "Syntax Case" in the manual.
 
 ** `syntax-sourcev'
 
+See "Syntax Transformer Helpers" in the manual.
+
 * Bug fixes
 
 ** Fix reverse-list->string docstring

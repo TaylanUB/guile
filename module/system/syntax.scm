@@ -24,7 +24,8 @@
                syntax-local-binding
                (%syntax-module . syntax-module)
                syntax-locally-bound-identifiers
-               syntax-session-id))
+               syntax-session-id
+               syntax-sourcev))
 
 ;; Used by syntax.c.
 (define (print-syntax obj port)
