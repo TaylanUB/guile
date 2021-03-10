@@ -1454,24 +1454,29 @@ SCM_DEFINE (scm_umask, "umask", 0, 1, 0,
 #undef FUNC_NAME
 
 SCM_INTERNAL SCM scm_i_mkstemp (SCM, SCM);
-SCM_DEFINE (scm_i_mkstemp, "mkstemp!", 1, 1, 0,
+SCM_DEFINE (scm_i_mkstemp, "mkstemp", 1, 1, 0,
 	    (SCM tmpl, SCM mode),
-	    "Create a new unique file in the file system and return a new\n"
-	    "buffered port open for reading and writing to the file.\n"
+	    "Create a new unique file in the file system.  Return\n"
+	    "a buffered port open for reading and writing to the file.\n"
 	    "\n"
 	    "@var{tmpl} is a string specifying where the file should be\n"
-	    "created: it must end with @samp{XXXXXX} and those @samp{X}s\n"
-	    "will be changed in the string to return the name of the file.\n"
-	    "(@code{port-filename} on the port also gives the name.)\n"
-	    "\n"
-	    "POSIX doesn't specify the permissions mode of the file, on GNU\n"
-	    "and most systems it's @code{#o600}.  An application can use\n"
-	    "@code{chmod} to relax that if desired.  For example\n"
+	    "created: it must end with @samp{XXXXXX}.  The name of the\n"
+            "newly created file will be the same as @var{tmpl}, but with\n"
+            "those @samp{X}s changed, and can be determined by calling\n"
+            "@code{port-filename} on the returned port.\n"
+            "\n"
+            "Note that the newly created file is not deleted automatically\n"
+            "by Guile; probably the caller should arrange to call\n"
+            "@code{delete-file} when the file is no longer needed.\n"
+            "\n"
+	    "POSIX doesn't specify the permissions mode of the file.\n"
+            "On GNU and most systems it's @code{#o600}.  An application can\n"
+            "use @code{chmod} to relax that if desired.  For example\n"
 	    "@code{#o666} less @code{umask}, which is usual for ordinary\n"
 	    "file creation,\n"
 	    "\n"
 	    "@example\n"
-	    "(let ((port (mkstemp! (string-copy \"/tmp/myfile-XXXXXX\"))))\n"
+	    "(let ((port (mkstemp \"/tmp/myfile-XXXXXX\")))\n"
 	    "  (chmod port (logand #o666 (lognot (umask))))\n"
 	    "  ...)\n"
 	    "@end example\n"
@@ -1490,10 +1495,6 @@ SCM_DEFINE (scm_i_mkstemp, "mkstemp!", 1, 1, 0,
   SCM_VALIDATE_STRING (SCM_ARG1, tmpl);
   if (!SCM_UNBNDP (mode))
     SCM_VALIDATE_STRING (SCM_ARG2, mode);
-
-  /* Ensure tmpl is mutable.  */
-  scm_i_string_start_writing (tmpl);
-  scm_i_string_stop_writing ();
 
   scm_dynwind_begin (0);
 
@@ -1523,18 +1524,51 @@ SCM_DEFINE (scm_i_mkstemp, "mkstemp!", 1, 1, 0,
   if (rv == -1)
     SCM_SYSERROR;
 
-  scm_substring_move_x (scm_from_locale_string (c_tmpl),
-			SCM_INUM0, scm_string_length (tmpl),
-			tmpl, SCM_INUM0);
-
+  SCM name = scm_from_locale_string (c_tmpl);
   scm_dynwind_end ();
 
-  port = scm_i_fdes_to_port (rv, mode_bits, tmpl, 0);
+  port = scm_i_fdes_to_port (rv, mode_bits, name, 0);
   if (is_binary)
     /* Use the binary-friendly ISO-8859-1 encoding. */
     scm_i_set_port_encoding_x (port, NULL);
 
   return port;
+}
+#undef FUNC_NAME
+
+SCM_INTERNAL SCM scm_i_mkstemp_x (SCM, SCM);
+SCM_DEFINE (scm_i_mkstemp_x, "mkstemp!", 1, 1, 0,
+	    (SCM tmpl, SCM mode),
+	    "Create a new unique file in the file system and return a new\n"
+	    "buffered port open for reading and writing to the file.\n"
+	    "\n"
+	    "@var{tmpl} is a string specifying where the file should be\n"
+	    "created: it must end with @samp{XXXXXX} and those @samp{X}s\n"
+	    "will be changed in the string to return the name of the file.\n"
+	    "(@code{port-filename} on the port also gives the name.)\n"
+	    "\n"
+	    "POSIX doesn't specify the permissions mode of the file, on GNU\n"
+	    "and most systems it's @code{#o600}.  An application can use\n"
+	    "@code{chmod} to relax that if desired.  For example\n"
+	    "@code{#o666} less @code{umask}, which is usual for ordinary\n"
+	    "file creation,\n"
+	    "\n"
+	    "@example\n"
+	    "(let ((port (mkstemp! (string-copy \"/tmp/myfile-XXXXXX\"))))\n"
+	    "  (chmod port (logand #o666 (lognot (umask))))\n"
+	    "  ...)\n"
+	    "@end example\n"
+            "\n"
+            "The optional @var{mode} argument specifies a mode, as a string\n"
+            "in the same format that @code{open-file} takes.  It defaults\n"
+            "to @code{\"w+\"}.")
+#define FUNC_NAME s_scm_i_mkstemp_x
+{
+  SCM ret = scm_i_mkstemp (tmpl, mode);
+  scm_substring_move_x (scm_port_filename (ret),
+			SCM_INUM0, scm_string_length (tmpl),
+			tmpl, SCM_INUM0);
+  return ret;
 }
 #undef FUNC_NAME
 

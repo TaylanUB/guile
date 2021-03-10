@@ -1,6 +1,6 @@
 ;;; High-level compiler interface
 
-;; Copyright (C) 2001,2005,2008-2013,2016,2020 Free Software Foundation, Inc.
+;; Copyright (C) 2001,2005,2008-2013,2016,2020,2021 Free Software Foundation, Inc.
 
 ;;; This library is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU Lesser General Public License as published by
@@ -60,8 +60,8 @@
 
 ;; emacs: (put 'call-with-output-file/atomic 'scheme-indent-function 1)
 (define* (call-with-output-file/atomic filename proc #:optional reference)
-  (let* ((template (string-append filename ".XXXXXX"))
-         (tmp (mkstemp! template "wb")))
+  (let* ((tmp (mkstemp (string-append filename ".XXXXXX") "wb"))
+         (tmpname (port-filename tmp)))
     (call-once
      (lambda ()
        (with-throw-handler #t
@@ -71,12 +71,12 @@
            ;; work on systems without fchmod, like MinGW.
            (let ((perms (or (false-if-exception (stat:perms (stat reference)))
                             (lognot (umask)))))
-             (chmod template (logand #o0666 perms)))
+             (chmod tmpname (logand #o0666 perms)))
            (close-port tmp)
-           (rename-file template filename))
+           (rename-file tmpname filename))
          (lambda args
            (close-port tmp)
-           (delete-file template)))))))
+           (delete-file tmpname)))))))
 
 (define (ensure-language x)
   (if (language? x)

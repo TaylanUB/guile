@@ -1,6 +1,6 @@
 ;;;; posix.test --- Test suite for Guile POSIX functions. -*- scheme -*-
 ;;;;
-;;;; Copyright 2003-2004,2006-2007,2010,2012,2015,2017-2019
+;;;; Copyright 2003-2004,2006-2007,2010,2012,2015,2017-2019,2021
 ;;;;   Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
@@ -55,10 +55,10 @@
 
   
 ;;
-;; mkstemp!
+;; mkstemp
 ;;
 
-(with-test-prefix "mkstemp!"
+(with-test-prefix "mkstemp"
 
   ;; the temporary names used in the tests here are kept to 8 characters so
   ;; they'll work on a DOS 8.3 file system
@@ -69,28 +69,18 @@
   (pass-if-exception "number arg" exception:wrong-type-arg
     (mkstemp! 123))
 
-  (pass-if "filename string modified"
-    (let* ((template "T-XXXXXX")
-           (str      (string-copy template))
-           (port     (mkstemp! str))
-           (result   (not (string=? str template))))
-      (close-port port)
-      (delete-file str)
-      result))
-
   (pass-if "binary mode honored"
-    (let* ((template "T-XXXXXX")
-           (str      (string-copy template))
-           (outport  (mkstemp! str "wb")))
+    (let* ((outport  (mkstemp "T-XXXXXX" "wb"))
+           (filename (port-filename outport)))
       (display "\n" outport)
       (close-port outport)
-      (let* ((inport (open-input-file str #:binary #t))
+      (let* ((inport (open-input-file filename #:binary #t))
              (char1  (read-char inport))
              (char2  (read-char inport))
              (result (and (char=? char1 #\newline)
                           (eof-object? char2))))
         (close-port inport)
-        (delete-file str)
+        (delete-file filename)
         result))))
 
 ;;

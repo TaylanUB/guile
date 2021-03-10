@@ -1,6 +1,6 @@
-;;; r6rs-files.test --- Test suite for R6RS (rnrs unicode)
+;;; r6rs-files.test --- Test suite for R6RS (rnrs unicode)  -*- scheme -*-
 
-;;      Copyright (C) 2010 Free Software Foundation, Inc.
+;;      Copyright (C) 2010, 2021 Free Software Foundation, Inc.
 ;;
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -18,13 +18,13 @@
 
 
 (define-module (test-suite test-rnrs-files)
-  :use-module ((rnrs exceptions) :version (6))
-  :use-module ((rnrs files) :version (6))
-  :use-module (test-suite lib))
+  #:use-module (rnrs exceptions)
+  #:use-module (rnrs files)
+  #:use-module (test-suite lib))
 
 (with-test-prefix "delete-file"
   (pass-if "delete-file deletes file"
-    (let* ((port (mkstemp! "T-XXXXXX"))
+    (let* ((port (mkstemp "T-XXXXXX"))
            (filename (port-filename port)))
       (close-port port)
       (delete-file filename)

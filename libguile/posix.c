@@ -1,4 +1,4 @@
-/* Copyright 1995-2014,2016-2019
+/* Copyright 1995-2014,2016-2019,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -1572,14 +1572,14 @@ SCM_DEFINE (scm_tmpnam, "tmpnam", 0, 0, 0,
 	    "existing file.  However there is no guarantee that another\n"
 	    "process will not create the file after @code{tmpnam} is called.\n"
 	    "Care should be taken if opening the file, e.g., use the\n"
-	    "@code{O_EXCL} open flag or use @code{mkstemp!} instead.")
+	    "@code{O_EXCL} open flag or use @code{mkstemp} instead.")
 #define FUNC_NAME s_scm_tmpnam
 {
   char name[L_tmpnam];
   char *rv;
 
   scm_c_issue_deprecation_warning
-      ("Use of tmpnam is deprecated.  Use mkstemp! instead.");
+      ("Use of tmpnam is deprecated.  Use mkstemp instead.");
 
   SCM_SYSCALL (rv = tmpnam (name));
   if (rv == NULL)

@@ -981,27 +981,30 @@ and causing you to overwrite that.
 The safe way is to create the file using @code{open} with
 @code{O_EXCL} to avoid any overwriting.  A loop can try again with
 another name if the file exists (error @code{EEXIST}).
-@code{mkstemp!} below does that.
+@code{mkstemp} below does that.
 @end deffn
 
-@deffn {Scheme Procedure} mkstemp! tmpl [mode]
-@deffnx {C Function} scm_mkstemp (tmpl)
+@deffn {Scheme Procedure} mkstemp tmpl [mode]
 @cindex temporary file
 Create a new unique file in the file system and return a new buffered
 port open for reading and writing to the file.
 
 @var{tmpl} is a string specifying where the file should be created: it
-must end with @samp{XXXXXX} and those @samp{X}s will be changed in the
-string to return the name of the file.  (@code{port-filename} on the
-port also gives the name.)
+must end with @samp{XXXXXX}.  The name of the newly created file will be
+the same as @var{tmpl}, but with those @samp{X}s changed, and can be
+determined by calling @code{port-filename} on the returned port.
 
-POSIX doesn't specify the permissions mode of the file, on GNU and
-most systems it's @code{#o600}.  An application can use @code{chmod}
-to relax that if desired.  For example @code{#o666} less @code{umask},
-which is usual for ordinary file creation,
+Note that the newly created file is not deleted automatically by Guile;
+probably the caller should arrange to call @code{delete-file} when the
+file is no longer needed.
+
+POSIX doesn't specify the permissions mode of the file.  On GNU and most
+systems it's @code{#o600}; an application can use @code{chmod} to relax
+that if desired.  For example @code{#o666} less @code{umask}, which is
+usual for ordinary file creation,
 
 @example
-(let ((port (mkstemp! (string-copy "/tmp/myfile-XXXXXX"))))
+(let ((port (mkstemp "/tmp/myfile-XXXXXX")))
   (chmod port (logand #o666 (lognot (umask))))
   ...)
 @end example

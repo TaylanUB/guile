@@ -156,7 +156,9 @@ See "Environment Variables" in the manual.
 
 See "File System" in the manual.  There is still `mkstemp!' but we
 recommend that new code uses `mkstemp', which does not mutate the
-contents of the "template" argument string.
+contents of the "template" argument string.  Instead for `mkstemp' you
+get the name of the newly-created file by calling `port-filename' on the
+returned port.
 
 ** `(system foreign-library)' module
 
