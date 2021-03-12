@@ -112,11 +112,10 @@ SCM_DEFINE (scm_read_delimited_x, "%read-delimited!", 3, 3, 0,
 
 SCM_DEFINE (scm_read_line, "%read-line", 0, 1, 0, 
             (SCM port),
-	    "Read a line from @var{port}, allocating storage as necessary.\n"
-	    "The terminator (if any) is removed from the string,\n"
+	    "Read a newline-terminated line from @var{port}, allocating storage as\n"
+	    "necessary.  The newline terminator (if any) is removed from the string,\n"
 	    "and a pair consisting of the line and its delimiter is returned.  The\n"
-	    "delimiter may be either a newline, return + newline, the Unicode\n"
-            "line or paragraph separators, or the @var{eof-object}; if\n"
+	    "delimiter may be either a newline or the @var{eof-object}; if\n"
 	    "@code{%read-line} is called at the end of file, it returns the pair\n"
 	    "@code{(#<eof> . #<eof>)}.")
 #define FUNC_NAME s_scm_read_line
@@ -128,7 +127,6 @@ SCM_DEFINE (scm_read_line, "%read-line", 0, 1, 0,
   SCM line, strings, result;
   scm_t_wchar buf[LINE_BUFFER_SIZE], delim;
   size_t index;
-  int cr = 0;
 
   if (SCM_UNBNDP (port))
     port = scm_current_input_port ();
@@ -154,24 +152,12 @@ SCM_DEFINE (scm_read_line, "%read-line", 0, 1, 0,
 	  buf[index] = scm_getc (port);
 	  switch (buf[index])
 	    {
+	    case EOF:
 	    case '\n':
 	      delim = buf[index];
-              break;
-
-            case EOF:
-            case 0x2028:        /* U+2028 LINE SEPARATOR */
-            case 0x2029:        /* U+2029 PARAGRAPH SEPARATOR */
-              cr = 0;
-              delim = buf[index];
-              break;
-
-            case '\r':
-              cr = 1;
-              index ++;
-              break;
+	      break;
 
 	    default:
-              cr = 0;
 	      index++;
 	    }
 	}
@@ -179,33 +165,20 @@ SCM_DEFINE (scm_read_line, "%read-line", 0, 1, 0,
   while (delim == 0);
 
   if (SCM_LIKELY (scm_is_false (strings)))
-    {
-      /* The fast path.  */
-      if (cr)
-        line = scm_from_utf32_stringn (buf, index - 1);
-      else
-        line = scm_from_utf32_stringn (buf, index);
-    }
+    /* The fast path.  */
+    line = scm_from_utf32_stringn (buf, index);
   else
     {
       /* Aggregate the intermediary results.  */
-      if (cr)
-        strings = scm_cons (scm_from_utf32_stringn (buf, index - 1), strings);
-      else
-        strings = scm_cons (scm_from_utf32_stringn (buf, index), strings);
+      strings = scm_cons (scm_from_utf32_stringn (buf, index), strings);
       line = scm_string_concatenate (scm_reverse (strings));
     }
 
   if (delim == EOF && scm_i_string_length (line) == 0)
     result = scm_cons (SCM_EOF_VAL, SCM_EOF_VAL);
   else
-    {
-      if (cr)
-        result = scm_cons (line, scm_from_latin1_string("\r\n"));
-      else
-        result = scm_cons (line,
-                           delim == EOF ? SCM_EOF_VAL : SCM_MAKE_CHAR (delim));
-    }
+    result = scm_cons (line,
+		       delim == EOF ? SCM_EOF_VAL : SCM_MAKE_CHAR (delim));
 
   return result;
 #undef LINE_BUFFER_SIZE

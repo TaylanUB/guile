@@ -1,7 +1,7 @@
 ;;;; rdelim.test --- Delimited I/O.      -*- mode: scheme; coding: utf-8; -*-
 ;;;; Ludovic Courtès <ludo@gnu.org>
 ;;;;
-;;;; 	Copyright (C) 2011, 2013, 2014, 2021 Free Software Foundation, Inc.
+;;;; 	Copyright (C) 2011, 2013, 2014 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -58,46 +58,6 @@
            (p (open-input-string s)))
       (and (equal? '(("foo" . #\newline)
                      ("bar" . #\newline))
-                   (list (read-line p 'split)
-                         (read-line p 'split)))
-           (eof-object? (read-line p)))))
-
-  (pass-if "two lines, split, CRLF"
-    (let* ((s "foo\r\nbar\r\n")
-           (p (open-input-string s)))
-      (and (equal? '(("foo" . "\r\n")
-                     ("bar" . "\r\n"))
-                   (list (read-line p 'split)
-                         (read-line p 'split)))
-           (eof-object? (read-line p)))))
-
-  (pass-if "two long lines, split, CRLF"
-    ;; Must be longer than 256 codepoints
-    (let* ((text0 "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-           (text1 (string-append text0 text0 text0 text0 text0))
-           (text2 (string-append text1 "\r\n" text1 "\r\n")))
-      (let* ((s text2)
-             (p (open-input-string s)))
-        (and (equal? `((,text1 . "\r\n")
-                       (,text1 . "\r\n"))
-                     (list (read-line p 'split)
-                           (read-line p 'split)))
-             (eof-object? (read-line p))))))
-
-  (pass-if "two lines, split, LS"
-    (let* ((s "foo\u2028bar\u2028")
-           (p (open-input-string s)))
-      (and (equal? '(("foo" . #\x2028)
-                     ("bar" . #\x2028))
-                   (list (read-line p 'split)
-                         (read-line p 'split)))
-           (eof-object? (read-line p)))))
-
-  (pass-if "two lines, split, PS"
-    (let* ((s "foo\u2029bar\u2029")
-           (p (open-input-string s)))
-      (and (equal? '(("foo" . #\x2029)
-                     ("bar" . #\x2029))
                    (list (read-line p 'split)
                          (read-line p 'split)))
            (eof-object? (read-line p)))))

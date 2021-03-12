@@ -755,10 +755,8 @@ a specified set of characters.
 
 @deffn {Scheme Procedure} read-line [port] [handle-delim]
 Return a line of text from @var{port} if specified, otherwise from the
-value returned by @code{(current-input-port)}.  Under Unix, a line of
-text is terminated by the first end-of-line character or by end-of-file.
-The end-of-line characters handled are newline, carriage return plus
-newline, or the Unicode line or paragraph separators.
+value returned by @code{(current-input-port)}.  Under Unix, a line of text
+is terminated by the first end-of-line character or by end-of-file.
 
 If @var{handle-delim} is specified, it should be one of the following
 symbols:
@@ -773,9 +771,7 @@ Append the terminating delimiter (if any) to the returned string.
 Push the terminating delimiter (if any) back on to the port.
 @item split
 Return a pair containing the string read from the port and the
-terminating delimiter or end-of-file object.  The delimiter will either
-be a single character for newline or the Unicode line or paragraph
-separators, or it will be the string @code{"\r\n"}.
+terminating delimiter or end-of-file object.
 @end table
 @end deffn
 
