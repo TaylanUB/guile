@@ -157,13 +157,12 @@ The default writer will call ‘put-string’."
 Raise a 'bad-header' exception if the line does not end in CRLF or LF,
 or if EOF is reached."
   (match (%read-line port)
+    (((? string? line) . "\r\n")
+     line)
     (((? string? line) . #\newline)
-     ;; '%read-line' does not consider #\return a delimiter; so if it's
-     ;; there, remove it.  We are more tolerant than the RFC in that we
-     ;; tolerate LF-only endings.
-     (if (string-suffix? "\r" line)
-         (string-drop-right line 1)
-         line))
+     ;; We are more tolerant than the RFC in that we tolerate LF-only
+     ;; endings.
+     line)
     ((line . _)                                ;EOF or missing delimiter
      (bad-header 'read-header-line line))))
 
@@ -184,8 +183,7 @@ was known but the value was invalid.
 Returns the end-of-file object for both values if the end of the message
 body was reached (i.e., a blank line)."
   (let ((line (read-header-line port)))
-    (if (or (string-null? line)
-            (string=? line "\r"))
+    (if (string-null? line)
         (values *eof* *eof*)
         (let* ((delim (or (string-index line #\:)
                           (bad-header '%read line)))

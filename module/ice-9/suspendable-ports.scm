@@ -1,5 +1,5 @@
 ;;; Ports, implemented in Scheme
-;;; Copyright (C) 2016, 2019 Free Software Foundation, Inc.
+;;; Copyright (C) 2016, 2018, 2021 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software: you can redistribute it and/or modify
 ;;; it under the terms of the GNU Lesser General Public License as
@@ -689,10 +689,81 @@
 
 (define* (read-line #:optional (port (current-input-port))
                     (handle-delim 'trim))
-  (read-delimited "\n" port handle-delim))
+  (let* ((line/delim	(%read-line port))
+	 (line		(car line/delim))
+	 (delim		(cdr line/delim)))
+    (case handle-delim
+      ((trim) line)
+      ((split) line/delim)
+      ((concat) (if (and (string? line) (char? delim))
+		    (string-append line (string delim))
+		    line))
+      ((peek) (if (char? delim)
+		  (unread-char delim port))
+	      line)
+      (else
+       (error "unexpected handle-delim value: " handle-delim)))))
 
 (define* (%read-line port)
-  (read-line port 'split))
+  (let ((LINE_BUFFER_SIZE 256))
+    (let ((strings #f)
+          (result #f)
+          (buf (make-string LINE_BUFFER_SIZE #\nul))
+          (delim #f)
+          (index 0)
+          (cr #f)
+          (go #t))
+      (cond
+       ((not (input-port? port))
+        (error "Not an input port." port))
+       (else
+        (while go
+               (cond
+                ((>= index LINE_BUFFER_SIZE)
+                 (set! strings (cons (substring buf 0 index)
+                                     (or strings '())))
+                 (set! index 0))
+                (else
+                 (let ((c (read-char port)))
+                   (cond
+                    ((or (eof-object? c)
+                         (char=? c #\x2028)  ; U+2028 LINE SEPARATOR
+                         (char=? c #\x2029)) ; U+2029 PARAGRAPH SEPARATOR
+                     (set! cr #f)
+                     (set! delim c))
+                    ((char=? c #\newline)
+                     (set! delim c))
+                    ((char=? c #\return)
+                     (set! cr #t)
+                     (string-set! buf index c)
+                     (set! index (1+ index)))
+                    (else
+                     (set! cr #f)
+                     (string-set! buf index c)
+                     (set! index (1+ index)))))))
+
+               (if (or (eof-object? delim)
+                       (char? delim))
+                   (set! go #f)))
+      (let ((line (if (not strings)
+                      ;; A short string.
+                      (if cr
+                          (substring buf 0 (1- index))
+                          (substring buf 0 index))
+                      ;; Else, aggregate the intermediary results.
+                      (begin
+                        (if cr
+                            (set! strings (cons (substring buf 0 (1- index)) strings))
+                            (set! strings (cons (substring buf 0 index) strings)))
+                        (apply string-append (reverse strings))))))
+
+        (if (and (eof-object? delim)
+                 (zero? (string-length line)))
+            (cons the-eof-object the-eof-object)
+            ;; Else
+            (if cr
+                (cons line "\r\n")
+                (cons line delim)))))))))
 
 (define* (put-string port str #:optional (start 0)
                      (count (- (string-length str) start)))
