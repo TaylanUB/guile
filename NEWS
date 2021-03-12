@@ -166,6 +166,12 @@ See the newly reorganized "Foreign Function Interface", for details.
 These new interfaces replace `dynamic-link', `dynamic-pointer' and
 similar, which will eventually be deprecated.
 
+** `read-line'
+
+This now accepts return + newline and the Unicode line separator and
+paragraph separator as line separators, as well as the newline and <eof>
+line separators it handled before.
+
 ** `read-syntax'
 
 See "Annotated Scheme Read" in the manual.
@@ -188,6 +194,7 @@ See "Syntax Transformer Helpers" in the manual.
 ** Fix reverse-list->string docstring
 ** Fix R7RS "member" result when no item found
 ** Fix make-transcoded-port on input+output ports
+** Fix (ice-9 ftw) on filesystems where inode values are meaningless
 ** Fix many bugs that prevented Guile from building on MinGW
 ** Fix many bugs that prevented Guile's test suite from running on MinGW
 
