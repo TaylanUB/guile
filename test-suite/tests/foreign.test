@@ -417,3 +417,38 @@
       (equal? (parse-c-struct (make-c-struct layout data)
                               layout)
               data))))
+
+
+(with-test-prefix "lib->cyg"
+  (pass-if "name is #f"
+    (equal? #f (lib->cyg #f)))
+
+  (pass-if "name too short"
+    (string=? (lib->cyg "a") "a"))
+
+  (pass-if "name starts with 'lib'"
+    (string=? (lib->cyg "libfoo.dll") "cygfoo.dll"))
+
+  (pass-if "name contains 'lib'"
+    (string=? (lib->cyg "foolib.dll") "foolib.dll"))
+
+  (pass-if "name doesn't contain 'lib'"
+    (string=? (lib->cyg "foobar.dll") "foobar.dll"))
+
+  (pass-if "name in path too short"
+    (string=? (lib->cyg "/lib/a") "/lib/a"))
+
+  (pass-if "name in path starts with 'lib'"
+    (string=? (lib->cyg "/lib/libfoo.dll") "/lib/cygfoo.dll"))
+
+  (pass-if "name in path contains 'lib'"
+    (string=? (lib->cyg "/lib/foolib.dll") "/lib/foolib.dll"))
+
+  (pass-if "name in path doesn't contain 'lib'"
+    (string=? (lib->cyg "/lib/foobar.dll") "/lib/foobar.dll"))
+
+  (pass-if "name in windows path starts with 'lib'"
+    (string=? (lib->cyg "c:\\lib\\libfoo.dll") "c:\\lib\\cygfoo.dll"))
+
+  (pass-if "name in windows path doesn't contain 'lib'"
+    (string=? (lib->cyg "c:\\lib\\foobar.dll") "c:\\lib\\foobar.dll")))

@@ -30,6 +30,7 @@
             ltdl-library-path
             guile-system-extensions-path
 
+            lib->cyg
             load-foreign-library
             foreign-library?
             foreign-library-pointer
@@ -152,13 +153,32 @@
        '())
    (guile-system-extensions-path)))
 
+(define (lib->cyg name)
+  "Convert a standard shared library name to a Cygwin shared library
+name."
+  (if (not name)
+      #f
+      (let ((start (1+ (or (string-index-right
+                            name
+                            (lambda (c) (or (char=? #\\ c) (char=? #\/ c))))
+                           -1))))
+        (cond
+         ((>= (+ 3 start) (string-length name))
+          name)
+         ((string= name "lib" start (+ start 3))
+          (string-append (substring name 0 start)
+                         "cyg"
+                         (substring name (+ start 3))))
+         (else
+          name)))))
+
 (define* (load-foreign-library #:optional filename #:key
                                (extensions system-library-extensions)
                                (search-ltdl-library-path? #t)
                                (search-path (default-search-path
                                               search-ltdl-library-path?))
                                (search-system-paths? #t)
-                               (lazy? #t) (global? #f))
+                               (lazy? #t) (global? #f) (rename-on-cygwin? #t))
   (define (error-not-found)
     (scm-error 'misc-error "load-foreign-library"
                "file: ~S, message: ~S"
@@ -168,6 +188,8 @@
     (logior (if lazy? RTLD_LAZY RTLD_NOW)
             (if global? RTLD_GLOBAL RTLD_LOCAL)))
   (define (dlopen* name) (dlopen name flags))
+  (if (and rename-on-cygwin? (string-contains %host-type "cygwin"))
+      (set! filename (lib->cyg filename)))
   (make-foreign-library
    filename
    (cond

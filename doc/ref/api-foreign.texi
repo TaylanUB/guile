@@ -84,6 +84,7 @@ implemented in the @code{(system foreign-library)} module.
        [#:search-ltdl-library-path?=#t] @
        [#:search-path=search-path] @
        [#:search-system-paths?=#t] [#:lazy?=#t] [#:global=#f]
+       [#:rename-on-cygwin?=#t]
 Find the shared library denoted by @var{library} (a string or @code{#f})
 and link it into the running Guile application.  When everything works
 out, return a Scheme object suitable for representing the linked object
@@ -177,6 +178,11 @@ system to resolve symbols used by the loaded library as they are first
 used.  If @var{global?} is true, symbols defined by the loaded library
 will be available when other modules need to resolve symbols; the
 default is @code{#f}, which keeps symbols local.
+
+If @var{rename-on-cygwin?} is true (the default) -- on Cygwin hosts only
+-- the search behavior is modified such that a filename that starts with
+``lib'' will be searched for under the name ``cyg'', as is customary for
+Cygwin.
 @end deffn
 
 The environment variables mentioned above are parsed when the
