@@ -1,4 +1,4 @@
-/* Copyright 2018-2020
+/* Copyright 2018-2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -26,8 +26,6 @@
 #if ENABLE_JIT
 
 #include <stdio.h>
-#include <sys/mman.h>
-
 #include <lightening.h>
 
 #include "frames.h"
@@ -39,6 +37,15 @@
 #include "threads.h"
 #include "vm-builtins.h"
 #include "vm-operations.h"
+
+#ifdef __MINGW32__
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#else
+#include <sys/mman.h>
+#endif
 
 #include "jit.h"
 
@@ -160,6 +167,9 @@ void *scm_jit_return_to_interpreter_trampoline;
 /* Thread-local buffer into which to write code.  */
 struct code_arena
 {
+#ifdef __MINGW32__
+  HANDLE handle;
+#endif
   uint8_t *base;
   size_t used;
   size_t size;
@@ -269,9 +279,9 @@ static const uint8_t OP_ATTR_BLOCK = 0x1;
 static const uint8_t OP_ATTR_ENTRY = 0x2;
 
 #ifdef WORDS_BIGENDIAN
-#define BIGENDIAN 1
+#define JIT_BIGENDIAN 1
 #else
-#define BIGENDIAN 0
+#define JIT_BIGENDIAN 0
 #endif
 
 #if SCM_SIZEOF_UINTPTR_T == 4
@@ -936,7 +946,7 @@ sp_sz_operand (scm_jit_state *j, uint32_t src)
   enum jit_operand_abi abi =
     sizeof (size_t) == 4 ? JIT_OPERAND_ABI_UINT32 : JIT_OPERAND_ABI_UINT64;
 
-  if (BIGENDIAN && sizeof (size_t) == 4)
+  if (JIT_BIGENDIAN && sizeof (size_t) == 4)
     return jit_operand_mem (abi, SP, src * 8 + 4);
   else
     return jit_operand_mem (abi, SP, src * 8);
@@ -947,7 +957,7 @@ emit_sp_ref_sz (scm_jit_state *j, jit_gpr_t dst, uint32_t src)
 {
   ASSERT_HAS_REGISTER_STATE (SP_IN_REGISTER);
 
-  if (BIGENDIAN && sizeof (size_t) == 4)
+  if (JIT_BIGENDIAN && sizeof (size_t) == 4)
     emit_ldxi (j, dst, SP, src * 8 + 4);
   else
     emit_ldxi (j, dst, SP, src * 8);
@@ -963,7 +973,7 @@ emit_sp_set_sz (scm_jit_state *j, uint32_t dst, jit_gpr_t src)
   if (sizeof (size_t) == 4)
     {
       size_t lo, hi;
-      if (BIGENDIAN)
+      if (JIT_BIGENDIAN)
         lo = offset + 4, hi = offset;
       else
         lo = offset, hi = offset + 4;
@@ -1055,7 +1065,7 @@ emit_sp_ref_u64 (scm_jit_state *j, jit_gpr_t dst_lo, jit_gpr_t dst_hi,
 
   ASSERT_HAS_REGISTER_STATE (SP_IN_REGISTER);
 
-#if BIGENDIAN
+#if JIT_BIGENDIAN
   first = dst_hi, second = dst_lo;
 #else
   first = dst_lo, second = dst_hi;
@@ -1073,7 +1083,7 @@ emit_sp_set_u64 (scm_jit_state *j, uint32_t dst, jit_gpr_t lo, jit_gpr_t hi)
 
   ASSERT_HAS_REGISTER_STATE (SP_IN_REGISTER);
 
-#if BIGENDIAN
+#if JIT_BIGENDIAN
   first = hi, second = lo;
 #else
   first = lo, second = hi;
@@ -1338,16 +1348,40 @@ allocate_code_arena (size_t size, struct code_arena *prev)
   ret->used = 0;
   ret->size = size;
   ret->prev = prev;
+#ifndef __MINGW32__
   ret->base = mmap (NULL, ret->size,
                     PROT_EXEC | PROT_READ | PROT_WRITE,
                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
   if (ret->base == MAP_FAILED)
     {
       perror ("allocating JIT code buffer failed");
       free (ret);
       return NULL;
     }
+#else
+  ret->handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL,
+                                   PAGE_EXECUTE_READWRITE,
+                                   size >> 32, size & 0xffffffff, NULL);
+  if (ret->handle == NULL)
+    {
+      fprintf (stderr, "allocating JIT code buffer failed: %lu\n",
+               GetLastError());
+      free (ret);
+      return NULL;
+    }
+  ret->base = MapViewOfFile (ret->handle,
+                             FILE_MAP_WRITE | FILE_MAP_EXECUTE | FILE_MAP_COPY,
+                             0, 0, size);
+  if (ret->base == NULL)
+    {
+      CloseHandle (ret->handle);
+      fprintf (stderr, "memory mapping JIT code buffer failed: %lu\n",
+               GetLastError());
+      free (ret);
+      return NULL;
+    }
+#endif
+
 
   INFO ("allocated code arena, %p-%p\n", ret->base, ret->base + ret->size);
 
@@ -1399,7 +1433,12 @@ emit_code (scm_jit_state *j, void (*emit) (scm_jit_state *))
               arena = allocate_code_arena (arena->size * 2, arena->prev);
               if (!arena)
                 return NULL;
+#ifndef __MINGW32__
               munmap (j->code_arena->base, j->code_arena->size);
+#else
+              UnmapViewOfFile (j->code_arena->base);
+              CloseHandle (j->code_arena->handle);
+#endif
               free (j->code_arena);
               j->code_arena = arena;
             }
@@ -4897,7 +4936,7 @@ compile_u64_ref (scm_jit_state *j, uint8_t dst, uint8_t ptr, uint8_t idx)
   emit_sp_set_u64 (j, dst, T0);
 #else
   emit_addr (j, T0, T0, T1);
-  if (BIGENDIAN)
+  if (JIT_BIGENDIAN)
     {
       emit_ldr (j, T1, T0);
       emit_ldxi (j, T0, T0, 4);
@@ -4978,7 +5017,7 @@ compile_u64_set (scm_jit_state *j, uint8_t ptr, uint8_t idx, uint8_t v)
 #else
   jit_addr (j->jit, T0, T0, T1);
   emit_sp_ref_u64 (j, T1, T2, v);
-  if (BIGENDIAN)
+  if (JIT_BIGENDIAN)
     {
       jit_str (j->jit, T0, T2);
       jit_stxi (j->jit, 4, T0, T1);
