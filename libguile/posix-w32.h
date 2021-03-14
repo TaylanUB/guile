@@ -81,9 +81,9 @@ SCM_INTERNAL int uname (struct utsname * uts);
 SCM_INTERNAL int waitpid (intptr_t, int *, int);
 SCM_INTERNAL int w32_status_to_termsig (DWORD status);
 
-SCM_INTERNAL int start_child (const char *exec_file, char **argv,
-                              int reading, int c2p[2], int writing, int p2c[2],
-                              int infd, int outfd, int errfd);
+SCM_INTERNAL pid_t start_child (const char *exec_file, char **argv,
+                                int reading, int c2p[2], int writing, int p2c[2],
+                                int infd, int outfd, int errfd);
 
 SCM_INTERNAL int kill (int pid, int sig);
 
