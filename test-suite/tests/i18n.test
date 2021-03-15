@@ -74,11 +74,6 @@
          (string-locale-ci=? "Hello" "HELLO"
                              (make-locale (list LC_COLLATE) "C"))))
 
-  (pass-if "string-locale-ci=?, bis"
-    (let* ((strings (list "⇒a" "⇒b"))
-           (heads (map (lambda (s) (substring/shared s 0 1)) strings)))
-      (apply string-locale-ci=? heads)))
-
   (pass-if "string-locale-ci<?"
     (and (string-locale-ci<? "hello" "WORLD")
          (string-locale-ci<? "hello" "WORLD"
@@ -225,6 +220,13 @@
             (string-locale-ci=? "œuf" "ŒUF"))
           (lambda ()
             (setlocale LC_ALL "C"))))))
+
+  (pass-if "string-locale-ci=?, bis"
+    (under-french-utf8-locale-or-unresolved
+     (lambda ()
+       (let* ((strings (list "œa" "œb"))
+              (heads (map (lambda (s) (substring/shared s 0 1)) strings)))
+         (apply string-locale-ci=? heads)))))
 
   (pass-if "string-locale-ci=? (3 args, wide strings)"
     (under-french-utf8-locale-or-unresolved
