@@ -833,9 +833,8 @@ locale_language ()
 }
 
 static inline int
-u32_locale_casecoll (const char *func_name, const uint32_t *c_s1,
-                     const uint32_t *c_s2,
-		     int *result)
+u32_locale_casecoll (const char *func_name, const uint32_t *c_s1, size_t s1_len,
+                     const uint32_t *c_s2, size_t s2_len, int *result)
 {
   /* Note: Since this is called from `RUN_IN_LOCALE_SECTION', it must note
      make any non-local exit.  */
@@ -843,8 +842,8 @@ u32_locale_casecoll (const char *func_name, const uint32_t *c_s1,
   int ret;
   const char *loc = locale_language ();
 
-  ret = u32_casecoll (c_s1, u32_strlen (c_s1),
-                      c_s2, u32_strlen (c_s2),
+  ret = u32_casecoll (c_s1, s1_len,
+                      c_s2, s2_len,
                       loc, UNINORM_NFC, result);
 
   return ret == 0 ? ret : errno;
@@ -860,6 +859,9 @@ compare_u32_strings_ci (SCM s1, SCM s2, SCM locale, const char *func_name)
   int c_s1_malloc_p, c_s2_malloc_p;
   SCM_VALIDATE_OPTIONAL_LOCALE_COPY (3, locale, c_locale);
 
+  size_t s1_len = scm_i_string_length (s1);
+  size_t s2_len = scm_i_string_length (s2);
+
   SCM_STRING_TO_U32_BUF (s1, c_s1, c_s1_malloc_p);
   SCM_STRING_TO_U32_BUF (s2, c_s2, c_s2_malloc_p);
 
@@ -867,13 +869,13 @@ compare_u32_strings_ci (SCM s1, SCM s2, SCM locale, const char *func_name)
     RUN_IN_LOCALE_SECTION
       (c_locale,
        ret = u32_locale_casecoll (func_name,
-				  (const uint32_t *) c_s1,
-				  (const uint32_t *) c_s2,
+				  (const uint32_t *) c_s1, s1_len,
+				  (const uint32_t *) c_s2, s2_len,
 				  &result));
   else
     ret = u32_locale_casecoll (func_name,
-			       (const uint32_t *) c_s1,
-			       (const uint32_t *) c_s2,
+			       (const uint32_t *) c_s1, s1_len,
+			       (const uint32_t *) c_s2, s2_len,
 			       &result);
 
   SCM_CLEANUP_U32_BUF(c_s1, c_s1_malloc_p);

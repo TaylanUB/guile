@@ -1,8 +1,7 @@
 ;;;; i18n.test --- Exercise the i18n API.  -*- coding: utf-8; mode: scheme; -*-
 ;;;;
-;;;; Copyright (C) 2006, 2007, 2009, 2010, 2011, 2012,
-;;;;   2013, 2014, 2015, 2016, 2017, 2018 Free Software Foundation, Inc.
-;;;; Ludovic Courtès
+;;;; Copyright (C) 2006-2007,2009-2019,2021 Free Software Foundation, Inc.
+;;;; Author: Ludovic Courtès
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -74,6 +73,11 @@
     (and (string-locale-ci=? "Hello" "HELLO")
          (string-locale-ci=? "Hello" "HELLO"
                              (make-locale (list LC_COLLATE) "C"))))
+
+  (pass-if "string-locale-ci=?, bis"
+    (let* ((strings (list "⇒a" "⇒b"))
+           (heads (map (lambda (s) (substring/shared s 0 1)) strings)))
+      (apply string-locale-ci=? heads)))
 
   (pass-if "string-locale-ci<?"
     (and (string-locale-ci<? "hello" "WORLD")
