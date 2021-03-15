@@ -221,6 +221,13 @@
           (lambda ()
             (setlocale LC_ALL "C"))))))
 
+  (pass-if "string-locale<?, bis"
+    (under-french-utf8-locale-or-unresolved
+     (lambda ()
+       (let* ((strings (list "œa" "œb"))
+              (heads (map (lambda (s) (substring/shared s 0 1)) strings)))
+         (not (apply string-locale<? heads))))))
+
   (pass-if "string-locale-ci=?, bis"
     (under-french-utf8-locale-or-unresolved
      (lambda ()

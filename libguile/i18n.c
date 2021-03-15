@@ -788,34 +788,29 @@ SCM_DEFINE (scm_locale_p, "locale?", 1, 0, 0,
     } while (0)
 
 
-/* Compare UTF-32 strings according to LOCALE.  Returns a negative value if
-   S1 compares smaller than S2, a positive value if S1 compares larger than
+/* Compare strings according to LOCALE.  Returns a negative value if S1
+   compares smaller than S2, a positive value if S1 compares larger than
    S2, or 0 if they compare equal.  */
 static inline int
-compare_u32_strings (SCM s1, SCM s2, SCM locale, const char *func_name) 
+compare_strings (SCM s1, SCM s2, SCM locale, const char *func_name)
 #define FUNC_NAME func_name
 {
   int result;
   scm_t_locale c_locale;
-  scm_t_wchar *c_s1, *c_s2;
-  int c_s1_malloc_p, c_s2_malloc_p;
+  uint8_t *c_s1, *c_s2;
   SCM_VALIDATE_OPTIONAL_LOCALE_COPY (3, locale, c_locale);
 
-  SCM_STRING_TO_U32_BUF (s1, c_s1, c_s1_malloc_p);
-  SCM_STRING_TO_U32_BUF (s2, c_s2, c_s2_malloc_p);
+  c_s1 = (uint8_t *) scm_to_utf8_string (s1);
+  c_s2 = (uint8_t *) scm_to_utf8_string (s2);
 
   if (c_locale)
-    RUN_IN_LOCALE_SECTION (c_locale, 
-                           result = u32_strcoll ((const uint32_t *) c_s1, 
-                                                 (const uint32_t *) c_s2));
+    RUN_IN_LOCALE_SECTION (c_locale, result = u8_strcoll (c_s1, c_s2));
   else
-    result = u32_strcoll ((const uint32_t *) c_s1,
-			  (const uint32_t *) c_s2);
+    result = u8_strcoll (c_s1, c_s2);
 
-  SCM_CLEANUP_U32_BUF(c_s1, c_s1_malloc_p);
-  SCM_CLEANUP_U32_BUF(c_s2, c_s2_malloc_p);
+  free (c_s1);
+  free (c_s2);
 
-  scm_remember_upto_here_2 (s1, s2);
   scm_remember_upto_here (locale);
   return result;
 }
@@ -907,7 +902,7 @@ SCM_DEFINE (scm_string_locale_lt, "string-locale<?", 2, 1, 0,
   SCM_VALIDATE_STRING (1, s1);
   SCM_VALIDATE_STRING (2, s2);
 
-  result = compare_u32_strings (s1, s2, locale, FUNC_NAME);
+  result = compare_strings (s1, s2, locale, FUNC_NAME);
 
   return scm_from_bool (result < 0);
 }
@@ -926,7 +921,7 @@ SCM_DEFINE (scm_string_locale_gt, "string-locale>?", 2, 1, 0,
   SCM_VALIDATE_STRING (1, s1);
   SCM_VALIDATE_STRING (2, s2);
 
-  result = compare_u32_strings (s1, s2, locale, FUNC_NAME);
+  result = compare_strings (s1, s2, locale, FUNC_NAME);
 
   return scm_from_bool (result > 0);
 }
@@ -1004,9 +999,9 @@ SCM_DEFINE (scm_char_locale_lt, "char-locale<?", 2, 1, 0,
   SCM_VALIDATE_CHAR (1, c1);
   SCM_VALIDATE_CHAR (2, c2);
 
-  result = compare_u32_strings (scm_string (scm_list_1 (c1)), 
-                                scm_string (scm_list_1 (c2)), 
-                                locale, FUNC_NAME);
+  result = compare_strings (scm_string (scm_list_1 (c1)),
+                            scm_string (scm_list_1 (c2)),
+                            locale, FUNC_NAME);
 
   return scm_from_bool (result < 0);
 }
@@ -1023,9 +1018,9 @@ SCM_DEFINE (scm_char_locale_gt, "char-locale>?", 2, 1, 0,
   SCM_VALIDATE_CHAR (1, c1);
   SCM_VALIDATE_CHAR (2, c2);
 
-  result = compare_u32_strings (scm_string (scm_list_1 (c1)), 
-                                scm_string (scm_list_1 (c2)), 
-                                locale, FUNC_NAME);
+  result = compare_strings (scm_string (scm_list_1 (c1)),
+                            scm_string (scm_list_1 (c2)),
+                            locale, FUNC_NAME);
 
   return scm_from_bool (result > 0);
 }
