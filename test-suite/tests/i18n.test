@@ -226,14 +226,16 @@
      (lambda ()
        (let* ((strings (list "œa" "œb"))
               (heads (map (lambda (s) (substring/shared s 0 1)) strings)))
-         (not (apply string-locale<? heads))))))
+         (not (string-locale<? (car heads) (cadr heads)
+                               %french-utf8-locale))))))
 
   (pass-if "string-locale-ci=?, bis"
     (under-french-utf8-locale-or-unresolved
      (lambda ()
        (let* ((strings (list "œa" "œb"))
               (heads (map (lambda (s) (substring/shared s 0 1)) strings)))
-         (apply string-locale-ci=? heads)))))
+         (string-locale-ci=? (car heads) (cadr heads)
+                             %french-utf8-locale)))))
 
   (pass-if "string-locale-ci=? (3 args, wide strings)"
     (under-french-utf8-locale-or-unresolved
