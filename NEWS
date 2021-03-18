@@ -191,9 +191,12 @@ See "Syntax Transformer Helpers" in the manual.
 ** Fix (ice-9 ftw) on filesystems where inode values are meaningless
 ** Fix many bugs that prevented Guile from building on MinGW
 ** Fix many bugs that prevented Guile's test suite from running on MinGW
+** Fix srfi-69 merge-hash
+** Fix suspendable-ports implementation of get-bytevector-some!
+** Fix overread in string-locale<?, string-locale-ci<?, and friends
 
 Thanks to Andrey Ivanov, Rob Browning, Erik Dominikus, Göran Weinholt,
-and Michael Gran.
+Michael Gran, Andrew Whatson, and Ricardo G. Herdt.
 
 * New deprecations
 
