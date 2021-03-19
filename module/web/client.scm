@@ -1,6 +1,6 @@
 ;;; Web client
 
-;; Copyright (C) 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2020 Free Software Foundation, Inc.
+;; Copyright (C) 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2020, 2021 Free Software Foundation, Inc.
 
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -244,10 +244,10 @@ host name without trailing dot."
     ;; underlying socket.
     (let ((record (session-record-port session)))
       (define (read! bv start count)
-        (define read-bv
+        (define read
           (catch 'gnutls-error
             (lambda ()
-              (get-bytevector-some record))
+              (get-bytevector-n! record bv start count))
             (lambda (key err proc . rest)
               ;; When responding to "Connection: close" requests, some
               ;; servers close the connection abruptly after sending the
@@ -256,13 +256,10 @@ host name without trailing dot."
               (if (eq? err error/premature-termination)
                   the-eof-object
                   (apply throw key err proc rest)))))
-        (if (eof-object? read-bv)
-            0  ; read! returns 0 on eof-object
-            (let ((read-bv-len (bytevector-length read-bv)))
-              (bytevector-copy! read-bv 0 bv start (min read-bv-len count))
-              (when (< count read-bv-len)
-                (unget-bytevector record bv count (- read-bv-len count)))
-              read-bv-len)))
+
+        (if (eof-object? read)
+            0
+            read))
       (define (write! bv start count)
         (put-bytevector record bv start count)
         (force-output record)
