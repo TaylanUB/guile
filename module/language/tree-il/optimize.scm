@@ -1,6 +1,6 @@
 ;;; Tree-il optimizer
 
-;; Copyright (C) 2009, 2010-2015, 2018-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2009, 2010-2015, 2018-2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -45,7 +45,8 @@
         (letrectify (lookup #:letrectify? letrectify))
         (seal?      (assq-ref opts #:seal-private-bindings?))
         (peval      (lookup #:partial-eval? peval))
-        (eta-expand (lookup #:eta-expand? eta-expand)))
+        (eta-expand (lookup #:eta-expand? eta-expand))
+        (inlinables (lookup #:inlinable-exports? inlinable-exports)))
     (define-syntax-rule (run-pass! (proc exp arg ...))
       (when proc (set! exp (verify (proc exp arg ...)))))
     (lambda (exp env)
@@ -57,6 +58,7 @@
       (run-pass! (fix-letrec exp))
       (run-pass! (peval exp env))
       (run-pass! (eta-expand exp))
+      (run-pass! (inlinables exp))
       exp)))
 
 (define (optimize x env opts)

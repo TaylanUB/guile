@@ -1,6 +1,6 @@
 ;;; Optimization flags
 
-;; Copyright (C) 2018, 2020 Free Software Foundation, Inc.
+;; Copyright (C) 2018, 2020, 2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -34,7 +34,9 @@
        (#:letrectify? 2)
        (#:seal-private-bindings? 3)
        (#:partial-eval? 1)
-       (#:eta-expand? 2)))
+       (#:eta-expand? 2)
+       (#:inlinable-exports? 1)
+       (#:cross-module-inlining? 2)))
     ('cps
      '( ;; (#:split-rec? #t)
        (#:simplify? 2)

@@ -2513,7 +2513,8 @@ name extensions listed in %load-extensions."
      public-interface
      filename
      next-unique-id
-     (replacements #:no-setter))))
+     (replacements #:no-setter)
+     inlinable-exports)))
 
 
 ;; make-module &opt size uses binder
@@ -2539,7 +2540,7 @@ initial uses list, or binding procedure."
                       '()
                       (make-weak-key-hash-table) #f
                       (make-hash-table) #f #f #f 0
-                      (make-hash-table)))
+                      (make-hash-table) #f))
 
 
 
@@ -3380,7 +3381,8 @@ error if selected binding does not exist in the used module."
 (define* (define-module* name
            #:key filename pure version (imports '()) (exports '())
            (replacements '()) (re-exports '()) (re-export-replacements '())
-           (autoloads '()) (duplicates #f) transformer declarative?)
+           (autoloads '()) (duplicates #f) transformer declarative?
+           inlinable-exports)
   (define (list-of pred l)
     (or (null? l)
         (and (pair? l) (pred (car l)) (list-of pred (cdr l)))))
@@ -3446,6 +3448,12 @@ error if selected binding does not exist in the used module."
             (sym (car (last-pair transformer))))
         (set-module-transformer! module (module-ref iface sym))))
 
+    (when inlinable-exports
+      (unless (procedure? inlinable-exports)
+        (error "expected inlinable-exports to be a procedure" inlinable-exports))
+      (set-module-inlinable-exports! (module-public-interface module)
+                                     inlinable-exports))
+
     (run-hook module-defined-hook module)
     module))
 
@@ -3481,7 +3489,7 @@ error if selected binding does not exist in the used module."
               #:warning "Failed to autoload ~a in ~a:\n" sym name))))
     (module-constructor (make-hash-table 0) '() b #f #f name 'autoload #f
                         (make-hash-table 0) '() (make-weak-value-hash-table) #f
-                        (make-hash-table 0) #f #f #f 0 (make-hash-table 0))))
+                        (make-hash-table 0) #f #f #f 0 (make-hash-table 0) #f)))
 
 (define (module-autoload! module . args)
   "Have @var{module} automatically load the module named @var{name} when one
