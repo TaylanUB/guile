@@ -259,6 +259,7 @@
   (define (%match lst null optional rest symbol)
     (pmatch lst
       (() (null))
+      (nil (null))
       ((&optional . ,tail) (optional tail))
       ((&rest . ,tail) (rest tail))
       ((,arg . ,tail) (guard (symbol? arg)) (symbol arg tail))

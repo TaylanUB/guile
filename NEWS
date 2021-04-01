@@ -194,9 +194,11 @@ See "Syntax Transformer Helpers" in the manual.
 ** Fix srfi-69 merge-hash
 ** Fix suspendable-ports implementation of get-bytevector-some!
 ** Fix overread in string-locale<?, string-locale-ci<?, and friends
+** Fix handling of parameter lists to elisp defun to allow nil
 
-Thanks to Andrey Ivanov, Rob Browning, Erik Dominikus, Göran Weinholt,
-Michael Gran, Andrew Whatson, and Ricardo G. Herdt.
+Thanks to Vasilij Schneidermann, Andrey Ivanov, Rob Browning, Erik
+Dominikus, Göran Weinholt, Michael Gran, Andrew Whatson, and Ricardo
+G. Herdt.
 
 * New deprecations
 
