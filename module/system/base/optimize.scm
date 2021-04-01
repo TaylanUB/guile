@@ -28,6 +28,7 @@
   (match lang-name
     ('tree-il
      '((#:cps? 2)
+       (#:resolve-free-vars? 1)
        (#:resolve-primitives? 1)
        (#:expand-primitives? 1)
        (#:letrectify? 2)

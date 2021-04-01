@@ -93,6 +93,7 @@ SOURCES =					\
   language/tree-il/optimize.scm			\
   language/tree-il/peval.scm			\
   language/tree-il/primitives.scm		\
+  language/tree-il/resolve-free-vars.scm	\
   language/tree-il/spec.scm			\
 						\
   ice-9/and-let-star.scm			\
