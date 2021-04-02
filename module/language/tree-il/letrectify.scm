@@ -1,6 +1,6 @@
 ;;; transformation of top-level bindings into letrec*
 
-;; Copyright (C) 2019-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -251,6 +251,24 @@
                   name value exp
                   (add-statement src init (make-void src))))
                 mod-vars)))))))
+
+      (($ <let> src names vars vals body)
+       (let lp ((names names) (vars vars) (vals vals) (mod-vars mod-vars))
+         (match (vector names vars vals)
+           (#(() () ())
+            (values (visit-expr body) mod-vars))
+           (#((name . names) (var . vars) (val . vals))
+            (let* ((val (visit-expr val))
+                   (mod-vars
+                    (match val
+                      (($ <call> _
+                          ($ <module-ref> _ '(guile) 'define-module* #f)
+                          (($ <const> _ mod) . args))
+                       (acons mod var mod-vars))
+                      (_ mod-vars))))
+              (let-values (((exp mod-vars) (lp names vars vals mod-vars)))
+                (values (add-binding name var val exp)
+                        mod-vars)))))))
 
       (($ <seq> src head tail)
        (let*-values (((head mod-vars) (visit-top-level head mod-vars))
