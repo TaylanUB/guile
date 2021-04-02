@@ -1,6 +1,6 @@
 ;;; transformation of letrec into simpler forms
 
-;; Copyright (C) 2009-2013,2016,2019 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2013,2016,2019,2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -253,6 +253,39 @@
               (compute-sccs names gensyms vals in-order? fv-cache
                             assigned)))
 
+;; For letrec*, try to minimize false dependencies introduced by
+;; ordering.
+(define (reorder-bindings bindings)
+  (define (possibly-references? expr bindings)
+    (let visit ((expr expr))
+      (match expr
+        ((or ($ <void>) ($ <const>) ($ <primitive-ref>) ($ <module-ref>)) #f)
+        (($ <lexical-ref> _ name var)
+         (or-map (match-lambda (#(name var' val) (eq? var' var)))
+                 bindings))
+        (($ <seq> _ head tail)
+         (or (visit head) (visit tail)))
+        (($ <primcall> _ name args) (or-map visit args))
+        (($ <conditional> _ test consequent alternate)
+         (or (visit test) (visit consequent) (visit alternate)))
+        (_ #t))))
+  (let visit ((bindings bindings) (sunk-lambdas '()) (sunk-exprs '()))
+    (match bindings
+      (() (append sunk-lambdas (reverse sunk-exprs)))
+      ((binding . bindings)
+       (match binding
+         (#(_ _ ($ <lambda>))
+          (visit bindings (cons binding sunk-lambdas) sunk-exprs))
+         (#(_ _ expr)
+          (cond
+           ((possibly-references? expr bindings)
+            ;; Init expression might refer to later bindings.
+            ;; Serialize.
+            (append sunk-lambdas (reverse sunk-exprs)
+                    (cons binding (visit bindings '() '()))))
+           (else
+            (visit bindings sunk-lambdas (cons binding sunk-exprs))))))))))
+
 (define (fix-letrec x)
   (let-values (((referenced assigned) (analyze-lexicals x)))
     (define fv-cache (make-hash-table))
@@ -268,8 +301,13 @@
               (make-seq* #f exp (make-void #f))))
 
          ((<letrec> src in-order? names gensyms vals body)
-          (fix-term src in-order? names gensyms vals body
-                    fv-cache referenced assigned))
+          (if in-order?
+              (match (reorder-bindings (map vector names gensyms vals))
+                ((#(names gensyms vals) ...)
+                 (fix-term src #t names gensyms vals body
+                           fv-cache referenced assigned)))
+              (fix-term src #f names gensyms vals body
+                        fv-cache referenced assigned)))
 
          ((<let> src names gensyms vals body)
           ;; Apply the same algorithm to <let> that binds <lambda>
