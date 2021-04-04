@@ -55,7 +55,7 @@ print_box (SCM b, SCM port, scm_print_state *pstate)
 }
 
 
-/* This defines the primitve `make-box', which returns a new smob of
+/* This defines the primitive `make-box', which returns a new smob of
    type `box', initialized to `#f'.  */
 static SCM
 #define FUNC_NAME "make-box"
@@ -109,7 +109,7 @@ box_set_x (SCM b, SCM value)
 
 
 /* Create and initialize the new smob type, and register the
-   primitives withe the interpreter library.  */
+   primitives with the interpreter library.  */
 static void
 init_box_type (void)
 {

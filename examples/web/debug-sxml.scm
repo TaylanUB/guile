@@ -1,6 +1,6 @@
 ;;; Commentary:
 
-;;; A simple debugging server that responds to all responses with a
+;;; A simple debugging server that responds to all requests with a
 ;;; table containing the headers given in the request.
 ;;;
 ;;; As a novelty, this server uses a little micro-framework to build up

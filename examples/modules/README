@@ -17,7 +17,7 @@ installed and available with the standard installation prefix
 
   The main program, which uses the modules described below to perform
   some actions.  Module usage and selective importing as well as
-  renaming is demonstrated here.n
+  renaming is demonstrated here.
 
   $ ./main
 
