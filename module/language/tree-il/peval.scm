@@ -368,7 +368,8 @@
                 (operand-size-limit 20)
                 (value-size-limit 10)
                 (effort-limit 500)
-                (recursive-effort-limit 100))
+                (recursive-effort-limit 100)
+                (cross-module-inlining? #f))
   "Partially evaluate EXP in compilation environment CENV, with
 top-level bindings from ENV and return the resulting expression."
 
@@ -431,14 +432,54 @@ top-level bindings from ENV and return the resulting expression."
   (define (lexical-refcount sym)
     (var-refcount (lookup-var sym)))
 
+  (define (splice-expression exp)
+    (define vars (make-hash-table))
+    (define (rename! old*)
+      (match old*
+        (() '())
+        ((old . old*)
+         (cons (let ((new (gensym "t")))
+                 (hashq-set! vars old new)
+                 new)
+               (rename! old*)))))
+    (define (new-name old) (hashq-ref vars old))
+    (define renamed
+      (pre-order
+       (match-lambda
+         (($ <lexical-ref> src name gensym)
+          (make-lexical-ref src name (new-name gensym)))
+         (($ <lexical-set> src name gensym exp)
+          (make-lexical-set src name (new-name gensym) exp))
+         (($ <lambda-case> src req opt rest kw init gensyms body alt)
+          (let ((gensyms (rename! gensyms)))
+            (make-lambda-case src req opt rest
+                              (match kw
+                                ((aok? (kw name sym) ...)
+                                 (cons aok?
+                                       (map (lambda (kw name sym)
+                                              (list kw name (new-name sym)))
+                                            kw name sym)))
+                                (#f #f))
+                              init gensyms body alt)))
+         (($ <let> src names gensyms vals body)
+          (make-let src names (rename! gensyms) vals body))
+         (($ <letrec>)
+          (error "unexpected letrec"))
+         (($ <fix> src names gensyms vals body)
+          (make-fix src names (rename! gensyms) vals body))
+         (exp exp))
+       exp))
+    (set! store (build-var-table renamed store))
+    renamed)
+
   (define (with-temporaries src exps refcount can-copy? k)
     (let* ((pairs (map (match-lambda
-                        ((and exp (? can-copy?))
-                         (cons #f exp))
-                        (exp
-                         (let ((sym (gensym "tmp ")))
-                           (record-new-temporary! 'tmp sym refcount)
-                           (cons sym exp))))
+                         ((and exp (? can-copy?))
+                          (cons #f exp))
+                         (exp
+                          (let ((sym (gensym "tmp ")))
+                            (record-new-temporary! 'tmp sym refcount)
+                            (cons sym exp))))
                        exps))
            (tmps (filter car pairs)))
       (match tmps
@@ -449,9 +490,9 @@ top-level bindings from ENV and return the resulting expression."
                    (map car tmps)
                    (map cdr tmps)
                    (k (map (match-lambda
-                            ((#f . val) val)
-                            ((sym . _)
-                             (make-lexical-ref #f 'tmp sym)))
+                             ((#f . val) val)
+                             ((sym . _)
+                              (make-lexical-ref #f 'tmp sym)))
                            pairs)))))))
 
   (define (make-begin0 src first second)
@@ -506,14 +547,14 @@ top-level bindings from ENV and return the resulting expression."
     (define (apply-primitive name args)
       ;; todo: further optimize commutative primitives
       (catch #t
-             (lambda ()
-               (call-with-values
-                   (lambda ()
-                     (apply (module-ref the-scm-module name) args))
-                 (lambda results
-                   (values #t results))))
-             (lambda _
-               (values #f '()))))
+        (lambda ()
+          (call-with-values
+              (lambda ()
+                (apply (module-ref the-scm-module name) args))
+            (lambda results
+              (values #t results))))
+        (lambda _
+          (values #f '()))))
     (define (make-values src values)
       (match values
         ((single) single)               ; 1 value
@@ -1027,8 +1068,45 @@ top-level bindings from ENV and return the resulting expression."
                    (make-primitive-ref src name)
                    exp))
              exp)))
-      (($ <module-ref>)
-       exp)
+      (($ <module-ref> src module name public?)
+       (cond
+        ((and cross-module-inlining?
+              public?
+              (and=> (resolve-interface module)
+                     (lambda (module)
+                       (and=> (module-inlinable-exports module)
+                              (lambda (proc) (proc name))))))
+         => (lambda (inlined)
+              ;; Similar logic to lexical-ref, but we can't enumerate
+              ;; uses, and don't know about aliases.
+              (log 'begin-xm-copy exp inlined)
+              (cond
+               ((eq? ctx 'effect)
+                (log 'xm-effect)
+                (make-void #f))
+               ((eq? ctx 'call)
+                ;; Don't propagate copies if we are residualizing a call.
+                (log 'residualize-xm-call exp)
+                exp)
+               ((or (const? inlined) (void? inlined) (primitive-ref? inlined))
+                ;; Always propagate simple values that cannot lead to
+                ;; code bloat.
+                (log 'copy-xm-const)
+                (for-tail inlined))
+               ;; Inline in operator position if it's a lambda that's
+               ;; small enough.  Normally the inlinable-exports pass
+               ;; will only make small lambdas available for inlining,
+               ;; but you never know.
+               ((and (eq? ctx 'operator) (lambda? inlined)
+                     (small-expression? inlined operator-size-limit))
+                (log 'copy-xm-operator exp inlined)
+                (splice-expression inlined))
+               (else
+                (log 'xm-copy-failed)
+                ;; Could copy small lambdas in value context.  Something
+                ;; to revisit.
+                exp))))
+        (else exp)))
       (($ <module-set> src mod name public? exp)
        (make-module-set src mod name public? (for-value exp)))
       (($ <toplevel-define> src mod name exp)
@@ -1146,55 +1224,55 @@ top-level bindings from ENV and return the resulting expression."
         (with-temporaries
          src (list w u) 2 constant-expression?
          (match-lambda
-          ((w u)
-           (make-seq
-            src
+           ((w u)
             (make-seq
              src
-             (make-conditional
+             (make-seq
               src
-              ;; fixme: introduce logic to fold thunk?
-              (make-primcall src 'thunk? (list u))
-              (make-call src w '())
-              (make-primcall
-               src 'throw
-               (list
-                (make-const #f 'wrong-type-arg)
-                (make-const #f "dynamic-wind")
-                (make-const #f "Wrong type (expecting thunk): ~S")
-                (make-primcall #f 'list (list u))
-                (make-primcall #f 'list (list u)))))
-             (make-primcall src 'wind (list w u)))
-            (make-begin0 src
-                         (make-call src thunk '())
-                         (make-seq src
-                                   (make-primcall src 'unwind '())
-                                   (make-call src u '())))))))))
+              (make-conditional
+               src
+               ;; fixme: introduce logic to fold thunk?
+               (make-primcall src 'thunk? (list u))
+               (make-call src w '())
+               (make-primcall
+                src 'throw
+                (list
+                 (make-const #f 'wrong-type-arg)
+                 (make-const #f "dynamic-wind")
+                 (make-const #f "Wrong type (expecting thunk): ~S")
+                 (make-primcall #f 'list (list u))
+                 (make-primcall #f 'list (list u)))))
+              (make-primcall src 'wind (list w u)))
+             (make-begin0 src
+                          (make-call src thunk '())
+                          (make-seq src
+                                    (make-primcall src 'unwind '())
+                                    (make-call src u '())))))))))
 
       (($ <primcall> src 'with-fluid* (f v thunk))
        (for-tail
         (with-temporaries
          src (list f v thunk) 1 constant-expression?
          (match-lambda
-          ((f v thunk)
-           (make-seq src
-                     (make-primcall src 'push-fluid (list f v))
-                     (make-begin0 src
-                                  (make-call src thunk '())
-                                  (make-primcall src 'pop-fluid '()))))))))
+           ((f v thunk)
+            (make-seq src
+                      (make-primcall src 'push-fluid (list f v))
+                      (make-begin0 src
+                                   (make-call src thunk '())
+                                   (make-primcall src 'pop-fluid '()))))))))
 
       (($ <primcall> src 'with-dynamic-state (state thunk))
        (for-tail
         (with-temporaries
          src (list state thunk) 1 constant-expression?
          (match-lambda
-          ((state thunk)
-           (make-seq src
-                     (make-primcall src 'push-dynamic-state (list state))
-                     (make-begin0 src
-                                  (make-call src thunk '())
-                                  (make-primcall src 'pop-dynamic-state
-                                                 '()))))))))
+           ((state thunk)
+            (make-seq src
+                      (make-primcall src 'push-dynamic-state (list state))
+                      (make-begin0 src
+                                   (make-call src thunk '())
+                                   (make-primcall src 'pop-dynamic-state
+                                                  '()))))))))
 
       (($ <primcall> src 'values exps)
        (cond
@@ -1379,7 +1457,7 @@ top-level bindings from ENV and return the resulting expression."
          (((? equality-primitive?) (and a ($ <const>)) b)
           (for-tail (make-primcall src name (list b a))))
          (((? equality-primitive?) ($ <lexical-ref> _ _ sym)
-                                   ($ <lexical-ref> _ _ sym))
+           ($ <lexical-ref> _ _ sym))
           (for-tail (make-const src #t)))
 
          (('logbit? ($ <const> src2
@@ -1660,8 +1738,8 @@ top-level bindings from ENV and return the resulting expression."
                      ($ <lambda-case> _ (_ . _) _ _ _ _ (k . _) body #f))
                   (not (tree-il-any
                         (match-lambda
-                         (($ <lexical-ref> _ _ (? (cut eq? <> k))) #t)
-                         (_ #f))
+                          (($ <lexical-ref> _ _ (? (cut eq? <> k))) #t)
+                          (_ #f))
                         body)))
                  (else #f)))
              (if (and (not escape-only?) (escape-only-handler? handler))
