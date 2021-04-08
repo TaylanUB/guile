@@ -32,7 +32,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include <dynarray.h>
+#ifndef _LIBC
+# include <dynarray.h>
+#endif
+
 #include <intprops.h>
 #include <verify.h>
 
@@ -50,14 +53,14 @@
 # define lock_fini(lock) ((void) 0)
 # define lock_lock(lock) __libc_lock_lock (lock)
 # define lock_unlock(lock) __libc_lock_unlock (lock)
-#elif defined GNULIB_LOCK && !defined USE_UNLOCKED_IO
+#elif defined GNULIB_LOCK && !defined GNULIB_REGEX_SINGLE_THREAD
 # include "glthread/lock.h"
 # define lock_define(name) gl_lock_define (, name)
 # define lock_init(lock) glthread_lock_init (&(lock))
 # define lock_fini(lock) glthread_lock_destroy (&(lock))
 # define lock_lock(lock) glthread_lock_lock (&(lock))
 # define lock_unlock(lock) glthread_lock_unlock (&(lock))
-#elif defined GNULIB_PTHREAD && !defined USE_UNLOCKED_IO
+#elif defined GNULIB_PTHREAD && !defined GNULIB_REGEX_SINGLE_THREAD
 # include <pthread.h>
 # define lock_define(name) pthread_mutex_t name;
 # define lock_init(lock) pthread_mutex_init (&(lock), 0)
@@ -830,12 +833,14 @@ re_string_elem_size_at (const re_string_t *pstr, Idx idx)
 }
 #endif /* RE_ENABLE_I18N */
 
-#ifndef FALLTHROUGH
-# if (__GNUC__ >= 7) || (__clang_major__ >= 10)
+#ifdef _LIBC
+# if __GNUC__ >= 7
 #  define FALLTHROUGH __attribute__ ((__fallthrough__))
 # else
 #  define FALLTHROUGH ((void) 0)
 # endif
+#else
+# include "attribute.h"
 #endif
 
 #endif /*  _REGEX_INTERNAL_H */

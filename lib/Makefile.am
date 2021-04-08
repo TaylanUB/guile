@@ -720,9 +720,7 @@ EXTRA_libgnu_la_SOURCES += floor.c
 
 ## begin gnulib module free-posix
 
-if gl_GNULIB_ENABLED_ef07dc4b3077c11ea9cef586db4e5955
 
-endif
 EXTRA_DIST += free.c
 
 EXTRA_libgnu_la_SOURCES += free.c
@@ -2003,6 +2001,17 @@ EXTRA_libgnu_la_SOURCES += readlink.c
 
 ## end   gnulib module readlink
 
+## begin gnulib module realloc-posix
+
+if gl_GNULIB_ENABLED_61bcaca76b3e6f9ae55d57a1c3193bc4
+
+endif
+EXTRA_DIST += realloc.c
+
+EXTRA_libgnu_la_SOURCES += realloc.c
+
+## end   gnulib module realloc-posix
+
 ## begin gnulib module recv
 
 
@@ -2628,8 +2637,10 @@ stdlib.h: stdlib.in.h $(top_builddir)/config.status $(CXXDEFS_H) \
 	      -e 's/@''GNULIB_SECURE_GETENV''@/$(GNULIB_SECURE_GETENV)/g' \
 	      -e 's/@''GNULIB_SETENV''@/$(GNULIB_SETENV)/g' \
 	      -e 's/@''GNULIB_STRTOD''@/$(GNULIB_STRTOD)/g' \
+	      -e 's/@''GNULIB_STRTOL''@/$(GNULIB_STRTOL)/g' \
 	      -e 's/@''GNULIB_STRTOLD''@/$(GNULIB_STRTOLD)/g' \
 	      -e 's/@''GNULIB_STRTOLL''@/$(GNULIB_STRTOLL)/g' \
+	      -e 's/@''GNULIB_STRTOUL''@/$(GNULIB_STRTOUL)/g' \
 	      -e 's/@''GNULIB_STRTOULL''@/$(GNULIB_STRTOULL)/g' \
 	      -e 's/@''GNULIB_SYSTEM_POSIX''@/$(GNULIB_SYSTEM_POSIX)/g' \
 	      -e 's/@''GNULIB_UNLOCKPT''@/$(GNULIB_UNLOCKPT)/g' \
@@ -2675,8 +2686,10 @@ stdlib.h: stdlib.in.h $(top_builddir)/config.status $(CXXDEFS_H) \
 	      -e 's|@''HAVE_SETSTATE''@|$(HAVE_SETSTATE)|g' \
 	      -e 's|@''HAVE_DECL_SETSTATE''@|$(HAVE_DECL_SETSTATE)|g' \
 	      -e 's|@''HAVE_STRTOD''@|$(HAVE_STRTOD)|g' \
+	      -e 's|@''HAVE_STRTOL''@|$(HAVE_STRTOL)|g' \
 	      -e 's|@''HAVE_STRTOLD''@|$(HAVE_STRTOLD)|g' \
 	      -e 's|@''HAVE_STRTOLL''@|$(HAVE_STRTOLL)|g' \
+	      -e 's|@''HAVE_STRTOUL''@|$(HAVE_STRTOUL)|g' \
 	      -e 's|@''HAVE_STRTOULL''@|$(HAVE_STRTOULL)|g' \
 	      -e 's|@''HAVE_STRUCT_RANDOM_DATA''@|$(HAVE_STRUCT_RANDOM_DATA)|g' \
 	      -e 's|@''HAVE_SYS_LOADAVG_H''@|$(HAVE_SYS_LOADAVG_H)|g' \
@@ -2702,7 +2715,11 @@ stdlib.h: stdlib.in.h $(top_builddir)/config.status $(CXXDEFS_H) \
 	      -e 's|@''REPLACE_SETENV''@|$(REPLACE_SETENV)|g' \
 	      -e 's|@''REPLACE_SETSTATE''@|$(REPLACE_SETSTATE)|g' \
 	      -e 's|@''REPLACE_STRTOD''@|$(REPLACE_STRTOD)|g' \
+	      -e 's|@''REPLACE_STRTOL''@|$(REPLACE_STRTOL)|g' \
 	      -e 's|@''REPLACE_STRTOLD''@|$(REPLACE_STRTOLD)|g' \
+	      -e 's|@''REPLACE_STRTOLL''@|$(REPLACE_STRTOLL)|g' \
+	      -e 's|@''REPLACE_STRTOUL''@|$(REPLACE_STRTOUL)|g' \
+	      -e 's|@''REPLACE_STRTOULL''@|$(REPLACE_STRTOULL)|g' \
 	      -e 's|@''REPLACE_UNSETENV''@|$(REPLACE_UNSETENV)|g' \
 	      -e 's|@''REPLACE_WCTOMB''@|$(REPLACE_WCTOMB)|g' \
 	      -e '/definitions of _GL_FUNCDECL_RPL/r $(CXXDEFS_H)' \

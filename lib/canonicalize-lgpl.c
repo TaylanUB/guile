@@ -21,7 +21,6 @@
    optimizes away the name == NULL test below.  */
 # define _GL_ARG_NONNULL(params)
 
-# define _GL_USE_STDLIB_ALLOC 1
 # include <libc-config.h>
 #endif
 
@@ -76,6 +75,12 @@
 # define __rawmemchr rawmemchr
 # define __readlink readlink
 # define __stat stat
+# if IN_RELOCWRAPPER
+    /* When building the relocatable program wrapper, use the system's memmove
+       function, not the gnulib override, otherwise we would get a link error.
+     */
+#  undef memmove
+# endif
 #endif
 
 /* Suppress bogus GCC -Wmaybe-uninitialized warnings.  */

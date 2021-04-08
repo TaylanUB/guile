@@ -38,7 +38,9 @@
        #if defined __has_attribute && __has_attribute (...)
    even though they do not need to evaluate the right-hand side of the &&.
    Similarly for __has_builtin, etc.  */
-#ifdef __has_attribute
+#if (defined __has_attribute \
+     && (!defined __clang_minor__ \
+         || 3 < __clang_major__ + (5 <= __clang_minor__)))
 # define __glibc_has_attribute(attr) __has_attribute (attr)
 #else
 # define __glibc_has_attribute(attr) 0
@@ -318,14 +320,16 @@
 #endif
 
 /* The nonnull function attribute marks pointer parameters that
-   must not be NULL.  Do not define __nonnull if it is already defined,
-   for portability when this file is used in Gnulib.  */
-#ifndef __nonnull
+   must not be NULL.  */
+#ifndef __attribute_nonnull__
 # if __GNUC_PREREQ (3,3) || __glibc_has_attribute (__nonnull__)
-#  define __nonnull(params) __attribute__ ((__nonnull__ params))
+#  define __attribute_nonnull__(params) __attribute__ ((__nonnull__ params))
 # else
-#  define __nonnull(params)
+#  define __attribute_nonnull__(params)
 # endif
+#endif
+#ifndef __nonnull
+# define __nonnull(params) __attribute_nonnull__ (params)
 #endif
 
 /* If fortification mode, we warn about unused results of certain

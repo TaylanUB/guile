@@ -191,6 +191,7 @@ AC_DEFUN([gl_EARLY],
   # Code from module rawmemchr:
   # Code from module read:
   # Code from module readlink:
+  # Code from module realloc-posix:
   # Code from module recv:
   # Code from module recvfrom:
   # Code from module regex:
@@ -365,6 +366,12 @@ AC_DEFUN([gl_INIT],
     AC_LIBOBJ([floor])
   fi
   gl_MATH_MODULE_INDICATOR([floor])
+  gl_FUNC_FREE
+  if test $REPLACE_FREE = 1; then
+    AC_LIBOBJ([free])
+    gl_PREREQ_FREE
+  fi
+  gl_STDLIB_MODULE_INDICATOR([free-posix])
   AC_REQUIRE([gl_FUNC_FREXP])
   if test $gl_func_frexp != yes; then
     AC_LIBOBJ([frexp])
@@ -540,6 +547,7 @@ AC_DEFUN([gl_INIT],
     AC_LIBOBJ([malloc])
   fi
   gl_STDLIB_MODULE_INDICATOR([malloc-posix])
+  gl_MODULE_INDICATOR([malloc-posix])
   gl_MALLOCA
   gl_MATH_H
   gl_MINMAX
@@ -758,7 +766,6 @@ AC_DEFUN([gl_INIT],
   gl_gnulib_enabled_925677f0343de64b89a9f0c790b4104c=false
   gl_gnulib_enabled_fcntl=false
   gl_gnulib_enabled_43fe87a341d9b4b93c47c3ad819a5239=false
-  gl_gnulib_enabled_ef07dc4b3077c11ea9cef586db4e5955=false
   gl_gnulib_enabled_getdtablesize=false
   gl_gnulib_enabled_getrandom=false
   gl_gnulib_enabled_be453cec5eecf5731a274f2de7f2db36=false
@@ -781,6 +788,7 @@ AC_DEFUN([gl_INIT],
   gl_gnulib_enabled_pathmax=false
   gl_gnulib_enabled_raise=false
   gl_gnulib_enabled_rawmemchr=false
+  gl_gnulib_enabled_61bcaca76b3e6f9ae55d57a1c3193bc4=false
   gl_gnulib_enabled_round=false
   gl_gnulib_enabled_9bc5f216d57e231e4834049d67d0db62=false
   gl_gnulib_enabled_scratch_buffer=false
@@ -903,18 +911,6 @@ AC_SUBST([LTALLOCA])
   {
     if ! $gl_gnulib_enabled_43fe87a341d9b4b93c47c3ad819a5239; then
       gl_gnulib_enabled_43fe87a341d9b4b93c47c3ad819a5239=true
-    fi
-  }
-  func_gl_gnulib_m4code_ef07dc4b3077c11ea9cef586db4e5955 ()
-  {
-    if ! $gl_gnulib_enabled_ef07dc4b3077c11ea9cef586db4e5955; then
-      gl_FUNC_FREE
-      if test $REPLACE_FREE = 1; then
-        AC_LIBOBJ([free])
-        gl_PREREQ_FREE
-      fi
-      gl_STDLIB_MODULE_INDICATOR([free-posix])
-      gl_gnulib_enabled_ef07dc4b3077c11ea9cef586db4e5955=true
     fi
   }
   func_gl_gnulib_m4code_getdtablesize ()
@@ -1177,6 +1173,18 @@ AC_SUBST([LTALLOCA])
       gl_gnulib_enabled_rawmemchr=true
     fi
   }
+  func_gl_gnulib_m4code_61bcaca76b3e6f9ae55d57a1c3193bc4 ()
+  {
+    if ! $gl_gnulib_enabled_61bcaca76b3e6f9ae55d57a1c3193bc4; then
+      gl_FUNC_REALLOC_POSIX
+      if test $REPLACE_REALLOC = 1; then
+        AC_LIBOBJ([realloc])
+      fi
+      gl_STDLIB_MODULE_INDICATOR([realloc-posix])
+      gl_MODULE_INDICATOR([realloc-posix])
+      gl_gnulib_enabled_61bcaca76b3e6f9ae55d57a1c3193bc4=true
+    fi
+  }
   func_gl_gnulib_m4code_round ()
   {
     if ! $gl_gnulib_enabled_round; then
@@ -1199,6 +1207,7 @@ AC_SUBST([LTALLOCA])
     if ! $gl_gnulib_enabled_scratch_buffer; then
       gl_gnulib_enabled_scratch_buffer=true
       func_gl_gnulib_m4code_21ee726a3540c09237a8e70c0baf7467
+      func_gl_gnulib_m4code_61bcaca76b3e6f9ae55d57a1c3193bc4
     fi
   }
   func_gl_gnulib_m4code_servent ()
@@ -1422,9 +1431,6 @@ AC_SUBST([LTALLOCA])
     func_gl_gnulib_m4code_925677f0343de64b89a9f0c790b4104c
   fi
   if test $HAVE_CANONICALIZE_FILE_NAME = 0 || test $REPLACE_CANONICALIZE_FILE_NAME = 1; then
-    func_gl_gnulib_m4code_ef07dc4b3077c11ea9cef586db4e5955
-  fi
-  if test $HAVE_CANONICALIZE_FILE_NAME = 0 || test $REPLACE_CANONICALIZE_FILE_NAME = 1; then
     func_gl_gnulib_m4code_idx
   fi
   if test $HAVE_CANONICALIZE_FILE_NAME = 0 || test $REPLACE_CANONICALIZE_FILE_NAME = 1; then
@@ -1610,7 +1616,6 @@ AC_SUBST([LTALLOCA])
   AM_CONDITIONAL([gl_GNULIB_ENABLED_925677f0343de64b89a9f0c790b4104c], [$gl_gnulib_enabled_925677f0343de64b89a9f0c790b4104c])
   AM_CONDITIONAL([gl_GNULIB_ENABLED_fcntl], [$gl_gnulib_enabled_fcntl])
   AM_CONDITIONAL([gl_GNULIB_ENABLED_43fe87a341d9b4b93c47c3ad819a5239], [$gl_gnulib_enabled_43fe87a341d9b4b93c47c3ad819a5239])
-  AM_CONDITIONAL([gl_GNULIB_ENABLED_ef07dc4b3077c11ea9cef586db4e5955], [$gl_gnulib_enabled_ef07dc4b3077c11ea9cef586db4e5955])
   AM_CONDITIONAL([gl_GNULIB_ENABLED_getdtablesize], [$gl_gnulib_enabled_getdtablesize])
   AM_CONDITIONAL([gl_GNULIB_ENABLED_getrandom], [$gl_gnulib_enabled_getrandom])
   AM_CONDITIONAL([gl_GNULIB_ENABLED_be453cec5eecf5731a274f2de7f2db36], [$gl_gnulib_enabled_be453cec5eecf5731a274f2de7f2db36])
@@ -1633,6 +1638,7 @@ AC_SUBST([LTALLOCA])
   AM_CONDITIONAL([gl_GNULIB_ENABLED_pathmax], [$gl_gnulib_enabled_pathmax])
   AM_CONDITIONAL([gl_GNULIB_ENABLED_raise], [$gl_gnulib_enabled_raise])
   AM_CONDITIONAL([gl_GNULIB_ENABLED_rawmemchr], [$gl_gnulib_enabled_rawmemchr])
+  AM_CONDITIONAL([gl_GNULIB_ENABLED_61bcaca76b3e6f9ae55d57a1c3193bc4], [$gl_gnulib_enabled_61bcaca76b3e6f9ae55d57a1c3193bc4])
   AM_CONDITIONAL([gl_GNULIB_ENABLED_round], [$gl_gnulib_enabled_round])
   AM_CONDITIONAL([gl_GNULIB_ENABLED_9bc5f216d57e231e4834049d67d0db62], [$gl_gnulib_enabled_9bc5f216d57e231e4834049d67d0db62])
   AM_CONDITIONAL([gl_GNULIB_ENABLED_scratch_buffer], [$gl_gnulib_enabled_scratch_buffer])
@@ -1976,6 +1982,7 @@ AC_DEFUN([gl_FILE_LIST], [
   lib/rawmemchr.valgrind
   lib/read.c
   lib/readlink.c
+  lib/realloc.c
   lib/recv.c
   lib/recvfrom.c
   lib/regcomp.c
@@ -2194,6 +2201,7 @@ AC_DEFUN([gl_FILE_LIST], [
   m4/rawmemchr.m4
   m4/read.m4
   m4/readlink.m4
+  m4/realloc.m4
   m4/regex.m4
   m4/rename.m4
   m4/rmdir.m4
