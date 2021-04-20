@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -638,10 +638,17 @@
 
     (define (compile-cont label cont)
       (match cont
-        (($ $kfun src meta self tail clause)
+        (($ $kfun src meta self tail entry)
          (when src
            (emit-source asm src))
-         (emit-begin-program asm label meta))
+         (emit-begin-program asm label meta)
+         ;; If the function has a $kargs as entry, handle 
+         (match (intmap-ref cps entry)
+           (($ $kclause) #t) ;; Leave arity handling to the 
+           (($ $kargs names vars _)
+            (emit-begin-unchecked-arity asm (->bool self) names frame-size)
+            (when self
+              (emit-definition asm 'closure 0 'scm)))))
         (($ $kclause ($ $arity req opt rest kw allow-other-keys?) body alt)
          (let ((first? (match (intmap-ref cps (1- label))
                          (($ $kfun) #t)

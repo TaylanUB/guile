@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -79,7 +79,9 @@ from label to arities."
     (if clause
         (match (intmap-ref conts clause)
           (($ $kclause arity body alt)
-           (cons arity (clause-arities alt))))
+           (cons arity (clause-arities alt)))
+          (($ $kargs names vars _)
+           (list (make-$arity names '() #f '() #f))))
         '()))
   (intmap-map (lambda (label vars)
                  (match (intmap-ref conts label)
@@ -346,7 +348,10 @@ function set."
            (($ $kclause arity body alt)
             (if (arity-matches? arity nargs)
                 body
-                (lp alt))))))))
+                (lp alt)))
+           (($ $kargs names)
+            (unless (= nargs (length names)) (error "what"))
+            clause))))))
   (define (inline-return cps k* kargs src nreq rest vals)
     (define (build-list cps k src vals)
       (match vals

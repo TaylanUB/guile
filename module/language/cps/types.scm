@@ -2098,9 +2098,14 @@ maximum, where type is a bitset as a fixnum."
             (propagate1 k (adjoin-vars types vars all-types-entry)))))
         (($ $kfun src meta self tail clause)
          (if clause
-             (propagate1 clause (if self
-                                    (adjoin-var types self all-types-entry)
-                                    types))
+             (let ((types (if self
+                              (adjoin-var types self all-types-entry)
+                              types)))
+               (propagate1 clause
+                           (match (intmap-ref conts clause)
+                             (($ $kargs _ defs)
+                              (adjoin-vars types defs all-types-entry))
+                             (_ types))))
              (propagate0)))
         (($ $kclause arity kbody kalt)
          (match (intmap-ref conts kbody)

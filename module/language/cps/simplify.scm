@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2015, 2017-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2015, 2017-2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -177,6 +177,8 @@
                ($kreceive req rest (subst k)))
               (($ $kclause arity body alt)
                ($kclause ,arity (subst body) alt))
+              (($ $kfun src meta self tail entry)
+               ($kfun src meta self tail (subst entry)))
               (_ ,cont))))
      conts)))
 

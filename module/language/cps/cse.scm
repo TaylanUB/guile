@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -287,7 +287,10 @@ for a label, it isn't known to be constant at that label."
      ($kreceive req rest (rename kbody)))
     (($ $kclause arity kbody kalternate)
      ;; Can only be a body continuation.
-     ($kclause ,arity (rename kbody) kalternate))))
+     ($kclause ,arity (rename kbody) kalternate))
+    (($ $kfun src meta self tail kentry)
+     ;; Can only be a $kargs clause continuation.
+     ($kfun src meta self tail (rename kentry)))))
 
 (define (elide-predecessor label pred out analysis)
   (match analysis
@@ -722,7 +725,7 @@ for a label, it isn't known to be constant at that label."
                          ;; those as well.
                          (add-auxiliary-definitions! pred vars substs term-key)))
                       (visit-term-normally))
-                     ((or ($ $kclause) ($ $kreceive))
+                     ((or ($ $kclause) ($ $kfun) ($ $kreceive))
                       (visit-term-normally)))))
              (else
               (visit-term-normally)))))))

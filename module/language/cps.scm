@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2015,2017-2018,2020 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2015,2017-2018,2020,2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -173,7 +173,7 @@
 ;; Continuations
 (define-cps-type $kreceive arity kbody)
 (define-cps-type $kargs names syms term)
-(define-cps-type $kfun src meta self ktail kclause)
+(define-cps-type $kfun src meta self ktail kentry)
 (define-cps-type $ktail)
 (define-cps-type $kclause arity kbody kalternate)
 
@@ -214,8 +214,8 @@
      (make-$kargs (list name ...) (list sym ...) (build-term body)))
     ((_ ($kargs names syms body))
      (make-$kargs names syms (build-term body)))
-    ((_ ($kfun src meta self ktail kclause))
-     (make-$kfun src meta self ktail kclause))
+    ((_ ($kfun src meta self ktail kentry))
+     (make-$kfun src meta self ktail kentry))
     ((_ ($ktail))
      (make-$ktail))
     ((_ ($kclause arity kbody kalternate))
@@ -288,8 +288,8 @@
      (build-cont ($kreceive req rest k)))
     (('kargs names syms body)
      (build-cont ($kargs names syms ,(parse-cps body))))
-    (('kfun meta self ktail kclause)
-     (build-cont ($kfun (src exp) meta self ktail kclause)))
+    (('kfun meta self ktail kentry)
+     (build-cont ($kfun (src exp) meta self ktail kentry)))
     (('ktail)
      (build-cont ($ktail)))
     (('kclause (req opt rest kw allow-other-keys?) kbody)
@@ -342,8 +342,8 @@
      `(kreceive ,req ,rest ,k))
     (($ $kargs names syms body)
      `(kargs ,names ,syms ,(unparse-cps body)))
-    (($ $kfun src meta self ktail kclause)
-     `(kfun ,meta ,self ,ktail ,kclause))
+    (($ $kfun src meta self ktail kentry)
+     `(kfun ,meta ,self ,ktail ,kentry))
     (($ $ktail)
      `(ktail))
     (($ $kclause ($ $arity req opt rest kw allow-other-keys?) kbody kalternate)

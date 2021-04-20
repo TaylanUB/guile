@@ -1640,10 +1640,25 @@ returned instead."
      (else
       (emit-standard-prelude asm nreq nlocals alternate)))))
 
+(define-macro-assembler (begin-unchecked-arity asm has-closure? req nlocals)
+  (assert-match req ((? symbol?) ...) "list of symbols")
+  (assert-match nlocals (? integer?) "integer")
+  (let* ((meta (car (asm-meta asm)))
+         (arity (make-arity req '() #f '() #f has-closure?
+                            (meta-low-pc meta) #f '()))
+         (nclosure (if has-closure? 1 0))
+         (nreq (+ nclosure (length req))))
+    (set-meta-arities! meta (cons arity (meta-arities meta)))
+    (emit-unchecked-prelude asm nreq nlocals)))
+
 (define-macro-assembler (end-arity asm)
   (let ((arity (car (meta-arities (car (asm-meta asm))))))
     (set-arity-definitions! arity (reverse (arity-definitions arity)))
     (set-arity-high-pc! arity (asm-start asm))))
+
+(define-macro-assembler (unchecked-prelude asm nreq nlocals)
+  (unless (= nlocals nreq)
+    (emit-alloc-frame asm nlocals)))
 
 (define-macro-assembler (standard-prelude asm nreq nlocals alternate)
   (cond

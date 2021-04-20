@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -88,8 +88,8 @@ sites."
                           (values known unknown))
                          (($ $kreceive arity kargs)
                           (values known (intset-add! unknown kargs)))
-                         (($ $kfun src meta self tail clause)
-                          (values known unknown))
+                         (($ $kfun src meta self tail entry)
+                          (values known (intset-add! unknown entry)))
                          (($ $kclause arity body alt)
                           (values known (intset-add! unknown body)))
                          (($ $ktail)
@@ -267,9 +267,11 @@ sites."
             (values live-labels live-vars))
            (($ $kclause arity kargs kalt)
             (values live-labels (adjoin-vars (cont-defs kargs) live-vars)))
-           (($ $kfun src meta self)
+           (($ $kfun src meta self tail entry)
             (values live-labels
-                    (if self (adjoin-var self live-vars) live-vars)))
+                    (adjoin-vars
+                     (or (cont-defs entry) '())
+                     (if self (adjoin-var self live-vars) live-vars))))
            (($ $ktail)
             (values live-labels live-vars))))
        conts label live-labels live-vars))
