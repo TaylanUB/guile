@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2018,2020 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2018,2020,2021 Free Software Foundation, Inc.
 
 ;;; This library is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU Lesser General Public License as published by
@@ -28,6 +28,7 @@
   #:use-module (language cps cse)
   #:use-module (language cps dce)
   #:use-module (language cps devirtualize-integers)
+  #:use-module (language cps elide-arity-checks)
   #:use-module (language cps licm)
   #:use-module (language cps loop-instrumentation)
   #:use-module (language cps peel-loops)
@@ -103,6 +104,7 @@
   (simplify #:simplify?))
 
 (define-optimizer optimize-first-order-cps
+  (elide-arity-checks #:elide-arity-checks?)
   (specialize-numbers #:specialize-numbers?)
   (hoist-loop-invariant-code #:licm?)
   (specialize-primcalls #:specialize-primcalls?)

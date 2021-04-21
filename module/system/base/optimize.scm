@@ -44,6 +44,7 @@
        (#:peel-loops? 2)
        (#:cse? 2)
        (#:type-fold? 2)
+       (#:elide-arity-checks? 2)
        (#:resolve-self-references? 2)
        (#:devirtualize-integers? 2)
        (#:specialize-numbers? 2)

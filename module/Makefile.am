@@ -52,6 +52,7 @@ SOURCES =					\
   language/cps/cse.scm				\
   language/cps/dce.scm				\
   language/cps/devirtualize-integers.scm	\
+  language/cps/elide-arity-checks.scm		\
   language/cps/effects-analysis.scm		\
   language/cps/graphs.scm			\
   language/cps/intmap.scm			\
