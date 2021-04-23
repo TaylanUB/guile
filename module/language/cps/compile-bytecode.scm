@@ -642,10 +642,13 @@
          (when src
            (emit-source asm src))
          (emit-begin-program asm label meta)
-         ;; If the function has a $kargs as entry, handle 
          (match (intmap-ref cps entry)
-           (($ $kclause) #t) ;; Leave arity handling to the 
+           (($ $kclause)
+            ;; Leave arity handling to the dispatcher.
+            #t)
            (($ $kargs names vars _)
+            ;; Otherwise the $kfun continues to the $kargs directly,
+            ;; without any arity checking, so we begin the arity here.
             (emit-begin-unchecked-arity asm (->bool self) names frame-size)
             (when self
               (emit-definition asm 'closure 0 'scm)))))
