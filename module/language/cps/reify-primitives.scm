@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -224,7 +224,7 @@
 (define-ephemeral (cached-module-box cps k src param)
   (match param
     ((module name public? bound?)
-     (let ((cache-key (cons module name)))
+     (let ((cache-key param))
        (with-cps cps
          (letv mod cached)
          (let$ lookup
