@@ -178,7 +178,7 @@
               (($ $kclause arity body alt)
                ($kclause ,arity (subst body) alt))
               (($ $kfun src meta self tail entry)
-               ($kfun src meta self tail (subst entry)))
+               ($kfun src meta self tail (and entry (subst entry))))
               (_ ,cont))))
      conts)))
 

@@ -89,7 +89,10 @@ sites."
                          (($ $kreceive arity kargs)
                           (values known (intset-add! unknown kargs)))
                          (($ $kfun src meta self tail entry)
-                          (values known (intset-add! unknown entry)))
+                          (values known
+                                  (if entry
+                                      (intset-add! unknown entry)
+                                      unknown)))
                          (($ $kclause arity body alt)
                           (values known (intset-add! unknown body)))
                          (($ $ktail)
@@ -270,7 +273,7 @@ sites."
            (($ $kfun src meta self tail entry)
             (values live-labels
                     (adjoin-vars
-                     (or (cont-defs entry) '())
+                     (or (and entry (cont-defs entry)) '())
                      (if self (adjoin-var self live-vars) live-vars))))
            (($ $ktail)
             (values live-labels live-vars))))
