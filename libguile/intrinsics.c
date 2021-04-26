@@ -1,4 +1,4 @@
-/* Copyright 2018-2020
+/* Copyright 2018-2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -368,6 +368,23 @@ lookup_bound (SCM module, SCM name)
   return var;
 }
 
+/* lookup-bound-public and lookup-bound-private take the name as a
+   string instead of a symbol in order to reduce relocations at program
+   startup.  */
+static SCM
+lookup_bound_public (SCM module, SCM name)
+{
+  return lookup_bound (resolve_module (module, 1),
+                       scm_string_to_symbol (name));
+}
+
+static SCM
+lookup_bound_private (SCM module, SCM name)
+{
+  return lookup_bound (resolve_module (module, 0),
+                       scm_string_to_symbol (name));
+}
+
 static void throw_ (SCM key, SCM args) SCM_NORETURN;
 static void throw_with_value (SCM val, SCM key_subr_and_message) SCM_NORETURN;
 static void throw_with_value_and_data (SCM val, SCM key_subr_and_message) SCM_NORETURN;
@@ -601,6 +618,8 @@ scm_bootstrap_intrinsics (void)
   scm_vm_intrinsics.module_variable = module_variable;
   scm_vm_intrinsics.lookup = lookup;
   scm_vm_intrinsics.lookup_bound = lookup_bound;
+  scm_vm_intrinsics.lookup_bound_public = lookup_bound_public;
+  scm_vm_intrinsics.lookup_bound_private = lookup_bound_private;
   scm_vm_intrinsics.define_x = scm_module_ensure_local_variable;
   scm_vm_intrinsics.throw_ = throw_;
   scm_vm_intrinsics.throw_with_value = throw_with_value;

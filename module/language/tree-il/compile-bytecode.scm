@@ -1,6 +1,6 @@
 ;;; Lightweight compiler directly from Tree-IL to bytecode
 
-;; Copyright (C) 2020 Free Software Foundation, Inc.
+;; Copyright (C) 2020, 2021 Free Software Foundation, Inc.
 
 ;;; This library is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU Lesser General Public License as published by
@@ -75,12 +75,17 @@
   (emit-cache-ref asm dst key)
   (emit-heap-object? asm dst)
   (emit-je asm cached)
-  (emit-load-constant asm dst mod)
-  (emit-resolve-module asm dst dst public?)
-  (emit-load-constant asm tmp name)
-  (if bound?
-      (emit-lookup-bound asm dst dst tmp)
-      (emit-lookup asm dst dst tmp))
+  (cond
+   (bound?
+    (let ((name (symbol->string name)))
+      (if public?
+          (emit-lookup-bound-public asm dst mod name)
+          (emit-lookup-bound-private asm dst mod name))))
+   (else
+    (emit-load-constant asm dst mod)
+    (emit-resolve-module asm dst dst public?)
+    (emit-load-constant asm tmp name)
+    (emit-lookup asm dst dst tmp)))
   (emit-cache-set! asm key dst)
   (emit-label asm cached))
 (define (emit-cached-toplevel-box asm dst scope name bound? tmp)

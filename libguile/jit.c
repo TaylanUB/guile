@@ -5217,6 +5217,26 @@ compile_s64_to_f64_slow (scm_jit_state *j, uint16_t dst, uint16_t src)
 {
 }
 
+static void
+compile_call_scm_from_scmn_scmn (scm_jit_state *j, uint32_t dst,
+                                 void *a, void *b, uint32_t idx)
+{
+  void *intrinsic = ((void **) &scm_vm_intrinsics)[idx];
+  jit_operand_t op_a = jit_operand_imm (JIT_OPERAND_ABI_POINTER, (uintptr_t)a);
+  jit_operand_t op_b = jit_operand_imm (JIT_OPERAND_ABI_POINTER, (uintptr_t)b);
+
+  emit_store_current_ip (j, T2);
+  emit_call_2 (j, intrinsic, op_a, op_b);
+  emit_retval (j, T0);
+  emit_reload_sp (j);
+  emit_sp_set_scm (j, dst, T0);
+}
+static void
+compile_call_scm_from_scmn_scmn_slow (scm_jit_state *j, uint32_t dst,
+                                      void *a, void *b, uint32_t idx)
+{
+}
+
 
 #define UNPACK_8_8_8(op,a,b,c)            \
   do                                      \
@@ -5573,6 +5593,16 @@ compile_s64_to_f64_slow (scm_jit_state *j, uint16_t dst, uint16_t src)
     UNPACK_8_24 (j->ip[2], c, d);                                       \
     UNPACK_24 (j->ip[3], e);                                            \
     comp (j, a, b, c, d, e);                                            \
+  }
+
+#define COMPILE_X8_S24__N32__N32__C32(j, comp)                          \
+  {                                                                     \
+    uint32_t a;                                                         \
+    UNPACK_24 (j->ip[0], a);                                            \
+    int32_t b = j->ip[1];                                               \
+    int32_t c = j->ip[2];                                               \
+    uint32_t d = j->ip[3];                                              \
+    comp (j, a, j->ip + b, j->ip + c, d);                               \
   }
 
 static uintptr_t opcodes_seen[256 / (SCM_SIZEOF_UINTPTR_T * 8)];

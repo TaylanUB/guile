@@ -1,4 +1,4 @@
-/* Copyright 2018-2020
+/* Copyright 2018-2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -34,6 +34,7 @@ typedef SCM (*scm_t_scm_from_scm_uimm_intrinsic) (SCM, uint8_t);
 typedef void (*scm_t_scm_sz_u32_intrinsic) (SCM, size_t, uint32_t);
 typedef SCM (*scm_t_scm_from_scm_intrinsic) (SCM);
 typedef double (*scm_t_f64_from_scm_intrinsic) (SCM);
+typedef SCM (*scm_t_scm_from_scmn_scmn_intrinsic) (SCM, SCM);
 
 /* If we don't have 64-bit registers, the intrinsics will take and
    return 64-bit values by reference.  */
@@ -214,6 +215,8 @@ typedef void (*scm_t_scm_uimm_scm_intrinsic) (SCM, uint8_t, SCM);
   M(scm_uimm_scm, struct_set_x_immediate, "$struct-set!/immediate", STRUCT_SET_X_IMMEDIATE) \
   M(scm_from_scm_scm, lookup, "lookup", LOOKUP) \
   M(scm_from_scm_scm, lookup_bound, "lookup-bound", LOOKUP_BOUND) \
+  M(scm_from_scmn_scmn, lookup_bound_public, "lookup-bound-public", LOOKUP_BOUND_PUBLIC) \
+  M(scm_from_scmn_scmn, lookup_bound_private, "lookup-bound-private", LOOKUP_BOUND_PRIVATE) \
   /* Add new intrinsics here; also update scm_bootstrap_intrinsics.  */
 
 /* Intrinsics prefixed with $ are meant to reduce bytecode size,

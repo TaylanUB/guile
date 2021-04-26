@@ -1,4 +1,4 @@
-/* Copyright 2001,2009-2015,2017-2020
+/* Copyright 2001,2009-2015,2017-2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -3437,7 +3437,47 @@ VM_NAME (scm_thread *thread)
       NEXT (1);
     }
 
-  VM_DEFINE_OP (166, unused_166, NULL, NOP)
+  /* call-scm<-scmn-scmn dst:24 a:32 b:32 idx:32
+   *
+   * Call the SCM-returning instrinsic with index IDX, passing the SCM
+   * values A and B as arguments.  A and B are non-immediates, located
+   * at a constant offset from the instruction.  Place the SCM result in
+   * DST.
+   */
+  VM_DEFINE_OP (166, call_scm_from_scmn_scmn, "call-scm<-scmn-scmn", DOP4 (X8_S24, N32, N32, C32))
+    {
+      uint32_t dst;
+      SCM a, b;
+      scm_t_scm_from_scmn_scmn_intrinsic intrinsic;
+
+      UNPACK_24 (op, dst);
+
+      {
+        int32_t offset = ip[1];
+        uint32_t* loc = ip + offset;
+        scm_t_bits unpacked = (scm_t_bits) loc;
+        VM_ASSERT (!(unpacked & 0x7), abort());
+        a = SCM_PACK (unpacked);
+      }
+
+      {
+        int32_t offset = ip[2];
+        uint32_t* loc = ip + offset;
+        scm_t_bits unpacked = (scm_t_bits) loc;
+        VM_ASSERT (!(unpacked & 0x7), abort());
+        b = SCM_PACK (unpacked);
+      }
+
+      intrinsic = intrinsics[ip[3]];
+
+      SYNC_IP ();
+      SCM res = intrinsic (a, b);
+      CACHE_SP ();
+      SP_SET (dst, res);
+
+      NEXT (4);
+    }
+
   VM_DEFINE_OP (167, unused_167, NULL, NOP)
   VM_DEFINE_OP (168, unused_168, NULL, NOP)
   VM_DEFINE_OP (169, unused_169, NULL, NOP)

@@ -254,6 +254,8 @@
             emit-module-variable
             emit-lookup
             emit-lookup-bound
+            emit-lookup-bound-public
+            emit-lookup-bound-private
             emit-define!
             emit-current-module
 
@@ -1495,6 +1497,13 @@ returned instead."
 (define-syntax-rule (define-scm-scm-scm-intrinsic name)
   (define-macro-assembler (name asm a b c)
     (emit-call-scm-scm-scm asm a b c (intrinsic-name->index 'name))))
+(define-syntax-rule (define-scm<-scmn-scmn-intrinsic name)
+  (define-macro-assembler (name asm dst a b)
+    (unless (statically-allocatable? a) (error "not statically allocatable" a))
+    (unless (statically-allocatable? b) (error "not statically allocatable" b))
+    (let ((a (intern-constant asm a))
+          (b (intern-constant asm b)))
+      (emit-call-scm<-scmn-scmn asm dst a b (intrinsic-name->index 'name)))))
 
 (define-scm<-scm-scm-intrinsic add)
 (define-scm<-scm-uimm-intrinsic add/immediate)
@@ -1559,6 +1568,8 @@ returned instead."
 (define-scm<-scm-scm-intrinsic module-variable)
 (define-scm<-scm-scm-intrinsic lookup)
 (define-scm<-scm-scm-intrinsic lookup-bound)
+(define-scm<-scmn-scmn-intrinsic lookup-bound-public)
+(define-scm<-scmn-scmn-intrinsic lookup-bound-private)
 (define-scm<-scm-scm-intrinsic define!)
 (define-scm<-thread-intrinsic current-module)
 

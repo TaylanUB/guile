@@ -223,6 +223,28 @@
 
 (define-ephemeral (cached-module-box cps k src param)
   (match param
+    ((module name public? #t)
+     (let ((cache-key param))
+       (with-cps cps
+         (letv cached var)
+         (letk k* ($kargs () () ($continue k src ($values (var)))))
+         (letk kcache ($kargs ('var) (var)
+                        ($continue k* src
+                          ($primcall 'cache-set! cache-key (var)))))
+         (letk kinit ($kargs () ()
+                       ($continue kcache src
+                         ($primcall (if public?
+                                        'lookup-bound-public
+                                        'lookup-bound-private)
+                                    (list module name) ()))))
+         (letk kok ($kargs () ()
+                     ($continue k src ($values (cached)))))
+         (letk ktest
+               ($kargs ('cached) (cached)
+                 ($branch kinit kok src 'heap-object? #f (cached))))
+         (build-term
+           ($continue ktest src
+             ($primcall 'cache-ref cache-key ()))))))
     ((module name public? bound?)
      (let ((cache-key param))
        (with-cps cps
@@ -335,7 +357,8 @@
       lsh rsh lsh/immediate rsh/immediate
       cache-ref cache-set!
       current-module resolve-module
-      module-variable lookup lookup-bound define!))
+      module-variable define!
+      lookup lookup-bound lookup-bound-public lookup-bound-private))
   (let ((table (make-hash-table)))
     (for-each
      (match-lambda ((inst . _) (hashq-set! table inst #t)))
