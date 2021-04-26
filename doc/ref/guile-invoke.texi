@@ -424,6 +424,19 @@ Guile uses the environment variable @env{HOME}, the name of your home
 directory, to locate various files, such as @file{.guile} or
 @file{.guile_history}.
 
+@item GUILE_INSTALL_GMP_MEMORY_FUNCTIONS
+@vindex GUILE_INSTALL_GMP_MEMORY_FUNCTIONS
+Guile uses the GNU multi-precision (GMP) library to implement its bigint
+support.  It can use an included minimal version of GMP, or the system
+version, which may be more optimal.  If Guile is the sole user of GMP in
+the process, Guile can tell GMP to allocate its digits using
+garbage-collected memory.  This can be significantly faster.  However
+this approach is unsafe if there are other libraries loaded that use
+libgmp, such as the GnuTLS library.  The default is for Guile to do the
+fastest safe thing: use the garbage collector for GMP when using the
+included ``mini-GMP'', but not otherwise.  Set this variable to nonzero
+to force GMP to use garbage-collected memory, even when using system GC.
+
 @item GUILE_JIT_THRESHOLD
 @vindex GUILE_JIT_THRESHOLD
 Guile has a just-in-time (JIT) code generator that makes running Guile

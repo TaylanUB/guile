@@ -10412,6 +10412,15 @@ SCM_PRIMITIVE_GENERIC (scm_sqrt, "sqrt", 1, 0, 0,
 void
 scm_init_numbers ()
 {
+  /* Give the user the chance to force the use of libgc to manage gmp
+     digits, if we know there are no external GMP users in this process.
+     Can be an important optimization for those who link external GMP,
+     before we switch to the MPN API.  */
+  if (!SCM_ENABLE_MINI_GMP)
+    scm_install_gmp_memory_functions
+      = scm_getenv_int ("GUILE_INSTALL_GMP_MEMORY_FUNCTIONS",
+                        scm_install_gmp_memory_functions);
+
   if (scm_install_gmp_memory_functions)
     mp_set_memory_functions (custom_gmp_malloc,
                              custom_gmp_realloc,
