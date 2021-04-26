@@ -40,6 +40,43 @@
   #:use-module (language cps with-cps)
   #:export (contify))
 
+(define (compute-first-class-functions conts)
+  "Compute the set of $kfun labels in @var{conts} that can be called by
+value rather than by label.  Assumes @var{conts} contains only reachable
+conts.  Assumes each $kfun is only made into a first class value by a
+single label.  Returns an intmap map from $kfun label to label in which
+the first-class function is defined."
+  (define (add kdef kfun first-class)
+    (intmap-add! first-class kfun kdef))
+  (persistent-intmap
+   (intmap-fold
+    (lambda (label cont first-class)
+      (match cont
+        (($ $kargs _ _ ($ $continue k src ($ $fun kfun)))
+         (add label kfun first-class))
+        (($ $kargs _ _ ($ $continue k src
+                          ($ $rec _ vars (($ $fun kfuns) ...))))
+         (fold (lambda (kfun first-class)
+                 (add label kfun first-class))
+               first-class
+               kfuns))
+        (_ first-class)))
+    conts
+    empty-intmap)))
+
+(define (compute-functions-called-by-label conts)
+  "Compute the set of $kfun labels in @var{conts} which are targets of
+$callk."
+  (persistent-intset
+   (intmap-fold
+    (lambda (label cont by-label)
+      (match cont
+        (($ $kargs _ _ ($ $continue k src ($ $callk kfun)))
+         (intset-add! by-label kfun))
+        (_ by-label)))
+    conts
+    empty-intset)))
+
 (define (compute-functions conts)
   "Compute a map from $kfun label to bound variable names for all
 functions in CONTS.  Functions have two bound variable names: their self
@@ -50,27 +87,57 @@ the set."
   (define (function-self label)
     (match (intmap-ref conts label)
       (($ $kfun src meta self) self)))
-  (let ((single (compute-singly-referenced-labels conts)))
-    (intmap-fold (lambda (label cont functions)
-                   (match cont
-                     (($ $kargs _ _ ($ $continue k src ($ $fun kfun)))
-                      (if (intset-ref single k)
-                          (match (intmap-ref conts k)
-                            (($ $kargs (name) (var))
-                             (intmap-add functions kfun
-                                         (intset var (function-self kfun)))))
-                          functions))
-                     (($ $kargs _ _ ($ $continue k src
-                                       ($ $rec _ vars (($ $fun kfuns) ...))))
-                      (if (intset-ref single k)
-                          (fold (lambda (var kfun functions)
-                                  (intmap-add functions kfun
-                                              (intset var (function-self kfun))))
-                                functions vars kfuns)
-                          functions))
-                     (_ functions)))
-                 conts
-                 empty-intmap)))
+  (let* ((single (compute-singly-referenced-labels conts))
+         (first-class (compute-first-class-functions conts))
+         (first-class-defs (persistent-intset
+                            (intmap-fold (lambda (kfun def all-defs)
+                                           (intset-add! all-defs def))
+                                         first-class
+                                         empty-intset)))
+         (by-label (compute-functions-called-by-label conts)))
+    (define (first-class-bound-names)
+      (intset-fold
+       (lambda (kdef bound-names)
+         (match (intmap-ref conts kdef)
+           (($ $kargs _ _ ($ $continue k src ($ $fun kfun)))
+            (if (intset-ref single k)
+                (match (intmap-ref conts k)
+                  (($ $kargs (name) (var))
+                   (intmap-add bound-names kfun
+                               (intset var (function-self kfun)))))
+                bound-names))
+           (($ $kargs _ _ ($ $continue k src
+                             ($ $rec _ vars (($ $fun kfuns) ...))))
+            (if (intset-ref single k)
+                (fold (lambda (var kfun bound-names)
+                        (intmap-add bound-names kfun
+                                    (intset var (function-self kfun))))
+                      bound-names vars kfuns)
+                bound-names))))
+       first-class-defs
+       empty-intmap))
+    (define (add-second-class-functions bound-names)
+      (intset-fold
+       (lambda (label bound-names)
+         (cond
+          ((intmap-ref first-class label (lambda (_) #f))
+           ;; This function which is called by label also has
+           ;; first-class uses.  Either the bound names are known, in
+           ;; which case the label is in bound-names, or they aren't, in
+           ;; which case they aren't.  Either way the presence of $callk
+           ;; doesn't change the contifiability of a first-class
+           ;; function.
+           bound-names)
+          (else
+           ;; Otherwise this function is second-class: it has no value
+           ;; and is only called by label.  No bound names, but a
+           ;; candidate for contification nonetheless.
+           (intmap-add bound-names label empty-intset))))
+       by-label
+       bound-names))
+    (persistent-intmap
+     (add-second-class-functions
+      (first-class-bound-names)))))
 
 (define (compute-arities conts functions)
   "Given the map FUNCTIONS whose keys are $kfun labels, return a map
@@ -81,7 +148,9 @@ from label to arities."
           (($ $kclause arity body alt)
            (cons arity (clause-arities alt)))
           (($ $kargs names vars _)
-           (list (make-$arity names '() #f '() #f))))
+           ;; If this function's entry is a $kargs, all callers have
+           ;; compatible arity; no need to check.
+           #f))
         '()))
   (intmap-map (lambda (label vars)
                  (match (intmap-ref conts label)
@@ -110,12 +179,7 @@ from label to arities."
 functions with known uses that are only ever used as the operator of a
 $call, and are always called with a compatible arity."
   (let* ((functions (compute-functions conts))
-         (vars (intmap-fold (lambda (label vars out)
-                              (intset-fold (lambda (var out)
-                                             (intmap-add out var label))
-                                           vars out))
-                            functions
-                            empty-intmap))
+         (vars (invert-partition functions))
          (arities (compute-arities conts functions)))
     (define (restrict-arity functions proc nargs)
       (match (intmap-ref vars proc (lambda (_) #f))
@@ -206,6 +270,10 @@ function set."
              (let ((caller (intmap-ref bodies label (lambda (_) 0))))
                (values (intmap-add calls caller callee intset-add)
                        (intmap-add returns callee k intset-add))))))
+         (($ $kargs _ _ ($ $continue k src ($ $callk callee)))
+          (let ((caller (intmap-ref bodies label (lambda (_) 0))))
+            (values (intmap-add calls caller callee intset-add)
+                    (intmap-add returns callee k intset-add))))
          (_ (values calls returns))))
      conts
      (intset->intmap (lambda (label) empty-intset) (intset-add labels 0))
@@ -325,7 +393,8 @@ function set."
            empty-intset
            empty-intmap))
       (lambda (contified return-substs)
-        (values (intset-fold (lambda (label call-substs)
+        (values contified
+                (intset-fold (lambda (label call-substs)
                                (intset-fold
                                 (lambda (var call-substs)
                                   (intmap-add call-substs var label))
@@ -335,7 +404,7 @@ function set."
                              empty-intmap)
                 return-substs)))))
 
-(define (apply-contification conts call-substs return-substs)
+(define (apply-contification conts contified call-substs return-substs)
   (define (call-subst proc)
     (intmap-ref call-substs proc (lambda (_) #f)))
   (define (return-subst k)
@@ -348,10 +417,7 @@ function set."
            (($ $kclause arity body alt)
             (if (arity-matches? arity nargs)
                 body
-                (lp alt)))
-           (($ $kargs names)
-            (unless (= nargs (length names)) (error "what"))
-            clause))))))
+                (lp alt))))))))
   (define (inline-return cps k* kargs src nreq rest vals)
     (define (build-list cps k src vals)
       (match vals
@@ -416,6 +482,26 @@ function set."
                 (inline-return cps k* kargs src (length req) rest vals))))
             (($ $ktail)
              (with-cps cps (build-term ($continue k* src ,exp))))))))
+  (define (contify-unchecked-function cps kfun)
+    ;; Precondition: kfun is "unchecked": the entry is a $kargs, and
+    ;; thus all callers are $callk.  If the front-end changes to produce
+    ;; $callk to a $kfun with $kclause, this will have to change.
+    (match (intmap-ref cps kfun)
+      (($ $kfun src meta self tail entry)
+       ;; This is the first caller to be visited; twiddle the kfun
+       ;; to be a $kargs with an additional closure arg if needed.
+       (match (intmap-ref cps entry)
+         (($ $kargs names vars term)
+          (let* ((vars' (map (lambda (_) (fresh-var)) vars))
+                 (names+ (if self (cons 'closure names) names))
+                 (vars+ (if self (cons self vars') vars')))
+            (with-cps cps
+              (setk kfun ($kargs names+ vars+
+                           ($continue entry src ($values vars')))))))))
+      (($ $kargs names vars)
+       ;; Callee $kfun already replaced with $kargs of the right
+       ;; arity.
+       cps)))
   (define (visit-exp cps k src exp)
     (match exp
       (($ $call proc args)
@@ -426,6 +512,15 @@ function set."
           (let ((body (find-body kfun (length args))))
             (with-cps cps
               (build-term ($continue body src ($values args))))))))
+      (($ $callk kfun proc args)
+       ;; If proc is contifiable, replace call with jump.
+       (cond
+        ((intset-ref contified kfun)
+         (let ((args (if proc (cons proc args) args)))
+           (with-cps (contify-unchecked-function cps kfun)
+             (build-term ($continue kfun src ($values args))))))
+        (else
+         (continue cps k src exp))))
       (($ $fun kfun)
        ;; If the function's tail continuation has been
        ;; substituted, that means it has been contified.
@@ -472,5 +567,6 @@ function set."
   ;; conts as irreducible.  For now we punt and renumber so that there
   ;; are only live conts.
   (let ((conts (renumber conts)))
-    (let-values (((call-substs return-substs) (compute-contification conts)))
-      (apply-contification conts call-substs return-substs))))
+    (call-with-values (lambda () (compute-contification conts))
+      (lambda (contified call-substs return-substs)
+        (apply-contification conts contified call-substs return-substs)))))
