@@ -291,7 +291,8 @@ less_p (SCM a, SCM b)
       return a_bits < b_bits ? SCM_F_COMPARE_LESS_THAN : SCM_F_COMPARE_NONE;
     }
 
-  if (scm_is_true (scm_nan_p (a)) || scm_is_true (scm_nan_p (b)))
+  if ((SCM_REALP (a) && scm_is_true (scm_nan_p (a)))
+      || (SCM_REALP (b) && scm_is_true (scm_nan_p (b))))
     return SCM_F_COMPARE_INVALID;
   else if (scm_is_true (scm_less_p (a, b)))
     return SCM_F_COMPARE_LESS_THAN;
