@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -46,35 +46,13 @@
   #:use-module (language cps intset)
   #:export (convert-closures))
 
-(define (compute-function-bodies conts kfun)
-  "Compute a map from FUN-LABEL->BODY-LABEL... for all $fun instances in
-conts."
-  (let visit-fun ((kfun kfun) (out empty-intmap))
-    (let ((body (compute-function-body conts kfun)))
-      (intset-fold
-       (lambda (label out)
-         (match (intmap-ref conts label)
-           (($ $kargs _ _ ($ $continue _ _ ($ $fun kfun)))
-            (visit-fun kfun out))
-           (($ $kargs _ _ ($ $continue _ _ ($ $rec _ _ (($ $fun kfun) ...))))
-            (fold visit-fun out kfun))
-           (_ out)))
-       body
-       (intmap-add out kfun body)))))
-
 (define (compute-program-body functions)
   (intmap-fold (lambda (label body out) (intset-union body out))
                functions
                empty-intset))
 
 (define (filter-reachable conts functions)
-  (let ((reachable (compute-program-body functions)))
-    (intmap-fold
-     (lambda (label cont out)
-       (if (intset-ref reachable label)
-           out
-           (intmap-remove out label)))
-     conts conts)))
+  (intmap-select conts (compute-program-body functions)))
 
 (define (compute-non-operator-uses conts)
   (persistent-intset
@@ -93,6 +71,11 @@ conts."
             (add-uses args uses))
            (($ $call proc args)
             (add-uses args uses))
+           (($ $callk label proc args)
+            (let ((uses (add-uses args uses)))
+              (if proc
+                  (add-use proc uses)
+                  uses)))
            (($ $primcall name param args)
             (add-uses args uses))))
         (($ $kargs _ _ ($ $branch kf kt src op param args))
@@ -224,6 +207,8 @@ shared closures to use the appropriate 'self' variable, if possible."
             (rewrite-exp (intmap-ref env proc (lambda (_) #f))
               (#f ($call proc ,args))
               ((closure . label) ($callk label closure ,args)))))
+        (($ $callk label proc args)
+         ($callk label (and proc (subst proc)) ,(map subst args)))
         (($ $primcall name param args)
          ($primcall name param ,(map subst args)))
         (($ $values args)
@@ -308,9 +293,11 @@ references."
     (intset-fold
      (lambda (label out)
        (match (intmap-ref conts label)
-         (($ $kargs _ _ ($ $continue _ _
-                           ($ $fun kfun)))
+         (($ $kargs _ _ ($ $continue _ _ ($ $fun kfun)))
           (intmap-union out (visit-fun kfun)))
+         ;; Convention is that functions not bound by $fun / $rec and
+         ;; thus reachable only via $callk and such have no free
+         ;; variables.
          (($ $kargs _ _ ($ $continue _ _
                            ($ $rec _ _ (($ $fun labels) ...))))
           (let* ((out (fold (lambda (kfun out)
@@ -359,7 +346,10 @@ references."
                         (($ $call proc args)
                          (add-use proc (add-uses args uses)))
                         (($ $callk label proc args)
-                         (add-use proc (add-uses args uses)))
+                         (let ((uses (add-uses args uses)))
+                           (if proc
+                               (add-use proc uses)
+                               uses)))
                         (($ $primcall name param args)
                          (add-uses args uses))))
                      (($ $branch kf kt src op param args)
@@ -371,14 +361,27 @@ references."
                      (($ $throw src op param args)
                       (add-uses args uses)))))
                  (($ $kfun src meta self)
-                  (values (add-def self defs) uses))
+                  (values (if self (add-def self defs) defs) uses))
                  (_ (values defs uses))))
              body empty-intset empty-intset))
         (lambda (defs uses)
           (intmap-add free kfun (intset-subtract
                                  (persistent-intset uses)
                                  (persistent-intset defs)))))))
-  (visit-fun kfun))
+  ;; Ensure that functions only reachable by $callk are present in the
+  ;; free-vars map, albeit with empty-intset.  Note that if front-ends
+  ;; start emitting $callk to targets with free variables, we will need
+  ;; to do a better job here!
+  (define (ensure-all-functions-have-free-vars free-vars)
+    (intmap-fold
+     (lambda (label cont out)
+       (match cont
+         (($ $kfun)
+          (intmap-add out label empty-intset intset-union))
+         (_ out)))
+     conts
+     free-vars))
+  (ensure-all-functions-have-free-vars (visit-fun kfun)))
 
 (define (eliminate-closure? label free-vars)
   (eq? (intmap-ref free-vars label) empty-intset))
@@ -676,6 +679,9 @@ bound to @var{var}, and continue to @var{k}."
               (build-term
                 ($continue k src ($callk label closure args)))))))
       (cond
+       ((not closure)
+        ;; No closure to begin with; done.
+        (have-closure cps #f))
        ((eq? (intmap-ref free-vars label) empty-intset)
         ;; Known call, no free variables; no closure needed.  If the
         ;; callee is well-known, elide the closure argument entirely.
@@ -847,7 +853,7 @@ bound to @var{var}, and continue to @var{k}."
 and allocate and initialize flat closures."
   (let* ((kfun 0) ;; Ass-u-me.
          ;; label -> body-label...
-         (functions (compute-function-bodies cps kfun))
+         (functions (compute-reachable-functions cps kfun))
          (cps (filter-reachable cps functions))
          ;; label -> bound-var...
          (label->bound (compute-function-names cps functions))

@@ -408,7 +408,7 @@ function set."
           (match (intmap-ref conts k*)
             (($ $kreceive ($ $arity req () rest () #f) kargs)
              (match exp
-               (($ $call)
+               ((or ($ $call) ($ $callk))
                 (with-cps cps (build-term ($continue k* src ,exp))))
                ;; We need to punch through the $kreceive; otherwise we'd
                ;; have to rewrite as a call to the 'values primitive.
