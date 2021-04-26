@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2015,2017-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2015,2017-2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -1393,6 +1393,75 @@
     (scope-counter (1+ scope-id))
     scope-id))
 
+;;; For calls to known imported values, we don't want to duplicate the
+;;; "resolve the import" code at each call site.  Instead we generate a
+;;; stub per callee, and have callers call-label the callees.
+;;;
+(define module-call-stubs (make-parameter #f))
+(define (module-call-label cps mod name public? nargs)
+  "Return three values: the new CPS, the label to call, and the value to
+use as the proc slot."
+  (define call-stub-key (list mod name public? nargs))
+  (define var-cache-key (list mod name public?))
+  (define var-cache
+    (build-exp ($primcall 'cache-ref var-cache-key ())))
+  (match (assoc-ref (module-call-stubs) call-stub-key)
+    (#f
+     (let* ((trampoline-name (string->symbol
+                              (format #f "~a~a~a"
+                                      name (if public? "@" "@@")
+                                      (string-join (map symbol->string mod)
+                                                   "/"))))
+            (cached (fresh-var))
+            (args (let lp ((n 0))
+                    (if (< n nargs)
+                        (cons (fresh-var) (lp (1+ n)))
+                        '())))
+            (argv (cons cached args))
+            (names (let lp ((n 0))
+                     (if (< n (1+ nargs))
+                         (cons (string->symbol
+                                (string-append "arg" (number->string n)))
+                               (lp (1+ n)))
+                         '()))))
+       (with-cps cps
+         (letv fresh-var var proc)
+         (letk ktail ($ktail))
+         (letk kcall
+               ($kargs ('proc) (proc)
+                 ($continue ktail #f ($call proc args))))
+         (letk kref
+               ($kargs ('var) (var)
+                 ($continue kcall #f
+                   ($primcall 'scm-ref/immediate '(box . 1) (var)))))
+         (letk kcache2
+               ($kargs () ()
+                 ($continue kref #f ($values (fresh-var)))))
+         (letk kcache
+               ($kargs ('var) (fresh-var)
+                 ($continue kcache2 #f
+                   ($primcall 'cache-set! var-cache-key (fresh-var)))))
+         (letk klookup
+               ($kargs () ()
+                 ($continue kcache #f
+                   ($primcall (if public?
+                                  'lookup-bound-public
+                                  'lookup-bound-private)
+                              (list mod name) ()))))
+         (letk kcached
+               ($kargs () ()
+                 ($continue kref #f ($values (cached)))))
+         (letk kentry
+               ($kargs names argv
+                 ($branch klookup kcached #f 'heap-object? #f (cached))))
+         (letk kfun ($kfun #f `((name . ,trampoline-name)) #f ktail kentry))
+         ($ ((lambda (cps)
+               (module-call-stubs
+                (acons call-stub-key kfun (module-call-stubs)))
+               (values cps kfun var-cache)))))))
+    (kfun
+     (values cps kfun var-cache))))
+
 (define (toplevel-box cps src name bound? have-var)
   (match (current-topbox-scope)
     (#f
@@ -1867,6 +1936,20 @@
                 (build-term
                   ($continue kmod src ($primcall 'current-module #f ())))))))))
 
+    (($ <call> src ($ <module-ref> src2 mod name public?) args)
+     (convert-args cps args
+       (lambda (cps args)
+         (call-with-values
+             (lambda () (module-call-label cps mod name public? (length args)))
+           (lambda (cps kfun proc-exp)
+             (with-cps cps
+               (letv cache)
+               (letk kcall ($kargs ('cache) (cache)
+                             ($continue k src
+                               ($callk kfun #f ,(cons cache args)))))
+               (build-term
+                 ($continue kcall src2 ,proc-exp))))))))
+
     (($ <call> src proc args)
      (convert-args cps (cons proc args)
        (match-lambda*
@@ -2287,7 +2370,8 @@ integer."
 (define (cps-convert/thunk exp)
   (parameterize ((label-counter 0)
                  (var-counter 0)
-                 (scope-counter 0))
+                 (scope-counter 0)
+                 (module-call-stubs '()))
     (with-cps empty-intmap
       (letv init)
       ;; Allocate kinit first so that we know that the entry point's
