@@ -504,11 +504,17 @@ Otherwise @var{var} is bound, so @var{k} is called with @var{var}."
         ;; A not-well-known function with zero free vars.  Copy as a
         ;; constant, relying on the linker to reify just one copy.
         => (lambda (kfun)
-             (with-cps cps
-               (letv var*)
-               (let$ body (k var*))
-               (letk k* ($kargs (#f) (var*) ,body))
-               (build-term ($continue k* #f ($const-fun kfun))))))
+             ;; It may well be that "var" is the "self" of another
+             ;; member of an SCC containing just one not-well-known
+             ;; function.  But here we're asking for the value of the
+             ;; closure, which is the $const-fun of the non-well-known
+             ;; member.
+             (let ((kfun (closure-label kfun shared bound->label)))
+               (with-cps cps
+                 (letv var*)
+                 (let$ body (k var*))
+                 (letk k* ($kargs (#f) (var*) ,body))
+                 (build-term ($continue k* #f ($const-fun kfun)))))))
        ((intset-ref free var)
         (if (and self-known? (eqv? 1 nfree))
             ;; A reference to the one free var of a well-known function.

@@ -1,5 +1,5 @@
 ;;;; compiler.test --- tests for the compiler      -*- scheme -*-
-;;;; Copyright (C) 2008-2014, 2018 Free Software Foundation, Inc.
+;;;; Copyright (C) 2008-2014, 2018, 2021 Free Software Foundation, Inc.
 ;;;; 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -315,7 +315,6 @@
                (loop (+ i 1) (thunk)))
               (else
                (unless (= result 42) (error "bad result" result))
-               (newline)
                result))))
          (define (test n)
            (let ((matrix (make-vector n)))
@@ -337,3 +336,35 @@
   (pass-if-equal "test terminates without error" 42
     (test-proc)))
 
+(with-test-prefix "closure conversion"
+  (define test-code
+    '(lambda (arg)
+       (define (A a)
+         (let loop ((ls a))
+           (cond ((null? ls)
+                  (B a))
+                 ((pair? ls)
+                  (if (list? (car ls))
+                      (loop (cdr ls))
+                      #t))
+                 (else #t))))
+       (define (B b)
+         (let loop ((ls b))
+           (cond ((null? ls)
+                  (map A b))
+                 ((pair? ls)
+                  (if (list? (car ls))
+                      (loop (cdr ls))
+                      (error "bad" b)))
+                 (else
+                  (error "bad" b)))))
+       (B arg)))
+
+  (define test-proc #f)
+  (pass-if "compiling test works"
+    (begin
+      (set! test-proc (compile test-code))
+      (procedure? test-proc)))
+
+  (pass-if-equal "test terminates without error" '(#t #t)
+    (test-proc '((V X) (Y Z)))))
