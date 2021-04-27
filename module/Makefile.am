@@ -398,6 +398,7 @@ ELISP_SOURCES =					\
 NOCOMP_SOURCES =				\
   ice-9/match.upstream.scm			\
   ice-9/psyntax.scm				\
+  ice-9/read.scm				\
   ice-9/r6rs-libraries.scm			\
   ice-9/r7rs-libraries.scm			\
   ice-9/quasisyntax.scm				\
