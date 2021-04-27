@@ -68,6 +68,7 @@
 #include "modules.h"
 #include "pairs.h"
 #include "ports.h"
+#include "simpos.h"
 #include "smob.h"
 #include "strings.h"
 #include "values.h"

@@ -67,7 +67,11 @@ GMP, and so does Guile.  Since Guile 2.0.4, Guile has installed libgc as
 the GMP allocator, so since then, Guile-GnuTLS has been buggy.
 
 Therefore, the default is now to not install libgc as the GMP allocator.
-This may slow down some uses of bignums.
+This may slow down some uses of bignums.  If you know that your Guile
+program will never use a library that uses GMP, you can set the
+GUILE_INSTALL_GMP_MEMORY_FUNCTIONS=1 in your environment.  Guile sets
+this environment variable when building Guile, for example.  See
+"Environment Variables" in the manual, for more.
 
 In some future, Guile may switch to GMP's more low-level "MPN" API for
 working with bignums, which would allow us to regain the ability to use
