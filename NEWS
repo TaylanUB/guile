@@ -136,6 +136,16 @@ data has been optimized to be about 30% shorter than before or so, which
 can significantly decrease compiled file size and run-time
 initialization latency.
 
+** Optimized calls to known functions
+
+For calls where the callee is within the compilation unit, Guile can now
+skip the argument count check.
+
+** Reduce code size for calls to module variables
+
+All calls to a given exported or private variable from a module now
+dispatch through the same trampoline function.  This reduces code size.
+
 ** Updated Gnulib
 
 The Gnulib compatibility library has been updated, for the first time
@@ -194,15 +204,21 @@ See "Syntax Transformer Helpers" in the manual.
 ** Fix make-transcoded-port on input+output ports
 ** Fix (ice-9 ftw) on filesystems where inode values are meaningless
 ** Fix many bugs that prevented Guile from building on MinGW
+** Fix many bugs that prevented Guile from building on MinGW64
 ** Fix many bugs that prevented Guile's test suite from running on MinGW
 ** Fix srfi-69 merge-hash
 ** Fix suspendable-ports implementation of get-bytevector-some!
 ** Fix overread in string-locale<?, string-locale-ci<?, and friends
 ** Fix handling of parameter lists to elisp defun to allow nil
+** Fix closure-conversion bug for SCC with no free vars and one not-well-known function
+** Fix error when < passed non-real value
+** Fix bug in which exported and private names in a used module could alias each other
+** Fix bug with slot options in redefinable GOOPS classes
+** Fix bugs regarding port buffering for TLS connections in web client
 
 Thanks to Vasilij Schneidermann, Andrey Ivanov, Rob Browning, Erik
-Dominikus, Göran Weinholt, Michael Gran, Andrew Whatson, and Ricardo
-G. Herdt.
+Dominikus, Göran Weinholt, Michael Gran, Andrew Whatson, Ricardo
+G. Herdt, Jan Nieuwenhuizen, David Thompson, and abcdw.
 
 * New deprecations
 
