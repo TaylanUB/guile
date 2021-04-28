@@ -4152,13 +4152,13 @@ but it fails to load."
                      (module-name module)
                      (module-name int2)
                      name)
-             (module-local-variable int2 name))))
+             (module-variable int2 name))))
 
     (define (first module name int1 val1 int2 val2 var val)
-      (or var (module-local-variable int1 name)))
+      (or var (module-variable int1 name)))
 
     (define (last module name int1 val1 int2 val2 var val)
-      (module-local-variable int2 name))
+      (module-variable int2 name))
 
     (define (noop module name int1 val1 int2 val2 var val)
       #f)
