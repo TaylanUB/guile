@@ -113,7 +113,7 @@
   (with-test-prefix "Bad argument list"
 
     (pass-if-equal "syntax-error location"
-        '((line . 1) (column . 2) (filename . "example.scm"))
+        '((filename . "example.scm") (line . 1) (column . 2))
       (catch 'syntax-error
         (lambda ()
           (eval (call-with-input-string "\n  (let foo bar)"
