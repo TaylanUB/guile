@@ -212,6 +212,18 @@
 
 
 (with-test-prefix "mismatching parentheses"
+  (pass-if-equal "read-error location"
+      '("foo.scm:3:1: unexpected end of input while searching for: ~A" #\))
+    (catch 'read-error
+      (lambda ()
+        ;; The missing closing paren error should be located on line 3,
+        ;; column 1 (one-indexed).
+        (call-with-input-string "\n    (hi there!\n"
+          (lambda (port)
+            (set-port-filename! port "foo.scm")
+            (read port))))
+      (lambda (key proc message args . _)
+        (cons message args))))
   (pass-if-exception "opening parenthesis"
     exception:eof
     (read-string "("))
