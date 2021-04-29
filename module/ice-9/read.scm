@@ -126,7 +126,8 @@
     (scm-error 'read-error #f
                (format #f "~A:~S:~S: ~A"
                        (or filename "#<unknown port>")
-                       (port-line port) (port-column port)
+                       (1+ (port-line port))
+                       (1+ (port-column port))
                        msg)
                args #f))
 
