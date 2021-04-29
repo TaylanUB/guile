@@ -2530,7 +2530,8 @@
         (throw 'syntax-error
                who
                message
-               (or (source-annotation subform) (source-annotation form))
+               (sourcev->alist
+                 (or (source-annotation subform) (source-annotation form)))
                (strip form)
                (strip subform))))
     (letrec*
