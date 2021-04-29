@@ -1,6 +1,6 @@
 ;;; -*- mode: scheme; coding: utf-8; -*-
 ;;;
-;;; Copyright (C) 2009, 2010, 2011, 2012, 2013 Free Software Foundation, Inc.
+;;; Copyright (C) 2009, 2010, 2011, 2012, 2013, 2021 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -18,7 +18,6 @@
 
 (use-modules (language tree-il)
              (language tree-il primitives)
-             (language tree-il canonicalize)
              (srfi srfi-1)
              (ice-9 control)
              (ice-9 pretty-print)
@@ -167,10 +166,9 @@
             (pretty-print (tree-il->scheme
                            (translate-literal-syntax-objects
                             (squeeze-tree-il
-                             (canonicalize
-                              (resolve-primitives
-                               (macroexpand x 'c '(compile load eval))
-                               (current-module)))))
+                             (resolve-primitives
+                              (macroexpand x 'c '(compile load eval))
+                              (current-module))))
                            (current-module)
                            (list #:avoid-lambda? #f
                                  #:use-case? #f
