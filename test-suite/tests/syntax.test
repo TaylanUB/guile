@@ -1,7 +1,7 @@
 ;;;; syntax.test --- test suite for Guile's syntactic forms    -*- scheme -*-
 ;;;;
 ;;;; Copyright (C) 2001, 2003, 2004, 2005, 2006, 2009, 2010,
-;;;;   2011, 2012, 2013, 2014 Free Software Foundation, Inc.
+;;;;   2011, 2012, 2013, 2014, 2021 Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -111,6 +111,18 @@
 (with-test-prefix "expressions"
 
   (with-test-prefix "Bad argument list"
+
+    (pass-if-equal "syntax-error location"
+        '((line . 1) (column . 2) (filename . "example.scm"))
+      (catch 'syntax-error
+        (lambda ()
+          (eval (call-with-input-string "\n  (let foo bar)"
+                  (lambda (port)
+                    (set-port-filename! port "example.scm")
+                    (read port)))
+                (interaction-environment)))
+        (lambda (key proc message properties form subform . rest)
+          properties)))
 
     (pass-if-syntax-error "improper argument list of length 1"
       exception:generic-syncase-error
