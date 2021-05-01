@@ -1,6 +1,6 @@
 ;;; Tree-IL partial evaluator
 
-;; Copyright (C) 2011-2014, 2017, 2019, 2020 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2014, 2017, 2019, 2020, 2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -1650,7 +1650,7 @@ top-level bindings from ENV and return the resulting expression."
                 ;; There is no way that an <abort> could know the tag
                 ;; for this <prompt>, so we can elide the <prompt>
                 ;; entirely.
-                (unrecord-operand-uses op 1)
+                (when op (unrecord-operand-uses op 1))
                 (for-tail (if escape-only? body (make-call src body '())))))
           (else
            (let ((handler (for-value handler)))
