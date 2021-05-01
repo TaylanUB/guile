@@ -578,6 +578,19 @@
                                         #:env m
                                         #:opts %opts-w-unbound))))))))
 
+   (pass-if "re-exported binding"          ;<https://bugs.gnu.org/47031>
+     (null? (call-with-warnings
+             (lambda ()
+               (compile '(begin
+                           (use-modules (srfi srfi-35))
+
+                           ;; This 'condition' form expands to a
+                           ;; 'make-compound-condition' call, which is
+                           ;; re-exported from (ice-9 exceptions).
+                           (condition (&error)
+                                      (&message (message "oh!"))))
+                        #:opts %opts-w-unbound)))))
+
    (with-test-prefix "use-before-definition"
      (define-syntax-rule (pass-if-warnings expr pat test)
        (pass-if 'expr

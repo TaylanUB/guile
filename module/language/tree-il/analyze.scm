@@ -510,6 +510,11 @@ given `tree-il' element."
            ;; The variable is an import.  At the time of use, the
            ;; name is bound to the import.
            'import)
+          ((and=> (module-public-interface mod)
+                  (lambda (interface)
+                    (module-variable interface name)))
+           ;; The variable is re-exported from another module.
+           'import)
           (else
            ;; Variable unbound in the module.
            'unbound))))))
