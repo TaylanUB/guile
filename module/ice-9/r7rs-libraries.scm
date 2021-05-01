@@ -1,5 +1,5 @@
 ;; R7RS library support
-;;      Copyright (C) 2020 Free Software Foundation, Inc.
+;;      Copyright (C) 2020, 2021 Free Software Foundation, Inc.
 ;;
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -88,11 +88,11 @@
         (((include-library-declarations filename ...) . decls)
          (syntax-case (handle-includes #'(filename ...)) ()
            ((decl ...)
-            (partition-decls #'(decl ... decls) exports imports code))))
+            (partition-decls #'(decl ... . decls) exports imports code))))
         (((cond-expand clause ...) . decls)
          (syntax-case (handle-cond-expand #'(clause ...)) ()
            ((decl ...)
-            (partition-decls #'(decl ... decls) exports imports code))))))
+            (partition-decls #'(decl ... . decls) exports imports code))))))
 
     (syntax-case stx ()
       ((_ name decl ...)
