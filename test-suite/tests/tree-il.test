@@ -24,6 +24,7 @@
   #:use-module (system base message)
   #:use-module (language tree-il)
   #:use-module (language tree-il primitives)
+  #:use-module (language tree-il optimize)
   #:use-module (ice-9 match)
   #:use-module (ice-9 regex)
   #:use-module (srfi srfi-13))
@@ -89,6 +90,26 @@
                      module))
                    #:from 'tree-il
                    #:to 'scheme)))))
+
+
+(define* (compile+optimize exp #:key (env (current-module))
+                           (optimization-level 2) (opts '()))
+  (let ((optimize (make-lowerer optimization-level opts)))
+    (optimize (compile exp #:to 'tree-il #:env env) env)))
+
+(with-test-prefix "optimize"
+
+  (pass-if-equal "https://debbugs.gnu.org/48098"
+      '(begin
+         (display "hey!\n")
+         42)
+    (decompile
+     (compile+optimize
+      '(begin
+         (call-with-prompt (make-prompt-tag)
+           (lambda () (display "hey!\n"))
+           (lambda (k) #f))
+         42)))))
 
 
 (with-test-prefix "tree-il->scheme"

@@ -1,6 +1,6 @@
 ;;; Effects analysis on Tree-IL
 
-;; Copyright (C) 2011, 2012, 2013 Free Software Foundation, Inc.
+;; Copyright (C) 2011, 2012, 2013, 2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -588,8 +588,12 @@ of an expression."
 
           (($ <prompt> _ escape-only? tag body handler)
            (logior (compute-effects tag)
-                   (compute-effects body)
-                   (compute-effects handler)))
+                   (compute-effects (if escape-only?
+                                        body
+                                        (make-call #f body '())))
+                   ;; Calls handler with probably wrong argument count,
+                   ;; but that will just add a &type-check effect.
+                   (compute-effects (make-call #f handler '()))))
 
           (($ <abort> _ tag args tail)
            (logior &all-effects-but-bailout
