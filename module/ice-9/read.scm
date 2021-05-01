@@ -877,7 +877,17 @@
 (define* (read-syntax #:optional (port (current-input-port)))
   (define filename (port-filename port))
   (define (annotate line column datum)
-    (datum->syntax #f ; No lexical context.
-                   datum
-                   #:source (vector filename line (1- column))))
+    ;; Usually when reading compound expressions consisting of multiple
+    ;; syntax objects, like lists, the "leaves" of the expression are
+    ;; annotated but the "root" isn't.  Like in (A . B), A and B will be
+    ;; annotated but the pair won't.  Therefore the usually correct
+    ;; thing to do is to just annotate the result.  However in the case
+    ;; of reading ( . C), the result is the already annotated C, which
+    ;; we don't want to re-annotate.  Therefore we avoid re-annotating
+    ;; already annotated objects.
+    (if (syntax? datum)
+        datum
+        (datum->syntax #f ; No lexical context.
+                       datum
+                       #:source (vector filename line (1- column)))))
   (%read port annotate syntax->datum))

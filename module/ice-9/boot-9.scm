@@ -4656,8 +4656,11 @@ R7RS."
 ;;;
 
 (call-with-values (lambda ()
-                    (include-from-path "ice-9/read.scm")
-                    (values read read-syntax))
+                    ;; Capture syntax? binding, later removed from root
+                    ;; module.
+                    (let ((syntax? syntax?))
+                      (include-from-path "ice-9/read.scm")
+                      (values read read-syntax)))
   (lambda (read* read-syntax*)
     (set! read read*)
     (set! read-syntax read-syntax*)))

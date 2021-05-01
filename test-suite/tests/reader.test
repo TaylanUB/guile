@@ -20,8 +20,9 @@
 ;;;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 (define-module (test-suite reader)
-  :use-module (srfi srfi-1)
-  :use-module (test-suite lib))
+  #:use-module (srfi srfi-1)
+  #:use-module (test-suite lib)
+  #:use-module (system syntax internal))
 
 
 (define exception:eof
@@ -545,6 +546,10 @@
 (begin-deprecated
  (with-test-prefix "deprecated #{}# escapes"
    (pass-if (equal? (read-string "#{a\\ b}#") '#{a b}#))))
+
+(with-test-prefix "read-syntax"
+  (pass-if-equal "annotations" 'args
+    (syntax-expression (call-with-input-string "( . args)" read-syntax))))
 
 ;;; Local Variables:
 ;;; eval: (put 'with-read-options 'scheme-indent-function 1)
