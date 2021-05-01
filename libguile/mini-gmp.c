@@ -41,6 +41,10 @@ see https://www.gnu.org/licenses/.  */
    mpn/generic/sbpi1_div_qr.c, mpn/generic/sub_n.c,
    mpn/generic/submul_1.c. */
 
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
+
 #include <assert.h>
 #include <ctype.h>
 #include <limits.h>
