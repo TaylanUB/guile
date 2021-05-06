@@ -1,5 +1,5 @@
 ;;; Details on internal value representation.
-;;; Copyright (C) 2014, 2015, 2017, 2018, 2020 Free Software Foundation, Inc.
+;;; Copyright (C) 2014, 2015, 2017, 2018, 2020, 2021 Free Software Foundation, Inc.
 ;;;
 ;;; This library is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU Lesser General Public License as published by
@@ -230,9 +230,22 @@ may not fit into a word on the target platform."
     (else (error "value does not fit in bits" x bits))))
 
 (define (truncate-bits x bits signed?)
-  (let ((x' (logand x (1- (ash 1 bits)))))
-    (and (eq? x (if signed? (sign-extend x' bits) x'))
-         x')))
+  (define-syntax-rule (bits-case bits)
+    (let ((umax (1- (ash 1 bits)))
+          (smin (ash -1 (1- bits)))
+          (smax (1- (ash 1 (1- bits)))))
+      (and (if signed?
+               (<= smin x smax)
+               (<= 0 x umax))
+           (logand x umax))))
+  (case bits
+    ((16) (bits-case 16))
+    ((32) (bits-case 32))
+    ((64) (bits-case 64))
+    (else
+     (let ((x' (logand x (1- (ash 1 bits)))))
+       (and (eq? x (if signed? (sign-extend x' bits) x'))
+            x')))))
 
 ;; See discussion in tags.h and boolean.h.
 (eval-when (expand)
