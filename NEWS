@@ -872,9 +872,9 @@ incompatible change, core `iota' no longer accepts a negative count.
 able to access content over TLS ("HTTPS") since Guile 2.2.  However,
 that support lacked important facilities, which are now available.
 
-First, these procedures now have a #:verify-certificates?  parameter to
+First, these procedures now have a #:verify-certificate?  parameter to
 enable or disable the verification of X.509 server certificates.  The
-new `x509-certificate-directory' SRFI-39 parameter specifies X.509
+new `x509-certificate-directory' SRFI-39 parameter specifies where X.509
 certificates are searched for.  Second, HTTPS proxies are now supported
 (in addition to HTTP proxies) and the new `current-https-proxy'
 parameter controls that.  See "Web Client" in the manual for details.
