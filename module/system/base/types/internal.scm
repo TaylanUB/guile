@@ -231,21 +231,18 @@ may not fit into a word on the target platform."
 
 (define (truncate-bits x bits signed?)
   (define-syntax-rule (bits-case bits)
-    (let ((umax (1- (ash 1 bits)))
-          (smin (ash -1 (1- bits)))
-          (smax (1- (ash 1 (1- bits)))))
+    (let ((umax (1- (ash 1 bits))))
       (and (if signed?
-               (<= smin x smax)
+               (let ((smin (ash -1 (1- bits)))
+                     (smax (1- (ash 1 (1- bits)))))
+                 (<= smin x smax))
                (<= 0 x umax))
            (logand x umax))))
   (case bits
     ((16) (bits-case 16))
     ((32) (bits-case 32))
     ((64) (bits-case 64))
-    (else
-     (let ((x' (logand x (1- (ash 1 bits)))))
-       (and (eq? x (if signed? (sign-extend x' bits) x'))
-            x')))))
+    (else (bits-case bits))))
 
 ;; See discussion in tags.h and boolean.h.
 (eval-when (expand)
