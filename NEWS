@@ -15,6 +15,12 @@ Guile now defines constants such as `O_NOFOLLOW', `O_CLOEXEC',
 `O_TMPFILE', and more on platforms that support them.  These may be
 passed as arguments to procedures such as `open' and `open-fdes'.
 
+* Bug fixes
+
+** Child process created with `primitive-fork' could read from the
+   parent's internal finalizer and signal pipes, leading to deadlocks
+   (<https://bugs.gnu.org/41948>)
+
 
 Changes in 3.0.6 (since 3.0.5)
 
