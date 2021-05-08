@@ -1217,6 +1217,31 @@ SCM_DEFINE (scm_execle, "execle", 2, 0, 1,
 #undef FUNC_NAME
 
 #ifdef HAVE_FORK
+
+/* Create a process and perform post-fork cleanups in the child.  */
+static void *
+do_fork (void *ret)
+{
+  pid_t pid = fork ();
+
+  if (pid == 0)
+    {
+      /* The child process must not share its sleep pipe with the
+         parent.  Close it and create a new one.  */
+      int err;
+      scm_thread *t = SCM_I_CURRENT_THREAD;
+
+      close (t->sleep_pipe[0]);
+      close (t->sleep_pipe[1]);
+      err = pipe2 (t->sleep_pipe, O_CLOEXEC);
+      if (err != 0)
+        abort ();
+    }
+
+  * (pid_t *) ret = pid;
+  return NULL;
+}
+
 SCM_DEFINE (scm_fork, "primitive-fork", 0, 0, 0,
             (),
 	    "Creates a new \"child\" process by duplicating the current \"parent\" process.\n"
@@ -1244,7 +1269,9 @@ SCM_DEFINE (scm_fork, "primitive-fork", 0, 0, 0,
         "         further behavior unspecified.  See \"Processes\" in the\n"
         "         manual, for more information.\n"),
        scm_current_warning_port ());
-  pid = fork ();
+
+  scm_without_guile (do_fork, &pid);
+
   if (pid == -1)
     SCM_SYSERROR;
   return scm_from_int (pid);

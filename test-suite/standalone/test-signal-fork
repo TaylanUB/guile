@@ -1,0 +1,63 @@
+#!/bin/sh
+guild compile "$0"
+exec guile -q -s "$0" "$@"
+!#
+;;; test-signal-fork --- Signal thread vs. fork.     -*- Scheme -*-
+;;;
+;;; Copyright (C) 2021 Free Software Foundation, Inc.
+;;;
+;;; This library is free software; you can redistribute it and/or
+;;; modify it under the terms of the GNU Lesser General Public
+;;; License as published by the Free Software Foundation; either
+;;; version 3 of the License, or (at your option) any later version.
+;;;
+;;; This library is distributed in the hope that it will be useful,
+;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;;; Lesser General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU Lesser General Public
+;;; License along with this library; if not, write to the Free Software
+;;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+
+;; Test for one of the bugs described at <https://bugs.gnu.org/41948>:
+;; when forking a Guile process that has its signal thread up and
+;; running, the 'sleep_pipe' of the main thread would end up being
+;; shared between the child and parent processes, leading to a race
+;; condition.  This test checks for the presence of that race condition.
+
+(use-modules (ice-9 match))
+
+(setvbuf (current-output-port) 'none)
+(sigaction SIGCHLD pk)                            ;start signal thread
+
+(match (primitive-fork)
+  (0
+   (format #t "child: ~a~%" (getpid))
+   (unless (zero? (sleep 5))
+     ;; If this happens, it means the select(2) call in 'scm_std_select'
+     ;; returned because one of our file descriptors had input data
+     ;; available (which shouldn't happen).
+     (format #t "child woken up!~%")
+
+     ;; Terminate the parent so the test fails.
+     (kill (getppid) SIGKILL)
+     (primitive-exit 1)))
+  (pid
+   (format #t "parent: ~a~%" (getpid))
+   (sigaction SIGALRM (lambda _
+                        (display ".")))
+
+   ;; Repeatedly send signals to self.  Previously, the thread's
+   ;; 'sleep_pipe' would wrongfully be shared between the parent and the
+   ;; child, leading to a race condition: the child could end up reading
+   ;; from the pipe in lieu of the parent.
+   (let loop ((i 50))
+     (kill (getpid) SIGALRM)
+     (usleep 50000)
+     (unless (zero? i)
+       (loop (1- i))))
+
+   ;; Terminate the child.
+   (false-if-exception (kill pid SIGKILL))
+   (format #t "~%completed~%")))
