@@ -24,6 +24,7 @@
 # include <config.h>
 #endif
 
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <full-write.h>
@@ -170,7 +171,7 @@ queue_finalizer_async (void)
 
 #if SCM_USE_PTHREAD_THREADS
 
-static int finalization_pipe[2];
+static int finalization_pipe[2] = { -1, -1 };
 static scm_i_pthread_mutex_t finalization_thread_lock =
   SCM_I_PTHREAD_MUTEX_INITIALIZER;
 static pthread_t finalization_thread;
@@ -188,6 +189,15 @@ notify_about_to_fork (void)
 {
   char byte = 1;
   full_write (finalization_pipe[1], &byte, 1);
+}
+
+static void
+reset_finalization_pipe (void)
+{
+  close (finalization_pipe[0]);
+  close (finalization_pipe[1]);
+  finalization_pipe[0] = -1;
+  finalization_pipe[1] = -1;
 }
 
 struct finalization_pipe_data
@@ -254,15 +264,25 @@ start_finalization_thread (void)
   scm_i_pthread_mutex_lock (&finalization_thread_lock);
   if (!finalization_thread_is_running)
     {
+      assert (finalization_pipe[0] == -1);
+
       /* Use the raw pthread API and scm_with_guile, because we don't want
 	 to block on any lock that scm_spawn_thread might want to take,
 	 and we don't want to inherit the dynamic state (fluids) of the
 	 caller.  */
-      if (pthread_create (&finalization_thread, NULL,
-			  run_finalization_thread, NULL))
-	perror ("error creating finalization thread");
+      if (pipe2 (finalization_pipe, O_CLOEXEC) != 0)
+	perror ("error creating finalization pipe");
+      else if (pthread_create (&finalization_thread, NULL,
+			       run_finalization_thread, NULL))
+	{
+	  reset_finalization_pipe ();
+	  perror ("error creating finalization thread");
+	}
       else
-	finalization_thread_is_running = 1;
+	{
+	  GC_set_finalizer_notifier (notify_finalizers_to_run);
+	  finalization_thread_is_running = 1;
+	}
     }
   scm_i_pthread_mutex_unlock (&finalization_thread_lock);
 }
@@ -276,6 +296,8 @@ stop_finalization_thread (void)
       notify_about_to_fork ();
       if (pthread_join (finalization_thread, NULL))
         perror ("joining finalization thread");
+
+      reset_finalization_pipe ();
       finalization_thread_is_running = 0;
     }
   scm_i_pthread_mutex_unlock (&finalization_thread_lock);
@@ -284,7 +306,6 @@ stop_finalization_thread (void)
 static void
 spawn_finalizer_thread (void)
 {
-  GC_set_finalizer_notifier (notify_finalizers_to_run);
   start_finalization_thread ();
 }
 
@@ -368,8 +389,6 @@ scm_set_automatic_finalization_enabled (int enabled_p)
   if (enabled_p)
     {
 #if SCM_USE_PTHREAD_THREADS
-      if (pipe2 (finalization_pipe, O_CLOEXEC) != 0)
-        scm_syserror (NULL);
       GC_set_finalizer_notifier (spawn_finalizer_thread);
 #else
       GC_set_finalizer_notifier (queue_finalizer_async);
@@ -381,10 +400,6 @@ scm_set_automatic_finalization_enabled (int enabled_p)
 
 #if SCM_USE_PTHREAD_THREADS
       stop_finalization_thread ();
-      close (finalization_pipe[0]);
-      close (finalization_pipe[1]);
-      finalization_pipe[0] = -1;
-      finalization_pipe[1] = -1;
 #endif
     }
 
@@ -423,10 +438,6 @@ scm_init_finalizer_thread (void)
 {
 #if SCM_USE_PTHREAD_THREADS
   if (automatic_finalization_p)
-    {
-      if (pipe2 (finalization_pipe, O_CLOEXEC) != 0)
-        scm_syserror (NULL);
-      GC_set_finalizer_notifier (spawn_finalizer_thread);
-    }
+    GC_set_finalizer_notifier (spawn_finalizer_thread);
 #endif
 }
