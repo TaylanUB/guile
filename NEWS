@@ -26,6 +26,7 @@ passed as arguments to procedures such as `open' and `open-fdes'.
 ** Fix --enable-mini-gmp on FreeBSD and other targets
 ** Fix excessive compile times for vectors >16k elements long
 ** Fix use of literal tree-il as source language (#45131)
+** Fix SRFI-64 test-end to not remove globally-installed test runner
 
 
 Changes in 3.0.6 (since 3.0.5)
