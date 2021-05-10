@@ -29,7 +29,11 @@ $(VM_TARGETS): $(top_builddir)/libguile/vm-operations.h
 
 ice-9/boot-9.go: ice-9/boot-9.scm ice-9/quasisyntax.scm ice-9/r6rs-libraries.scm ice-9/r7rs-libraries.scm ice-9/read.scm
 ice-9/match.go: ice-9/match.scm ice-9/match.upstream.scm
-srfi/srfi-64.go: srfi/srfi-64.scm srfi/srfi-64/testing.scm
+srfi/srfi-64.go: srfi/srfi-64.scm		\
+  srfi/srfi-64/execution.body.scm		\
+  srfi/srfi-64/source-info.body.scm		\
+  srfi/srfi-64/test-runner-simple.body.scm	\
+  srfi/srfi-64/test-runner.body.scm
 $(nobase_ccache_DATA): ../bootstrap/ice-9/eval.go
 
 # Keep this rule in sync with that in `am/guilec'.
@@ -403,7 +407,10 @@ NOCOMP_SOURCES =				\
   ice-9/r7rs-libraries.scm			\
   ice-9/quasisyntax.scm				\
   srfi/srfi-42/ec.scm				\
-  srfi/srfi-64/testing.scm			\
+  srfi/srfi-64/execution.body.scm		\
+  srfi/srfi-64/source-info.body.scm		\
+  srfi/srfi-64/test-runner-simple.body.scm	\
+  srfi/srfi-64/test-runner.body.scm		\
   srfi/srfi-67/compare.scm			\
   system/base/lalr.upstream.scm			\
   system/repl/describe.scm			\
