@@ -17,9 +17,15 @@ passed as arguments to procedures such as `open' and `open-fdes'.
 
 * Bug fixes
 
-** Child process created with `primitive-fork' could read from the
-   parent's internal finalizer and signal pipes, leading to deadlocks
-   (<https://bugs.gnu.org/41948>)
+** Fix bugs introduced in 3.0.6 with Scheme `read` re-write
+** Fix deadlock after `primitive-fork' (#41948)
+** Fix duplicates handlers for interfaces that use interfaces (#43025)
+** Fix compile-psyntax.scm for (language tree-il canonicalize) removal
+** Fix prompt compilation bug (#48098)
+** Fix R7RS include-library-declarations, cond-expand (#40252)
+** Fix --enable-mini-gmp on FreeBSD and other targets
+** Fix excessive compile times for vectors >16k elements long
+** Fix use of literal tree-il as source language (#45131)
 
 
 Changes in 3.0.6 (since 3.0.5)
