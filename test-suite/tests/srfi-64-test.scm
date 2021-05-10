@@ -167,6 +167,19 @@
 
 (test-end);1.2
 
+(test-begin "1.3. test-approximate")
+
+(test-equal
+ "1.3.1. Simple numerical approximation"
+ '(("a" "c") ("b") () () () (2 1 0 0 0))
+ (triv-runner
+  (lambda ()
+    (test-approximate "a" (mean 3 5) 4   0.001)
+    (test-approximate "b" (mean 3 5) 4.5 0.001)
+    (test-approximate "c" (mean 3 5) 4.0 0.001))))
+
+(test-end);1.3
+
 (test-end "1. Simple test-cases")
 
 ;;;
@@ -201,6 +214,30 @@
   (lambda ()
     ;; PASS
     (test-error "a" #t (vector-ref '#(1 2) 9)))))
+
+(test-equal
+ "2.1.4. FAIL with a test name and error type"
+ '(() ("a") () () () (0 1 0 0 0))
+ (triv-runner
+  (lambda ()
+    ;; FAIL
+    (test-error "a" #t (vector-ref '#(1 2) 0)))))
+
+(test-equal
+ "2.1.5. PASS with an error type but no name"
+ '(("") () () () () (1 0 0 0 0))
+ (triv-runner
+  (lambda ()
+    ;; PASS
+    (test-error #t (vector-ref '#(1 2) 9)))))
+
+(test-equal
+ "2.1.6. FAIL with an error type but no name"
+ '(() ("") () () () (0 1 0 0 0))
+ (triv-runner
+  (lambda ()
+    ;; FAIL
+    (test-error #t (vector-ref '#(1 2) 0)))))
 
 (test-end "2.1. test-error")
 
