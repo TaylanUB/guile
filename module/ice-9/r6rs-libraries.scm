@@ -20,6 +20,49 @@
 ;; This file is included from boot-9.scm and assumes the existence of (and 
 ;; expands into) procedures and syntactic forms defined therein.
 
+(define (sym? stx)
+  (symbol? (syntax->datum stx)))
+
+(define (n? stx)
+  (let ((n (syntax->datum stx)))
+    (and (exact-integer? n)
+         (not (negative? n)))))
+
+(define (colon-n? x)
+  (let ((sym (syntax->datum x)))
+    (and (symbol? sym)
+         (let ((str (symbol->string sym)))
+           (and (string-prefix? ":" str)
+                (let ((num (string->number (substring str 1))))
+                  (and (exact-integer? num)
+                       (not (negative? num)))))))))
+
+(define (srfi-name? stx)
+  (syntax-case stx (srfi)
+    ((srfi n rest ...)
+     (and (and-map sym? #'(rest ...))
+          (or (n? #'n)
+              (colon-n? #'n))))
+    (_ #f)))
+
+(define (module-name? stx)
+  (or (srfi-name? stx)
+      (syntax-case stx ()
+        ((name name* ...)
+         (and-map sym? #'(name name* ...)))
+        (_ #f))))
+
+(define (make-srfi-n context n)
+  (datum->syntax
+   context
+   (string->symbol
+    (string-append
+     "srfi-"
+     (let ((n (syntax->datum n)))
+       (if (symbol? n)
+           (substring (symbol->string n) 1)
+           (number->string n)))))))
+
 (define (resolve-r6rs-interface import-spec)
   (define (make-custom-interface mod)
     (let ((iface (make-module)))
@@ -37,27 +80,13 @@
     (for-each (lambda (mod)
                 (module-for-each f mod))
               (module-and-uses mod)))
-  (define (sym? x) (symbol? (syntax->datum x)))
 
   (syntax-case import-spec (library only except prefix rename srfi)
     ;; (srfi :n ...) -> (srfi srfi-n ...)
     ;; (srfi n ...) -> (srfi srfi-n ...)
     ((library (srfi n rest ... (version ...)))
-     (and (and-map sym? #'(srfi rest ...))
-          (or (and
-               (symbol? (syntax->datum #'n))
-               (let ((str (symbol->string (syntax->datum #'n))))
-                 (and (string-prefix? ":" str)
-                      (and=> (string->number (substring str 1))
-                             exact-integer?))))
-              (exact-integer? (syntax->datum #'n))))
-     (let ((srfi-n (string->symbol
-                    (string-append
-                     "srfi-"
-                     (let ((n (syntax->datum #'n)))
-                       (if (symbol? n)
-                           (substring (symbol->string n) 1)
-                           (number->string n)))))))
+     (srfi-name? #'(srfi n rest ...))
+     (let ((srfi-n (make-srfi-n #'srfi #'n)))
        (resolve-r6rs-interface
         (syntax-case #'(rest ...) ()
           (()
@@ -152,11 +181,11 @@
              (lp (cdr in) (cons (vector to replace? var) out))))))))
     
     ((name name* ... (version ...))
-     (and-map sym? #'(name name* ...))
+     (module-name? #'(name name* ...))
      (resolve-r6rs-interface #'(library (name name* ... (version ...)))))
 
-    ((name name* ...) 
-     (and-map sym? #'(name name* ...))
+    ((name name* ...)
+     (module-name? #'(name name* ...))
      (resolve-r6rs-interface #'(library (name name* ... ()))))))
 
 (define-syntax library
@@ -195,23 +224,34 @@
               (else
                (lp #'rest (cons #'id e) r x))))))))
 
-    (syntax-case stx (export import)
+    (syntax-case stx (export import srfi)
       ((_ (name name* ...)
           (export espec ...)
           (import ispec ...)
           body ...)
-       (and-map identifier? #'(name name* ...))
+       (module-name? #'(name name* ...))
        ;; Add () as the version.
        #'(library (name name* ... ())
            (export espec ...)
            (import ispec ...)
            body ...))
 
+      ((_ (srfi n rest ... (version ...))
+          (export espec ...)
+          (import ispec ...)
+          body ...)
+       (srfi-name? #'(srfi n rest ...))
+       (let ((srfi-n (make-srfi-n #'srfi #'n)))
+         #`(library (srfi #,srfi-n rest ... (version ...))
+             (export espec ...)
+             (import ispec ...)
+             body ...)))
+
       ((_ (name name* ... (version ...))
           (export espec ...)
           (import ispec ...)
 	  body ...)
-       (and-map identifier? #'(name name* ...))
+       (module-name? #'(name name* ...))
        (call-with-values
            (lambda ()
              (compute-exports 
