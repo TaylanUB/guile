@@ -1,0 +1,425 @@
+;;; r6rs-hashtables.test --- Test suite for SRFI-126  -*- scheme -*-
+
+;;      Copyright (C) 2010 Free Software Foundation, Inc.
+;;
+;; This library is free software; you can redistribute it and/or
+;; modify it under the terms of the GNU Lesser General Public
+;; License as published by the Free Software Foundation; either
+;; version 3 of the Lice6nse, or (at your option) any later version.
+;;
+;; This library is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;; Lesser General Public License for more details.
+;;
+;; You should have received a copy of the GNU Lesser General Public
+;; License along with this library; if not, write to the Free Software
+;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+
+
+(define-module (test-suite test-srfi-126)
+  :use-module (ice-9 receive)
+  :use-module (srfi srfi-126)
+  :use-module (srfi srfi-1)
+  :use-module (test-suite lib))
+
+(with-test-prefix "make-eq-hashtable"
+  (pass-if "eq hashtable compares keys with eq?"
+    (let ((eq-hashtable (make-eq-hashtable)))
+      (hashtable-set! eq-hashtable (list 'foo) #t)
+      (hashtable-set! eq-hashtable 'sym #t)
+      (and (not (hashtable-contains? eq-hashtable (list 'foo)))
+	   (hashtable-contains? eq-hashtable 'sym)))))
+
+(with-test-prefix "make-eqv-hashtable"
+  (pass-if "eqv hashtable compares keys with eqv?"
+    (let ((eqv-hashtable (make-eqv-hashtable)))
+      (hashtable-set! eqv-hashtable (list 'foo) #t)
+      (hashtable-set! eqv-hashtable (expt 2 500) #t)
+      (and (not (hashtable-contains? eqv-hashtable (list 'foo)))
+	   (hashtable-contains? eqv-hashtable (expt 2 500))))))
+
+(with-test-prefix "make-hashtable"
+  (pass-if "hashtable compares keys with custom equality function"
+    (let* ((abs-hash (lambda (x) (abs x)))
+           (abs-eqv? (lambda (x y) (eqv? (abs x) (abs y))))
+	   (abs-hashtable (make-hashtable abs-hash abs-eqv?)))
+      (hashtable-set! abs-hashtable -4 #t)
+      (and (not (hashtable-contains? abs-hashtable 6))
+	   (hashtable-contains? abs-hashtable 4))))
+
+  (pass-if "hash function value used modulo capacity"
+    (let* ((constant-hash (lambda (x) most-positive-fixnum))
+	   (constant-hashtable (make-hashtable constant-hash eq?)))
+      (hashtable-set! constant-hashtable 'foo 'bar)
+      (hashtable-contains? constant-hashtable 'foo))))
+
+(with-test-prefix "alist->eq-hashtable"
+  (pass-if "eq hashtable compares keys with eq?"
+    (let ((eq-hashtable (alist->eq-hashtable
+                          `((,(list 'foo) . #t) (sym #t)))))
+      (and (not (hashtable-contains? eq-hashtable (list 'foo)))
+	   (hashtable-contains? eq-hashtable 'sym)))))
+
+(with-test-prefix "alist->eqv-hashtable"
+  (pass-if "eqv hashtable compares keys with eqv?"
+    (let ((eqv-hashtable (alist->eqv-hashtable
+                           `((,(list 'foo) . #t) (,(expt 2 500) #t)))))
+      (and (not (hashtable-contains? eqv-hashtable (list 'foo)))
+	   (hashtable-contains? eqv-hashtable (expt 2 500))))))
+
+(with-test-prefix "alist->hashtable"
+  (pass-if "hashtable compares keys with custom equality function"
+    (let* ((abs-hash (lambda (x) (abs x)))
+           (abs-eqv? (lambda (x y) (eqv? (abs x) (abs y))))
+	   (abs-hashtable (alist->hashtable abs-hash abs-eqv?
+                            `((-4 . #t)))))
+      (and (not (hashtable-contains? abs-hashtable 6))
+	   (hashtable-contains? abs-hashtable 4)))))
+
+(with-test-prefix "hashtable?"
+  (pass-if "hashtable? is #t on hashtables"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable? hashtable)))
+
+  (pass-if "hashtable? is #f on non-hashtables"
+    (let ((not-hashtable (list)))
+      (not (hashtable? not-hashtable)))))
+
+(with-test-prefix "hashtable-size"
+  (pass-if "hashtable-size returns current size"
+    (let ((hashtable (make-eq-hashtable)))
+      (and (eqv? (hashtable-size hashtable) 0)
+	   (hashtable-set! hashtable 'foo #t)
+	   (eqv? (hashtable-size hashtable) 1)))))
+
+(with-test-prefix "hashtable-ref"
+  (pass-if "hashtable-ref returns value for bound key"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'sym 'foo)
+      (eq? (hashtable-ref hashtable 'sym 'bar) 'foo)))
+
+  (pass-if "hashtable-ref returns default for unbound key"
+    (let ((hashtable (make-eq-hashtable)))
+      (eq? (hashtable-ref hashtable 'sym 'bar) 'bar)))
+
+  (pass-if-exception "hashtable-ref errors on no default"
+      '(misc-error . "No association for key")
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-ref hashtable 'sym))))
+
+(with-test-prefix "hashtable-set!"
+  (pass-if "hashtable-set! returns unspecified"
+    (let ((hashtable (make-eq-hashtable)))
+      (unspecified? (hashtable-set! hashtable 'foo 'bar))))
+
+  (pass-if "hashtable-set! allows storing #f"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo #f)
+      (not (hashtable-ref hashtable 'foo 'bar)))))
+
+(with-test-prefix "hashtable-delete!"
+  (pass-if "hashtable-delete! removes association"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo 'bar)
+      (and (unspecified? (hashtable-delete! hashtable 'foo))
+	   (not (hashtable-ref hashtable 'foo #f))))))
+
+(with-test-prefix "hashtable-contains?"
+  (pass-if "hashtable-contains? returns #t when association present"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo 'bar)
+      (let ((contains (hashtable-contains? hashtable 'foo)))
+	(and (boolean? contains) contains))))
+
+  (pass-if "hashtable-contains? returns #f when association not present"
+    (let ((hashtable (make-eq-hashtable)))
+      (not (hashtable-contains? hashtable 'foo)))))
+
+
+(with-test-prefix "hashtable-lookup"
+  (pass-if "hashtable-lookup returns not-found when key not found"
+    (let ((hashtable (make-eq-hashtable)))
+      (receive (val found?) (hashtable-lookup hashtable 'sym)
+        (not found?))))
+
+  (pass-if "hashtable-lookup returns value and found when key found"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'sym #t)
+      (receive (val found?) (hashtable-lookup hashtable 'sym)
+        (and (eqv? #t val) found?)))))
+
+(with-test-prefix "hashtable-update!"
+  (pass-if "hashtable-update! adds return value of proc on bound key"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo 0)
+      (eqv? (hashtable-update! hashtable 'foo (lambda (x) (+ x 1)) 100)
+            1)
+      (eqv? (hashtable-ref hashtable 'foo #f) 1)))
+
+  (pass-if "hashtable-update! adds default value on unbound key"
+    (let ((hashtable (make-eq-hashtable)))
+      (eqv? (hashtable-update! hashtable 'foo (lambda (x) (+ x 1)) 100)
+            101)
+      (eqv? (hashtable-ref hashtable 'foo #f) 101))))
+
+(with-test-prefix "hashtable-intern!"
+  (pass-if "hashtable-intern! sets default value when none set"
+    (let ((hashtable (make-eq-hashtable)))
+      (eqv? (hashtable-intern! hashtable 'foo (lambda () 0)) 0)
+      (eqv? (hashtable-ref hashtable 'foo #f) 0)))
+
+  (pass-if "hashtable-intern! leaves value alone when already set"
+    (let ((hashtable (make-eq-hashtable))
+          (x 0))
+      (hashtable-set! hashtable 'foo 0)
+      (eqv? (hashtable-intern! hashtable 'foo (lambda ()
+                                                (set! x 1)
+                                                1))
+            0)
+      (eqv? x 0)
+      (eqv? (hashtable-ref hashtable 'foo #f) 0))))
+
+(with-test-prefix "hashtable-copy"
+  (pass-if "hashtable-copy produces copy of hashtable"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo 1)
+      (hashtable-set! hashtable 'bar 2)
+      (let ((copied-table (hashtable-copy hashtable)))
+	(and (eqv? (hashtable-ref hashtable 'foo #f) 1)
+	     (eqv? (hashtable-ref hashtable 'bar #f) 2)))))
+
+  (pass-if-exception
+      "hashtable-copy with mutability #f produces immutable copy"
+      '(misc-error . "Hashtable is immutable")
+    (let ((copied-table (hashtable-copy (make-eq-hashtable) #f)))
+      (hashtable-set! copied-table 'foo 1))))
+
+(with-test-prefix "hashtable-clear!"
+  (pass-if "hashtable-clear! removes all values from hashtable"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo 1)
+      (hashtable-set! hashtable 'bar 2)
+      (and (unspecified? (hashtable-clear! hashtable))
+	   (eqv? (hashtable-size hashtable) 0)))))
+
+(with-test-prefix "hashtable-empty-copy"
+  (pass-if "hashtable-empty-copy produces empty copy of hashtable"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo 1)
+      (hashtable-set! hashtable 'bar 2)
+      (let ((copied-table (hashtable-empty-copy hashtable)))
+	(and (not (hashtable-ref copied-table 'foo #f))
+	     (not (hashtable-ref copied-table 'bar #f)))))))
+
+(with-test-prefix "hashtable-keys"
+  (pass-if "hashtable-keys returns all keys"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo #t)
+      (hashtable-set! hashtable 'bar #t)
+      (let ((keys (vector->list (hashtable-keys hashtable))))
+	(and (memq 'foo keys) (memq 'bar keys) #t)))))
+
+(with-test-prefix "hashtable-values"
+  (pass-if "hashtable-values returns all values"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo 'foo)
+      (hashtable-set! hashtable 'bar 'bar)
+      (let ((values (vector->list (hashtable-values hashtable))))
+	(and (memq 'foo values) (memq 'bar values) #t)))))
+
+(with-test-prefix "hashtable-entries"
+  (pass-if "hashtable-entries returns all entries"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo 1)
+      (hashtable-set! hashtable 'bar 2)
+      (receive
+        (keys values)
+	(hashtable-entries hashtable)
+	(let f ((counter 0) (success #t))
+	  (if (or (not success) (= counter 2))
+	      success
+	      (case (vector-ref keys counter)
+		((foo) (f (+ counter 1) (eqv? (vector-ref values counter) 1)))
+		((bar) (f (+ counter 1) (eqv? (vector-ref values counter) 2)))
+		(else f 0 #f))))))))
+
+(with-test-prefix "hashtable-key-list"
+  (pass-if "hashtable-key-list returns all keys"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo #t)
+      (hashtable-set! hashtable 'bar #t)
+      (let ((keys (hashtable-key-list hashtable)))
+	(and (memq 'foo keys) (memq 'bar keys) #t)))))
+
+(with-test-prefix "hashtable-value-list"
+  (pass-if "hashtable-value-list returns all values"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo 1)
+      (hashtable-set! hashtable 'bar 2)
+      (let ((values (hashtable-value-list hashtable)))
+	(and (memq 1 values) (memq 2 values) #t)))))
+
+(with-test-prefix "hashtable-entry-lists"
+  (pass-if "hashtable-entry-lists returns all entries"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo 1)
+      (hashtable-set! hashtable 'bar 2)
+      (receive
+        (keys values)
+	(hashtable-entry-lists hashtable)
+	(let f ((counter 0) (success #t))
+	  (if (or (not success) (= counter 2))
+	      success
+	      (case (list-ref keys counter)
+		((foo) (f (+ counter 1) (eqv? (list-ref values counter) 1)))
+		((bar) (f (+ counter 1) (eqv? (list-ref values counter) 2)))
+		(else f 0 #f))))))))
+
+(with-test-prefix "hashtable-walk"
+  (pass-if "hashtable-walk goes through all entries"
+    (let ((hashtable (make-eqv-hashtable)))
+      (hashtable-set! hashtable 10 1)
+      (hashtable-set! hashtable 20 2)
+      (let ((keys 0)
+            (vals 0))
+        (hashtable-walk hashtable
+          (lambda (k v)
+            (set! keys (+ k keys))
+            (set! vals (+ v vals))))
+        (and (= 30 keys) (= 3 vals))))))
+
+(with-test-prefix "hashtable-update-all!"
+  (pass-if "hashtable-update-all! updates all values"
+    (let ((hashtable (make-eqv-hashtable)))
+      (hashtable-set! hashtable 10 1)
+      (hashtable-set! hashtable 20 2)
+      (hashtable-update-all! hashtable
+        (lambda (k v) (+ k v)))
+      (and (= 11 (hashtable-ref hashtable 10))
+           (= 22 (hashtable-ref hashtable 20))))))
+
+(with-test-prefix "hashtable-prune!"
+  (pass-if "hashtable-prune! removes keys"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo 0)
+      (hashtable-set! hashtable 'bar 1)
+      (hashtable-prune! hashtable (lambda (k v) (zero? v)))
+      (and (not (hashtable-contains? hashtable 'foo))
+           (hashtable-contains? hashtable 'bar)))))
+
+(with-test-prefix "hashtable-merge!"
+  (pass-if "hashtable-merge! merges"
+    (let ((hashtable-dest (make-eq-hashtable))
+          (hashtable-src (make-eq-hashtable)))
+      (hashtable-set! hashtable-src 'foo 0)
+      (hashtable-set! hashtable-src 'bar 1)
+      (eqv? hashtable-dest
+            (hashtable-merge! hashtable-dest hashtable-src))
+      (and (hashtable-contains? hashtable-dest 'foo)
+           (hashtable-contains? hashtable-dest 'bar)))))
+
+(with-test-prefix "hashtable-sum"
+  (pass-if "hashtable-sum sums"
+    (let ((hashtable (make-eqv-hashtable)))
+      (hashtable-set! hashtable 10 1)
+      (hashtable-set! hashtable 20 2)
+      (eqv? 33 (hashtable-sum hashtable 0
+                 (lambda (k v acc) (+ k v acc)))))))
+
+(with-test-prefix "hashtable-map->lset"
+  (pass-if "hashtable-map->lset"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo 0)
+      (hashtable-set! hashtable 'bar 1)
+      (let ((lset (hashtable-map->lset hashtable (lambda (k v) v))))
+        (and (memv 0 lset) (memv 1 lset) #t)))))
+
+(with-test-prefix "hashtable-find"
+  (pass-if "hashtable-find returns found entry"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo 0)
+      (hashtable-set! hashtable 'bar 1)
+      (receive (k v found?) (hashtable-find hashtable
+                              (lambda (k v) (zero? v)))
+        (and (eq? k 'foo)
+             (eqv? v 0)
+             found?))))
+
+  (pass-if "hashtable-find returns not-found when entry not found"
+    (let ((hashtable (make-eq-hashtable)))
+      (receive (k v found?) (hashtable-find hashtable (lambda (k v) #f))
+        (not found?)))))
+
+(with-test-prefix "hashtable-empty?"
+  (pass-if "hashtable-empty?"
+    (and (hashtable-empty? (make-eq-hashtable))
+         (not (hashtable-empty? (alist->eq-hashtable '((a . 1))))))))
+
+(with-test-prefix "hashtable-pop!"
+  (pass-if "hashtable-pop!"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo 0)
+      (hashtable-set! hashtable 'bar 1)
+      (receive (k1 v1) (hashtable-pop! hashtable)
+        (receive (k2 v2) (hashtable-pop! hashtable)
+          (and (memq 'foo (list k1 k2)) (memq 'bar (list k1 k2))
+               (memv 0 (list v1 v2)) (memv 1 (list v1 v2))
+               (hashtable-empty? hashtable)))))))
+
+(with-test-prefix "hashtable-inc!"
+  (pass-if "hashtable-inc! on no entry"
+    (let ((hashtable (make-eq-hashtable)))
+      (eqv? 2 (hashtable-inc! hashtable 'foo 2))
+      (eqv? 2 (hashtable-ref hashtable 'foo))))
+
+  (pass-if "hashtable-inc! on existing entry"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo 2)
+      (eqv? 4 (hashtable-inc! hashtable 'foo 2))
+      (eqv? 4 (hashtable-ref hashtable 'foo)))))
+
+(with-test-prefix "hashtable-dec!"
+  (pass-if "hashtable-dec! on no entry"
+    (let ((hashtable (make-eq-hashtable)))
+      (eqv? -2 (hashtable-dec! hashtable 'foo 2))
+      (eqv? -2 (hashtable-ref hashtable 'foo))))
+
+  (pass-if "hashtable-dec! on existing entry"
+    (let ((hashtable (make-eq-hashtable)))
+      (hashtable-set! hashtable 'foo -2)
+      (eqv? -4 (hashtable-dec! hashtable 'foo 2))
+      (eqv? -4 (hashtable-ref hashtable 'foo)))))
+
+(with-test-prefix "hashtable-equivalence-function"
+  (pass-if "hashtable-equivalence-function returns eqv function"
+    (let* ((abs-hash (lambda (x bound) (abs x)))
+           (abs-eqv? (lambda (x y) (eqv? (abs x) (abs y))))
+	   (abs-hashtable (make-hashtable abs-hash abs-eqv?)))
+      (eq? (hashtable-equivalence-function abs-hashtable) abs-eqv?))))
+
+(with-test-prefix "hashtable-hash-function"
+  (pass-if "hashtable-hash-function returns hash function"
+    (let* ((abs-hash (lambda (x bound) (abs x)))
+           (abs-hashtable (make-hashtable abs-hash eqv?)))
+      (eq? (hashtable-hash-function abs-hashtable) abs-hash))))
+
+(with-test-prefix "hashtable-mutable?"
+  (pass-if "hashtable-mutable? is #t on mutable hashtables"
+    (hashtable-mutable? (hashtable-copy (make-eq-hashtable) #t)))
+
+  (pass-if "hashtable-mutable? is #f on immutable hashtables"
+    (not (hashtable-mutable? (hashtable-copy (make-eq-hashtable) #f)))))
+
+;;; Local Variables:
+;;; eval: (put 'alist->eq-hashtable 'scheme-indent-function 0)
+;;; eval: (put 'alist->eqv-hashtable 'scheme-indent-function 0)
+;;; eval: (put 'alist->hashtable 'scheme-indent-function 2)
+;;; eval: (put 'hashtable-walk 'scheme-indent-function 1)
+;;; eval: (put 'hashtable-update-all! 'scheme-indent-function 1)
+;;; eval: (put 'hashtable-prune! 'scheme-indent-function 1)
+;;; eval: (put 'hashtable-merge! 'scheme-indent-function 1)
+;;; eval: (put 'hashtable-sum 'scheme-indent-function 2)
+;;; eval: (put 'hashtable-map->lset 'scheme-indent-function 1)
+;;; eval: (put 'hashtable-find 'scheme-indent-function 1)
+;;; End:
