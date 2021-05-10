@@ -24,9 +24,9 @@
    test-match-nth test-match-all test-match-any test-match-name
    test-skip test-expect-fail test-read-eval-string
    test-runner-group-path test-group test-group-with-cleanup
+   test-exit
    test-result-ref test-result-set! test-result-clear test-result-remove
    test-result-kind test-passed?
-   test-log-to-file
    test-runner? test-runner-reset test-runner-null
    test-runner-simple test-runner-current test-runner-factory test-runner-get
    test-runner-create test-runner-test-name
@@ -48,9 +48,18 @@
    test-on-group-begin-simple test-on-group-end-simple
    test-on-bad-count-simple test-on-bad-end-name-simple
    test-on-final-simple test-on-test-end-simple
-   test-on-final-simple)
-  #:declarative? #f) ; #f needed for test-log-to-file
+   test-on-final-simple))
 
 (cond-expand-provide (current-module) '(srfi-64))
 
-(include-from-path "srfi/srfi-64/testing.scm")
+(import
+ (only (rnrs exceptions) guard)
+ (srfi srfi-1)
+ (srfi srfi-9)
+ (srfi srfi-11)
+ (srfi srfi-35))
+
+(include-from-path "srfi/srfi-64/source-info.body.scm")
+(include-from-path "srfi/srfi-64/test-runner.body.scm")
+(include-from-path "srfi/srfi-64/test-runner-simple.body.scm")
+(include-from-path "srfi/srfi-64/execution.body.scm")
