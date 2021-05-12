@@ -51,6 +51,7 @@
             open-output-bytevector get-output-bytevector
             peek-u8 read-u8 read-bytevector read-bytevector!
             read-string read-line
+            (r7:string-for-each . string-for-each)
             write-u8 write-bytevector write-string flush-output-port
             (r7:string-map . string-map)
             bytevector bytevector-append
@@ -106,7 +107,7 @@
    real? remainder reverse round set!
    set-car! set-cdr! string string->list string->number
    string->symbol string-append
-   string-copy string-copy! string-fill! string-for-each
+   string-copy string-copy! string-fill!
    string-length string-ref string-set! string<=? string<?
    string=? string>=? string>? string? substring symbol->string
    symbol? syntax-error syntax-rules truncate
@@ -401,7 +402,28 @@
 (define (r7:string-map proc s . s*)
   (if (null? s*)
       (string-map proc s)
-      (list->string (apply map proc (string->list s) (map string->list s*)))))
+      (list->string (apply map proc (string->list s) (map string->list
+                                                          s*)))))
+
+(define r7:string-for-each
+      (case-lambda
+        ((proc s) (string-for-each proc s))
+        ((proc s1 s2)
+         (let ((len (min (string-length s1)
+                         (string-length s2))))
+           (let loop ((i 0))
+             (when (< i len)
+               (proc (string-ref s1 i)
+                     (string-ref s2 i))
+               (loop (+ i 1))))))
+        ((proc . strings)
+         (let ((len (apply min (map string-length strings))))
+           (let loop ((i 0))
+             (when (< i len)
+               (apply proc (map (lambda (s)
+                                  (string-ref s i))
+                                strings))
+               (loop (+ i 1))))))))
 
 (define (bytevector . lis)
   (u8-list->bytevector lis))
