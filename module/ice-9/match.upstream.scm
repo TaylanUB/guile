@@ -275,9 +275,12 @@
      (match-syntax-error "missing match expression"))
     ((match atom)
      (match-syntax-error "no match clauses"))
-    ((match (app ...) (pat . body) ...)
-     (let ((v (app ...)))
-       (match-next v ((app ...) (set! (app ...))) (pat . body) ...)))
+    ;; The original implementation uses (app ...) not (op arg ...) here,
+    ;; but in Guile this would match #nil when it shouldn't.  Failing to
+    ;; match () doesn't matter since it leads to an error anyway.
+    ((match (op arg ...) (pat . body) ...)
+     (let ((v (op arg ...)))
+       (match-next v ((op arg ...) (set! (op arg ...))) (pat . body) ...)))
     ((match #(vec ...) (pat . body) ...)
      (let ((v #(vec ...)))
        (match-next v (v (set! v)) (pat . body) ...)))
