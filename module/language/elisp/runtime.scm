@@ -21,6 +21,9 @@
 (define-module (language elisp runtime)
   #:export (nil-value
             t-value
+            elisp-symbol?
+            symbol-name
+            intern
             value-slot-module
             function-slot-module
             elisp-bool
@@ -45,6 +48,30 @@
 
 (define t-value #t)
 
+;;; Elisp symbols include #nil and #t
+
+(define (elisp-symbol? x)
+  (or (symbol? x)
+      (eq? #nil x)
+      (eq? #t x)))
+
+(define (elisp-symbol sym)
+  (cond
+   ((symbol? sym) sym)
+   ((eq? sym #nil) 'nil)
+   ((eq? sym #t) 't)
+   (else (error "Not a symbol." sym))))
+
+(define (symbol-name sym)
+  (symbol->string (elisp-symbol sym)))
+
+(define (intern str)
+  (let ((sym (string->symbol str)))
+    (cond
+     ((eq? sym 'nil) #nil)
+     ((eq? sym 't) #t)
+     (else sym))))
+
 ;;; Modules for the binding slots.
 ;;; Note: Naming those value-slot and/or function-slot clashes with the
 ;;; submodules of these names!
@@ -68,64 +95,72 @@
           (module-export! resolved `(,sym))))))
 
 (define (symbol-fluid symbol)
-  (let ((module (resolve-module value-slot-module)))
+  (let ((module (resolve-module value-slot-module))
+        (symbol (elisp-symbol symbol)))
     (ensure-fluid! value-slot-module symbol) ;++ implicit special proclamation
     (module-ref module symbol)))
 
 (define (set-symbol-fluid! symbol fluid)
-  (let ((module (resolve-module value-slot-module)))
+  (let ((module (resolve-module value-slot-module))
+        (symbol (elisp-symbol symbol)))
     (module-define! module symbol fluid)
     (module-export! module (list symbol)))
   fluid)
 
 (define (symbol-value symbol)
-  (fluid-ref (symbol-fluid symbol)))
+  (fluid-ref (symbol-fluid (elisp-symbol symbol))))
 
 (define (set-symbol-value! symbol value)
-  (fluid-set! (symbol-fluid symbol) value)
+  (fluid-set! (symbol-fluid (elisp-symbol symbol)) value)
   value)
 
 (define (symbol-function symbol)
-  (let ((module (resolve-module function-slot-module)))
+  (let ((module (resolve-module function-slot-module))
+        (symbol (elisp-symbol symbol)))
     (module-ref module symbol)))
 
 (define (set-symbol-function! symbol value)
-  (let ((module (resolve-module function-slot-module)))
+  (let ((module (resolve-module function-slot-module))
+        (symbol (elisp-symbol symbol)))
    (module-define! module symbol value)
    (module-export! module (list symbol)))
   value)
 
 (define (symbol-bound? symbol)
-  (and
-   (module-bound? (resolve-interface value-slot-module) symbol)
-   (let ((var (module-variable (resolve-module value-slot-module)
-                               symbol)))
-     (and (variable-bound? var)
-          (if (fluid? (variable-ref var))
-              (fluid-bound? (variable-ref var))
-              #t)))))
+  (let ((symbol (elisp-symbol symbol)))
+    (and
+     (module-bound? (resolve-interface value-slot-module) symbol)
+     (let ((var (module-variable (resolve-module value-slot-module)
+                                 symbol)))
+       (and (variable-bound? var)
+            (if (fluid? (variable-ref var))
+                (fluid-bound? (variable-ref var))
+                #t))))))
 
 (define (symbol-fbound? symbol)
-  (and
-   (module-bound? (resolve-interface function-slot-module) symbol)
-   (variable-bound?
-    (module-variable (resolve-module function-slot-module)
-                     symbol))))
+  (let ((symbol (elisp-symbol symbol)))
+    (and
+     (module-bound? (resolve-interface function-slot-module) symbol)
+     (variable-bound?
+      (module-variable (resolve-module function-slot-module)
+                       symbol)))))
 
 (define (makunbound! symbol)
-  (if (module-bound? (resolve-interface value-slot-module) symbol)
-      (let ((var (module-variable (resolve-module value-slot-module)
-                                  symbol)))
-        (if (and (variable-bound? var) (fluid? (variable-ref var)))
-            (fluid-unset! (variable-ref var))
-            (variable-unset! var))))
-    symbol)
+  (let ((symbol (elisp-symbol symbol)))
+    (if (module-bound? (resolve-interface value-slot-module) symbol)
+        (let ((var (module-variable (resolve-module value-slot-module)
+                                    symbol)))
+          (if (and (variable-bound? var) (fluid? (variable-ref var)))
+              (fluid-unset! (variable-ref var))
+              (variable-unset! var)))))
+  symbol)
 
 (define (fmakunbound! symbol)
-  (if (module-bound? (resolve-interface function-slot-module) symbol)
-      (variable-unset! (module-variable
-                        (resolve-module function-slot-module)
-                        symbol)))
+  (let ((symbol (elisp-symbol symbol)))
+    (if (module-bound? (resolve-interface function-slot-module) symbol)
+        (variable-unset! (module-variable
+                          (resolve-module function-slot-module)
+                          symbol))))
   symbol)
 
 ;;; Define a predefined macro for use in the function-slot module.
@@ -134,7 +169,7 @@
   (let ((append-symbols
          (lambda (symbols)
            (string->symbol
-            (apply string-append (map symbol->string symbols))))))
+            (apply string-append (map symbol-name symbols))))))
     (datum->syntax template-id
                    (append-symbols
                     (map (lambda (datum)
