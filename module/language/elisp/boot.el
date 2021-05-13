@@ -140,7 +140,7 @@
      ,@body))
 
 (defun symbolp (object)
-  (%funcall (@ (guile) symbol?) object))
+  (%funcall (@ (language elisp runtime) elisp-symbol?) object))
 
 (defun functionp (object)
   (%funcall (@ (guile) procedure?) object))
@@ -222,14 +222,14 @@
 
 ;;; `symbolp' and `symbol-function' are defined above.
 
-(fset 'symbol-name (@ (guile) symbol->string))
+(fset 'symbol-name (@ (language elisp runtime) symbol-name))
 (fset 'symbol-value (@ (language elisp runtime) symbol-value))
 (fset 'set (@ (language elisp runtime) set-symbol-value!))
 (fset 'makunbound (@ (language elisp runtime) makunbound!))
 (fset 'fmakunbound (@ (language elisp runtime) fmakunbound!))
 (fset 'boundp (@ (language elisp runtime) symbol-bound?))
 (fset 'fboundp (@ (language elisp runtime) symbol-fbound?))
-(fset 'intern (@ (guile) string->symbol))
+(fset 'intern (@ (language elisp runtime) intern))
 
 (defun defvaralias (new-alias base-variable &optional docstring)
   (let ((fluid (funcall (@ (language elisp runtime) symbol-fluid)
