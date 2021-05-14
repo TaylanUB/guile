@@ -1018,7 +1018,7 @@ scm_iprlist (char *hdr, SCM exp, int tlr, SCM port, scm_print_state *pstate)
       /* CHECK_INTS; */
       scm_iprin1 (SCM_CAR (exp), port, pstate);
     }
-  if (!SCM_NULL_OR_NIL_P (exp))
+  if (!scm_is_null_and_not_nil (exp))
     {
       scm_puts (" . ", port);
       scm_iprin1 (exp, port, pstate);
