@@ -2487,14 +2487,15 @@ integer."
         (let ()
           (define-syntax-rule (primcall name . args)
             (make-primcall src 'name (list . args)))
-          (define-syntax primcall-chain
+          (define-syntax primcall-cond-chain
             (syntax-rules ()
-              ((_ x) x)
-              ((_ x . y)
-               (make-conditional src (primcall . x) (primcall-chain . y)
-                                 (make-const src #f)))))
-          (define-syntax-rule (bool x)
-            (make-conditional src x (make-const src #t) (make-const src #f)))
+              ((_ consequent alternate) consequent)
+              ((_ test test* ... consequent alternate)
+               (make-conditional
+                src
+                (primcall . test)
+                (primcall-cond-chain test* ... consequent alternate)
+                alternate))))
           (with-lexicals src (a b)
             (make-conditional
              src
@@ -2503,14 +2504,24 @@ integer."
              (match (primcall-name exp)
                ('eqv?
                 ;; Completely inline.
-                (primcall-chain (heap-number? a)
-                                (heap-number? b)
-                                (bool (primcall heap-numbers-equal? a b))))
+                (primcall-cond-chain
+                 (heap-number? a)
+                 (heap-number? b)
+                 (heap-numbers-equal? a b)
+                 (make-const src #t)
+                 (make-const src #f)))
                ('equal?
-                ;; Partially inline.
-                (primcall-chain (heap-object? a)
-                                (heap-object? b)
-                                (primcall equal? a b))))))))
+                ;; Make sure #nil and () are equal.
+                (primcall-cond-chain
+                 (null? a)
+                 (null? b)
+                 (make-const src #t)
+                 ;; Partially inline.
+                 (primcall-cond-chain
+                  (heap-object? a)
+                  (heap-object? b)
+                  (primcall equal? a b)
+                  (make-const src #f)))))))))
 
        (($ <primcall> src 'vector args)
         ;; Expand to "allocate-vector" + "vector-init!".

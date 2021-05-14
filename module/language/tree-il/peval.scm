@@ -1430,8 +1430,8 @@ top-level bindings from ENV and return the resulting expression."
            ((eq? name 'eq?)
             ;; Already in a reduced state.
             (make-primcall src 'eq? (list a b)))
-           ((or (memq v '(#f #t () #nil)) (symbol? v) (char? v)
-                ;; Only fold to eq? value is a fixnum on target and
+           ((or (memq v '(#f #t)) (symbol? v) (char? v)
+                ;; Only fold to eq? if value is a fixnum on target and
                 ;; host, as constant folding may have us compare on host
                 ;; as well.
                 (and (exact-integer? v)

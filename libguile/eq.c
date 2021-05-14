@@ -299,6 +299,9 @@ scm_equal_p (SCM x, SCM y)
   SCM_TICK;
   if (scm_is_eq (x, y))
     return SCM_BOOL_T;
+  /* Make sure #nil and () are equal. */
+  if (scm_is_null (x) && scm_is_null (y))
+    return SCM_BOOL_T;
   if (SCM_IMP (x))
     return SCM_BOOL_F;
   if (SCM_IMP (y))
