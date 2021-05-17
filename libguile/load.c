@@ -649,7 +649,6 @@ load_thunk_from_path (SCM filename, SCM source_file_name,
   struct stringbuf buf;
   struct stat stat_buf;
   char *filename_chars;
-  size_t filename_len;
   SCM path, extensions;
   SCM result = SCM_BOOL_F;
   char initial_buffer[256];
@@ -667,7 +666,6 @@ load_thunk_from_path (SCM filename, SCM source_file_name,
   scm_dynwind_begin (0);
 
   filename_chars = scm_to_locale_string (filename);
-  filename_len = strlen (filename_chars);
   scm_dynwind_free (filename_chars);
 
   /* If FILENAME is absolute and is still valid, return it unchanged.  */
@@ -679,34 +677,6 @@ load_thunk_from_path (SCM filename, SCM source_file_name,
         result = scm_load_thunk_from_file (filename);
       goto end;
     }
-
-  /* If FILENAME has an extension, don't try to add EXTENSIONS to it.  */
-  {
-    char *endp;
-
-    for (endp = filename_chars + filename_len - 1;
-	 endp >= filename_chars;
-	 endp--)
-      {
-	if (*endp == '.')
-	  {
-            if (!string_has_an_ext (filename, extensions))
-              {
-                /* This filename has an extension, but not one of the right
-                   ones... */
-                goto end;
-              }
-	    /* This filename already has an extension, so cancel the
-               list of extensions.  */
-	    extensions = SCM_EOL;
-	    break;
-	  }
-	else if (is_file_name_separator (SCM_MAKE_CHAR (*endp)))
-	  /* This filename has no extension, so keep the current list
-             of extensions.  */
-	  break;
-      }
-  }
 
   /* This simplifies the loop below a bit.
    */
@@ -735,6 +705,9 @@ load_thunk_from_path (SCM filename, SCM source_file_name,
 
       stringbuf_cat (&buf, filename_chars);
       sans_ext_len = buf.ptr - buf.buf;
+
+      /* Add the empty string as the first "extension." */
+      extensions = scm_cons (scm_nullstr, extensions);
 
       /* Try every extension. */
       for (exts = extensions; scm_is_pair (exts); exts = SCM_CDR (exts))
@@ -805,7 +778,6 @@ search_path (SCM path, SCM filename, SCM extensions, SCM require_exts,
 {
   struct stringbuf buf;
   char *filename_chars;
-  size_t filename_len;
   SCM result = SCM_BOOL_F;
   char initial_buffer[256];
 
@@ -819,7 +791,6 @@ search_path (SCM path, SCM filename, SCM extensions, SCM require_exts,
   scm_dynwind_begin (0);
 
   filename_chars = scm_to_locale_string (filename);
-  filename_len = strlen (filename_chars);
   scm_dynwind_free (filename_chars);
 
   /* If FILENAME is absolute and is still valid, return it unchanged.  */
@@ -832,35 +803,6 @@ search_path (SCM path, SCM filename, SCM extensions, SCM require_exts,
         result = filename;
       goto end;
     }
-
-  /* If FILENAME has an extension, don't try to add EXTENSIONS to it.  */
-  {
-    char *endp;
-
-    for (endp = filename_chars + filename_len - 1;
-	 endp >= filename_chars;
-	 endp--)
-      {
-	if (*endp == '.')
-	  {
-            if (scm_is_true (require_exts) &&
-                !string_has_an_ext (filename, extensions))
-              {
-                /* This filename has an extension, but not one of the right
-                   ones... */
-                goto end;
-              }
-	    /* This filename already has an extension, so cancel the
-               list of extensions.  */
-	    extensions = SCM_EOL;
-	    break;
-	  }
-	else if (is_file_name_separator (SCM_MAKE_CHAR (*endp)))
-	  /* This filename has no extension, so keep the current list
-             of extensions.  */
-	  break;
-      }
-  }
 
   /* This simplifies the loop below a bit.
    */
@@ -889,6 +831,9 @@ search_path (SCM path, SCM filename, SCM extensions, SCM require_exts,
 
       stringbuf_cat (&buf, filename_chars);
       sans_ext_len = buf.ptr - buf.buf;
+
+      /* Add the empty string as the first "extension." */
+      extensions = scm_cons (scm_nullstr, extensions);
 
       /* Try every extension. */
       for (exts = extensions; scm_is_pair (exts); exts = SCM_CDR (exts))
