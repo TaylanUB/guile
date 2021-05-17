@@ -358,6 +358,10 @@ If FILE begins with `-' the -s switch is mandatory.
             (set! %load-should-auto-compile #f)
             (parse args out))
 
+           ((string=? arg "--silence-auto-compile")
+            (set! %silence-auto-compile #t)
+            (parse args out))
+
            ((string=? arg "-q")         ; don't load user init
             (set! inhibit-user-init? #t)
             (parse args out))
