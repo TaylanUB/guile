@@ -4327,16 +4327,18 @@ when none is available, reading FILE-NAME with READER."
        (if (and gostat (more-recent? gostat scmstat))
            (load-thunk-from-file go-file-name)
            (begin
-             (when gostat
+             (when (and gostat (not %silence-auto-compile))
                (format (current-warning-port)
                        ";;; note: source file ~a\n;;;       newer than compiled ~a\n"
                        name go-file-name))
              (cond
               (%load-should-auto-compile
                (%warn-auto-compilation-enabled)
-               (format (current-warning-port) ";;; compiling ~a\n" name)
+               (when (not %silence-auto-compile)
+                 (format (current-warning-port) ";;; compiling ~a\n" name))
                (let ((cfn (compile name)))
-                 (format (current-warning-port) ";;; compiled ~a\n" cfn)
+                 (when (not %silence-auto-compile)
+                   (format (current-warning-port) ";;; compiled ~a\n" cfn))
                  (load-thunk-from-file cfn)))
               (else #f)))))
      #:warning "WARNING: compilation of ~a failed:\n" name))

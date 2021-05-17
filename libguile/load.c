@@ -230,6 +230,9 @@ static SCM *scm_loc_load_should_auto_compile;
 /* Whether to treat all auto-compiled files as stale. */
 static SCM *scm_loc_fresh_auto_compile;
 
+/* Whether to silence auto-compile related diagnostics output. */
+static SCM *scm_loc_silence_auto_compile;
+
 /* The fallback path for auto-compilation */
 static SCM *scm_loc_compile_fallback_path;
 
@@ -571,11 +574,14 @@ compiled_is_fresh (SCM full_filename, SCM compiled_filename,
   else
     {
       compiled_is_newer = 0;
-      scm_puts (";;; note: source file ", scm_current_warning_port ());
-      scm_display (full_filename, scm_current_warning_port ());
-      scm_puts ("\n;;;       newer than compiled ", scm_current_warning_port ());
-      scm_display (compiled_filename, scm_current_warning_port ());
-      scm_puts ("\n", scm_current_warning_port ());
+      if (scm_is_false (*scm_loc_silence_auto_compile))
+        {
+          scm_puts (";;; note: source file ", scm_current_warning_port ());
+          scm_display (full_filename, scm_current_warning_port ());
+          scm_puts ("\n;;;       newer than compiled ", scm_current_warning_port ());
+          scm_display (compiled_filename, scm_current_warning_port ());
+          scm_puts ("\n", scm_current_warning_port ());
+        }
     }
 
   return compiled_is_newer;
@@ -740,7 +746,9 @@ load_thunk_from_path (SCM filename, SCM source_file_name,
                 /* Already warned.  */
                 continue;
 
-              if (found_stale_file && *found_stale_file)
+              if (found_stale_file
+                  && *found_stale_file
+                  && scm_is_false (*scm_loc_silence_auto_compile))
                 {
                   scm_puts (";;; found fresh compiled file at ",
                                      scm_current_warning_port ());
@@ -961,10 +969,16 @@ do_try_auto_compile (void *data)
 {
   SCM source = SCM_PACK_POINTER (data);
   SCM comp_mod, compile_file;
+  int print_autocompile_messages;
 
-  scm_puts (";;; compiling ", scm_current_warning_port ());
-  scm_display (source, scm_current_warning_port ());
-  scm_newline (scm_current_warning_port ());
+  print_autocompile_messages = scm_is_false (*scm_loc_silence_auto_compile);
+
+  if (print_autocompile_messages)
+    {
+      scm_puts (";;; compiling ", scm_current_warning_port ());
+      scm_display (source, scm_current_warning_port ());
+      scm_newline (scm_current_warning_port ());
+    }
 
   comp_mod = scm_c_resolve_module ("system base compile");
   compile_file = scm_module_variable (comp_mod, sym_compile_file);
@@ -991,17 +1005,23 @@ do_try_auto_compile (void *data)
       /* Assume `*current-warning-prefix*' has an appropriate value.  */
       res = scm_call_n (scm_variable_ref (compile_file), args, 5);
 
-      scm_puts (";;; compiled ", scm_current_warning_port ());
-      scm_display (res, scm_current_warning_port ());
-      scm_newline (scm_current_warning_port ());
+      if (print_autocompile_messages)
+        {
+          scm_puts (";;; compiled ", scm_current_warning_port ());
+          scm_display (res, scm_current_warning_port ());
+          scm_newline (scm_current_warning_port ());
+        }
       return res;
     }
   else
     {
-      scm_puts (";;; it seems ", scm_current_warning_port ());
-      scm_display (source, scm_current_warning_port ());
-      scm_puts ("\n;;; is part of the compiler; skipping auto-compilation\n",
-                scm_current_warning_port ());
+      if (print_autocompile_messages)
+        {
+          scm_puts (";;; it seems ", scm_current_warning_port ());
+          scm_display (source, scm_current_warning_port ());
+          scm_puts ("\n;;; is part of the compiler; skipping auto-compilation\n",
+                    scm_current_warning_port ());
+        }
       return SCM_BOOL_F;
     }
 }
@@ -1040,7 +1060,7 @@ SCM_DEFINE (scm_sys_warn_auto_compilation_enabled, "%warn-auto-compilation-enabl
 {
   static int message_shown = 0;
 
-  if (!message_shown)
+  if (!message_shown && scm_is_false (*scm_loc_silence_auto_compile))
     {
       scm_puts (";;; note: auto-compilation is enabled, set GUILE_AUTO_COMPILE=0\n"
                 ";;;       or pass the --no-auto-compile argument to disable.\n",
@@ -1174,7 +1194,8 @@ SCM_DEFINE (scm_primitive_load_path, "primitive-load-path", 0, 0, 1,
           && compiled_is_fresh (full_filename, fallback,
                                 &stat_source, &stat_compiled))
         {
-          if (found_stale_compiled_file)
+          if (found_stale_compiled_file
+              && scm_is_false (*scm_loc_silence_auto_compile))
             {
               scm_puts (";;; found fresh local cache at ",
                                  scm_current_warning_port ());
@@ -1304,6 +1325,8 @@ scm_init_load ()
     = SCM_VARIABLE_LOC (scm_c_define ("%load-should-auto-compile", SCM_BOOL_F));
   scm_loc_fresh_auto_compile
     = SCM_VARIABLE_LOC (scm_c_define ("%fresh-auto-compile", SCM_BOOL_F));
+  scm_loc_silence_auto_compile
+    = SCM_VARIABLE_LOC (scm_c_define ("%silence-auto-compile", SCM_BOOL_F));
 
   scm_ellipsis = scm_from_latin1_string ("...");
 
