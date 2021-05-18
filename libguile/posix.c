@@ -372,7 +372,12 @@ SCM_DEFINE (scm_getpwuid, "getpw", 0, 1, 0,
 		   entry = getpwnam (c_user));
     }
   if (!entry)
-    SCM_MISC_ERROR ("entry not found", SCM_EOL);
+    {
+      if (errno)
+        SCM_SYSERROR;
+      else
+        SCM_MISC_ERROR ("No such POSIX user.", scm_list_1 (user));
+    }
 
   SCM_SIMPLE_VECTOR_SET(result, 0, scm_from_locale_string (entry->pw_name));
   SCM_SIMPLE_VECTOR_SET(result, 1, scm_from_locale_string (entry->pw_passwd));
@@ -438,7 +443,12 @@ SCM_DEFINE (scm_getgrgid, "getgr", 0, 1, 0,
     STRING_SYSCALL (name, c_name,
 		    entry = getgrnam (c_name));
   if (!entry)
-    SCM_SYSERROR;
+    {
+      if (errno)
+        SCM_SYSERROR;
+      else
+        SCM_MISC_ERROR ("No such POSIX user group.", scm_list_1 (name));
+    }
 
   SCM_SIMPLE_VECTOR_SET(result, 0, scm_from_locale_string (entry->gr_name));
   SCM_SIMPLE_VECTOR_SET(result, 1, scm_from_locale_string (entry->gr_passwd));
