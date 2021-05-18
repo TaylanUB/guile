@@ -96,13 +96,6 @@
                  *unspecified*)
                 (else ((language-reader lang) port env))))))))
         
-(define (flush-all-input)
-  (if (and (char-ready?)
-           (not (eof-object? (peek-char))))
-      (begin
-        (read-char)
-        (flush-all-input))))
-
 ;; repl-reader is a function defined in boot-9.scm, and is replaced by
 ;; something else if readline has been activated. much of this hoopla is
 ;; to be able to re-use the existing readline machinery.
