@@ -232,7 +232,10 @@
                                  (lp (cons x out)))))))
                      (lambda (k . args)
                        (handle-read-error #f k args)))))
-           (lambda (k) #f)))))           ; the abort handler
+           ;; The abort handler:
+           (lambda (k)
+             (flush-all-input)
+             #f)))))
 
     ((_ ((name category) repl . datums) docstring b0 b1 ...)
      (define-meta-command ((name category) repl () . datums)
