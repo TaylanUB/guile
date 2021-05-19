@@ -379,7 +379,6 @@ SCM_DEFINE (scm_filename_completion_function, "filename-completion-function", 2,
 #define FUNC_NAME s_scm_filename_completion_function
 {
   char *s;
-  SCM ans;
   char *c_text = scm_to_locale_string (text);
 #ifdef HAVE_RL_FILENAME_COMPLETION_FUNCTION
   s = rl_filename_completion_function (c_text, scm_is_true (continuep));
@@ -387,11 +386,10 @@ SCM_DEFINE (scm_filename_completion_function, "filename-completion-function", 2,
   s = filename_completion_function (c_text, scm_is_true (continuep));
 #endif
   free (c_text);
-  if (!s) {
+  if (!s)
     return SCM_BOOL_F;
-  }
-  ans = scm_take_locale_string (s);
-  return ans;
+
+  return scm_take_locale_string (s);
 }
 #undef FUNC_NAME
 
