@@ -30,6 +30,7 @@
   #:use-module (srfi srfi-11)
   #:use-module (srfi srfi-26)
   #:use-module (language cps)
+  #:use-module (language cps graphs)
   #:use-module (language cps utils)
   #:use-module (language cps intmap)
   #:use-module (language cps intset)
@@ -121,94 +122,6 @@
 (define (lookup-nlocals allocation)
   (allocation-frame-size allocation))
 
-(define-syntax-rule (persistent-intmap2 exp)
-  (call-with-values (lambda () exp)
-    (lambda (a b)
-      (values (persistent-intmap a) (persistent-intmap b)))))
-
-(define (compute-defs-and-uses cps)
-  "Return two LABEL->VAR... maps indicating values defined at and used
-by a label, respectively."
-  (define (vars->intset vars)
-    (fold (lambda (var set) (intset-add set var)) empty-intset vars))
-  (persistent-intmap2
-   (intmap-fold
-    (lambda (label cont defs uses)
-      (define (get-defs k)
-        (match (intmap-ref cps k)
-          (($ $kargs names vars) (vars->intset vars))
-          (_ empty-intset)))
-      (define (return d u)
-        (values (intmap-add! defs label d)
-                (intmap-add! uses label u)))
-      (match cont
-        (($ $kfun src meta self tail clause)
-         (return (intset-union
-                  (if clause (get-defs clause) empty-intset)
-                  (if self (intset self) empty-intset))
-                 empty-intset))
-        (($ $kargs _ _ ($ $continue k src exp))
-         (match exp
-           ((or ($ $const) ($ $const-fun) ($ $code))
-            (return (get-defs k) empty-intset))
-           (($ $call proc args)
-            (return (get-defs k) (intset-add (vars->intset args) proc)))
-           (($ $callk _ proc args)
-            (let ((args (vars->intset args)))
-              (return (get-defs k) (if proc (intset-add args proc) args))))
-           (($ $primcall name param args)
-            (return (get-defs k) (vars->intset args)))
-           (($ $values args)
-            (return (get-defs k) (vars->intset args)))))
-        (($ $kargs _ _ ($ $branch kf kt src op param args))
-         (return empty-intset (vars->intset args)))
-        (($ $kargs _ _ ($ $switch kf kt* src arg))
-         (return empty-intset (intset arg)))
-        (($ $kargs _ _ ($ $prompt k kh src escape? tag))
-         (return empty-intset (intset tag)))
-        (($ $kargs _ _ ($ $throw src op param args))
-         (return empty-intset (vars->intset args)))
-        (($ $kclause arity body alt)
-         (return (get-defs body) empty-intset))
-        (($ $kreceive arity kargs)
-         (return (get-defs kargs) empty-intset))
-        (($ $ktail)
-         (return empty-intset empty-intset))))
-    cps
-    empty-intmap
-    empty-intmap)))
-
-(define (compute-reverse-control-flow-order preds)
-  "Return a LABEL->ORDER bijection where ORDER is a contiguous set of
-integers starting from 0 and incrementing in sort order.  There is a
-precondition that labels in PREDS are already renumbered in reverse post
-order."
-  (define (has-back-edge? preds)
-    (let/ec return
-      (intmap-fold (lambda (label labels)
-                     (intset-fold (lambda (pred)
-                                    (if (<= label pred)
-                                        (return #t)
-                                        (values)))
-                                  labels)
-                     (values))
-                   preds)
-      #f))
-  (if (has-back-edge? preds)
-      ;; This is more involved than forward control flow because not all
-      ;; live labels are reachable from the tail.
-      (persistent-intmap
-       (fold2 (lambda (component order n)
-                (intset-fold (lambda (label order n)
-                               (values (intmap-add! order label n)
-                                       (1+ n)))
-                             component order n))
-              (reverse (compute-sorted-strongly-connected-components preds))
-              empty-intmap 0))
-      ;; Just reverse forward control flow.
-      (let ((max (intmap-prev preds)))
-        (intmap-map (lambda (label labels) (- max label)) preds))))
-
 (define* (add-prompt-control-flow-edges conts succs #:key complete?)
   "For all prompts in DFG in the range [MIN-LABEL, MIN-LABEL +
 LABEL-COUNT), invoke F with arguments PROMPT, HANDLER, and BODY for each
@@ -271,51 +184,6 @@ body continuation in the prompt."
        (_ succs)))
    conts
    succs))
-
-(define (rename-keys map old->new)
-  (persistent-intmap
-   (intmap-fold (lambda (k v out)
-                  (intmap-add! out (intmap-ref old->new k) v))
-                map
-                empty-intmap)))
-
-(define (rename-intset set old->new)
-  (intset-fold (lambda (old set) (intset-add set (intmap-ref old->new old)))
-               set empty-intset))
-
-(define (rename-graph graph old->new)
-  (persistent-intmap
-   (intmap-fold (lambda (pred succs out)
-                  (intmap-add! out
-                               (intmap-ref old->new pred)
-                               (rename-intset succs old->new)))
-                graph
-                empty-intmap)))
-
-(define (compute-live-variables cps defs uses)
-  "Compute and return two values mapping LABEL->VAR..., where VAR... are
-the definitions that are live before and after LABEL, as intsets."
-  (let* ((succs (add-prompt-control-flow-edges cps (compute-successors cps)))
-         (preds (invert-graph succs))
-         (old->new (compute-reverse-control-flow-order preds))
-         (init (persistent-intmap (intmap-fold
-                                   (lambda (old new init)
-                                     (intmap-add! init new empty-intset))
-                                   old->new empty-intmap))))
-    (call-with-values
-        (lambda ()
-          (solve-flow-equations (rename-graph preds old->new)
-                                init init
-                                (rename-keys defs old->new)
-                                (rename-keys uses old->new)
-                                intset-subtract intset-union intset-union))
-      (lambda (in out)
-        ;; As a reverse control-flow problem, the values flowing into a
-        ;; node are actually the live values after the node executes.
-        ;; Funny, innit?  So we return them in the reverse order.
-        (let ((new->old (invert-bijection old->new)))
-          (values (rename-keys out new->old)
-                  (rename-keys in new->old)))))))
 
 (define (compute-needs-slot cps defs uses)
   (define (get-defs k) (intmap-ref defs k))
@@ -746,84 +614,14 @@ are comparable with eqv?.  A tmp slot may be used."
   (persistent-intmap
    (intmap-fold-right allocate-lazy cps slots)))
 
-(define (compute-var-representations cps)
-  (define (get-defs k)
-    (match (intmap-ref cps k)
-      (($ $kargs names vars) vars)
-      (_ '())))
-  (intmap-fold
-   (lambda (label cont representations)
-     (match cont
-       (($ $kargs _ _ ($ $continue k _ exp))
-        (match (get-defs k)
-          (() representations)
-          ((var)
-           (match exp
-             (($ $values (arg))
-              (intmap-add representations var
-                          (intmap-ref representations arg)))
-             (($ $primcall (or 'scm->f64 'load-f64 's64->f64
-                               'f32-ref 'f64-ref
-                               'fadd 'fsub 'fmul 'fdiv 'fsqrt 'fabs
-                               'ffloor 'fceiling
-                               'fsin 'fcos 'ftan 'fasin 'facos 'fatan 'fatan2))
-              (intmap-add representations var 'f64))
-             (($ $primcall (or 'scm->u64 'scm->u64/truncate 'load-u64
-                               's64->u64
-                               'assume-u64
-                               'uadd 'usub 'umul
-                               'ulogand 'ulogior 'ulogxor 'ulogsub 'ursh 'ulsh
-                               'uadd/immediate 'usub/immediate 'umul/immediate
-                               'ursh/immediate 'ulsh/immediate
-                               'u8-ref 'u16-ref 'u32-ref 'u64-ref
-                               'word-ref 'word-ref/immediate
-                               'untag-char))
-              (intmap-add representations var 'u64))
-             (($ $primcall (or 'untag-fixnum
-                               'assume-s64
-                               'scm->s64 'load-s64 'u64->s64
-                               'srsh 'srsh/immediate
-                               's8-ref 's16-ref 's32-ref 's64-ref))
-              (intmap-add representations var 's64))
-             (($ $primcall (or 'pointer-ref/immediate
-                               'tail-pointer-ref/immediate))
-              (intmap-add representations var 'ptr))
-             (($ $code)
-              (intmap-add representations var 'u64))
-             (_
-              (intmap-add representations var 'scm))))
-          (vars
-           (match exp
-             (($ $values args)
-              (fold (lambda (arg var representations)
-                      (intmap-add representations var
-                                  (intmap-ref representations arg)))
-                    representations args vars))))))
-       (($ $kargs _ _ (or ($ $branch) ($ $switch) ($ $prompt) ($ $throw)))
-        representations)
-       (($ $kfun src meta self tail entry)
-        (let ((representations (if self
-                                   (intmap-add representations self 'scm)
-                                   representations)))
-          (fold1 (lambda (var representations)
-                   (intmap-add representations var 'scm))
-                 (get-defs entry) representations)))
-       (($ $kclause arity body alt)
-        (fold1 (lambda (var representations)
-                 (intmap-add representations var 'scm))
-               (get-defs body) representations))
-       (($ $kreceive arity kargs)
-        (fold1 (lambda (var representations)
-                 (intmap-add representations var 'scm))
-               (get-defs kargs) representations))
-       (($ $ktail) representations)))
-   cps
-   empty-intmap))
-
 (define* (allocate-slots cps #:key (precolor-calls? #t))
   (let*-values (((defs uses) (compute-defs-and-uses cps))
                 ((representations) (compute-var-representations cps))
-                ((live-in live-out) (compute-live-variables cps defs uses))
+                ((live-in live-out)
+                 (let* ((succs (compute-successors cps))
+                        (succs+ (add-prompt-control-flow-edges cps succs))
+                        (preds (invert-graph succs+)))
+                   (compute-live-variables preds defs uses)))
                 ((needs-slot) (compute-needs-slot cps defs uses))
                 ((lazy) (if precolor-calls?
                             (compute-lazy-vars cps live-in live-out defs

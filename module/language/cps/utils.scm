@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013, 2014, 2015, 2017, 2018, 2019, 2020 Free Software Foundation, Inc.
+;; Copyright (C) 2013, 2014, 2015, 2017, 2018, 2019, 2020, 2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -43,7 +43,9 @@
             compute-successors
             compute-predecessors
             compute-idoms
-            compute-dom-edges)
+            compute-dom-edges
+            compute-defs-and-uses
+            compute-var-representations)
   #:re-export (fold1 fold2
                trivial-intset
                intmap-map
@@ -302,42 +304,6 @@ intset."
                 (intmap-fold adjoin-idom preds-map idoms))
               empty-intmap)))
 
-;; Precondition: For each function in CONTS, the continuation names are
-;; topologically sorted.
-(define (compute-idoms conts kfun)
-  ;; This is the iterative O(n^2) fixpoint algorithm, originally from
-  ;; Allen and Cocke ("Graph-theoretic constructs for program flow
-  ;; analysis", 1972).  See the discussion in Cooper, Harvey, and
-  ;; Kennedy's "A Simple, Fast Dominance Algorithm", 2001.
-  (let ((preds-map (compute-predecessors conts kfun)))
-    (define (compute-idom idoms preds)
-      (define (idom-ref label)
-        (intmap-ref idoms label (lambda (_) #f)))
-      (match preds
-        (() -1)
-        ((pred) pred)                   ; Shortcut.
-        ((pred . preds)
-         (define (common-idom d0 d1)
-           ;; We exploit the fact that a reverse post-order is a
-           ;; topological sort, and so the idom of a node is always
-           ;; numerically less than the node itself.
-           (let lp ((d0 d0) (d1 d1))
-             (cond
-              ;; d0 or d1 can be false on the first iteration.
-              ((not d0) d1)
-              ((not d1) d0)
-              ((= d0 d1) d0)
-              ((< d0 d1) (lp d0 (idom-ref d1)))
-              (else (lp (idom-ref d0) d1)))))
-         (fold1 common-idom preds pred))))
-    (define (adjoin-idom label preds idoms)
-      (let ((idom (compute-idom idoms preds)))
-        ;; Don't use intmap-add! here.
-        (intmap-add idoms label idom (lambda (old new) new))))
-    (fixpoint (lambda (idoms)
-                (intmap-fold adjoin-idom preds-map idoms))
-              empty-intmap)))
-
 ;; Compute a vector containing, for each node, a list of the nodes that
 ;; it immediately dominates.  These are the "D" edges in the DJ tree.
 (define (compute-dom-edges idoms)
@@ -351,3 +317,132 @@ intset."
                 idoms
                 empty-intmap)))
 
+(define (compute-defs-and-uses cps)
+  "Return two LABEL->VAR... maps indicating values defined at and used
+by a label, respectively."
+  (define (vars->intset vars)
+    (fold (lambda (var set) (intset-add set var)) empty-intset vars))
+  (define-syntax-rule (persistent-intmap2 exp)
+    (call-with-values (lambda () exp)
+      (lambda (a b)
+        (values (persistent-intmap a) (persistent-intmap b)))))
+  (persistent-intmap2
+   (intmap-fold
+    (lambda (label cont defs uses)
+      (define (get-defs k)
+        (match (intmap-ref cps k)
+          (($ $kargs names vars) (vars->intset vars))
+          (_ empty-intset)))
+      (define (return d u)
+        (values (intmap-add! defs label d)
+                (intmap-add! uses label u)))
+      (match cont
+        (($ $kfun src meta self tail clause)
+         (return (intset-union
+                  (if clause (get-defs clause) empty-intset)
+                  (if self (intset self) empty-intset))
+                 empty-intset))
+        (($ $kargs _ _ ($ $continue k src exp))
+         (match exp
+           ((or ($ $const) ($ $const-fun) ($ $code))
+            (return (get-defs k) empty-intset))
+           (($ $call proc args)
+            (return (get-defs k) (intset-add (vars->intset args) proc)))
+           (($ $callk _ proc args)
+            (let ((args (vars->intset args)))
+              (return (get-defs k) (if proc (intset-add args proc) args))))
+           (($ $primcall name param args)
+            (return (get-defs k) (vars->intset args)))
+           (($ $values args)
+            (return (get-defs k) (vars->intset args)))))
+        (($ $kargs _ _ ($ $branch kf kt src op param args))
+         (return empty-intset (vars->intset args)))
+        (($ $kargs _ _ ($ $switch kf kt* src arg))
+         (return empty-intset (intset arg)))
+        (($ $kargs _ _ ($ $prompt k kh src escape? tag))
+         (return empty-intset (intset tag)))
+        (($ $kargs _ _ ($ $throw src op param args))
+         (return empty-intset (vars->intset args)))
+        (($ $kclause arity body alt)
+         (return (get-defs body) empty-intset))
+        (($ $kreceive arity kargs)
+         (return (get-defs kargs) empty-intset))
+        (($ $ktail)
+         (return empty-intset empty-intset))))
+    cps
+    empty-intmap
+    empty-intmap)))
+
+(define (compute-var-representations cps)
+  (define (get-defs k)
+    (match (intmap-ref cps k)
+      (($ $kargs names vars) vars)
+      (_ '())))
+  (intmap-fold
+   (lambda (label cont representations)
+     (match cont
+       (($ $kargs _ _ ($ $continue k _ exp))
+        (match (get-defs k)
+          (() representations)
+          ((var)
+           (match exp
+             (($ $values (arg))
+              (intmap-add representations var
+                          (intmap-ref representations arg)))
+             (($ $primcall (or 'scm->f64 'load-f64 's64->f64
+                               'f32-ref 'f64-ref
+                               'fadd 'fsub 'fmul 'fdiv 'fsqrt 'fabs
+                               'ffloor 'fceiling
+                               'fsin 'fcos 'ftan 'fasin 'facos 'fatan 'fatan2))
+              (intmap-add representations var 'f64))
+             (($ $primcall (or 'scm->u64 'scm->u64/truncate 'load-u64
+                               's64->u64
+                               'assume-u64
+                               'uadd 'usub 'umul
+                               'ulogand 'ulogior 'ulogxor 'ulogsub 'ursh 'ulsh
+                               'uadd/immediate 'usub/immediate 'umul/immediate
+                               'ursh/immediate 'ulsh/immediate
+                               'u8-ref 'u16-ref 'u32-ref 'u64-ref
+                               'word-ref 'word-ref/immediate
+                               'untag-char))
+              (intmap-add representations var 'u64))
+             (($ $primcall (or 'untag-fixnum
+                               'assume-s64
+                               'scm->s64 'load-s64 'u64->s64
+                               'srsh 'srsh/immediate
+                               's8-ref 's16-ref 's32-ref 's64-ref))
+              (intmap-add representations var 's64))
+             (($ $primcall (or 'pointer-ref/immediate
+                               'tail-pointer-ref/immediate))
+              (intmap-add representations var 'ptr))
+             (($ $code)
+              (intmap-add representations var 'u64))
+             (_
+              (intmap-add representations var 'scm))))
+          (vars
+           (match exp
+             (($ $values args)
+              (fold (lambda (arg var representations)
+                      (intmap-add representations var
+                                  (intmap-ref representations arg)))
+                    representations args vars))))))
+       (($ $kargs _ _ (or ($ $branch) ($ $switch) ($ $prompt) ($ $throw)))
+        representations)
+       (($ $kfun src meta self tail entry)
+        (let ((representations (if self
+                                   (intmap-add representations self 'scm)
+                                   representations)))
+          (fold1 (lambda (var representations)
+                   (intmap-add representations var 'scm))
+                 (get-defs entry) representations)))
+       (($ $kclause arity body alt)
+        (fold1 (lambda (var representations)
+                 (intmap-add representations var 'scm))
+               (get-defs body) representations))
+       (($ $kreceive arity kargs)
+        (fold1 (lambda (var representations)
+                 (intmap-add representations var 'scm))
+               (get-defs kargs) representations))
+       (($ $ktail) representations)))
+   cps
+   empty-intmap))

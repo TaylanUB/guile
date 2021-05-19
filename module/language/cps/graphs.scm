@@ -1,6 +1,6 @@
 ;;; Continuation-passing style (CPS) intermediate language (IL)
 
-;; Copyright (C) 2013-2015, 2017-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2015, 2017-2021 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -23,6 +23,7 @@
 ;;; Code:
 
 (define-module (language cps graphs)
+  #:use-module (ice-9 control)
   #:use-module (ice-9 match)
   #:use-module (srfi srfi-1)
   #:use-module (language cps intset)
@@ -33,6 +34,7 @@
             intmap-map
             intmap-keys
             invert-bijection invert-partition
+            rename-keys rename-intset rename-graph
             intset->intmap
             intmap-select
             worklist-fold
@@ -43,7 +45,9 @@
             compute-reverse-post-order
             compute-strongly-connected-components
             compute-sorted-strongly-connected-components
-            solve-flow-equations))
+            compute-reverse-control-flow-order
+            solve-flow-equations
+            compute-live-variables))
 
 (define-inlinable (fold1 f l s0)
   (let lp ((l l) (s0 s0))
@@ -162,6 +166,32 @@ intset of successors, return a graph SUCC->PRED...."
                succs
                (intmap-map (lambda (label _) empty-intset) succs)))
 
+(define (rename-keys map old->new)
+  "Return a fresh intmap containing F(K) -> V for K and V in MAP, where
+F is looking up K in the intmap OLD->NEW."
+  (persistent-intmap
+   (intmap-fold (lambda (k v out)
+                  (intmap-add! out (intmap-ref old->new k) v))
+                map
+                empty-intmap)))
+
+(define (rename-intset set old->new)
+  "Return a fresh intset of F(K) for K in SET, where F is looking up K
+in the intmap OLD->NEW."
+  (intset-fold (lambda (old set) (intset-add set (intmap-ref old->new old)))
+               set empty-intset))
+
+(define (rename-graph graph old->new)
+  "Return a fresh intmap containing F(K) -> intset(F(V)...) for K and
+intset(V...) in GRAPH, where F is looking up K in the intmap OLD->NEW."
+  (persistent-intmap
+   (intmap-fold (lambda (pred succs out)
+                  (intmap-add! out
+                               (intmap-ref old->new pred)
+                               (rename-intset succs old->new)))
+                graph
+                empty-intmap)))
+
 (define (compute-strongly-connected-components succs start)
   "Given a LABEL->SUCCESSOR... graph, compute a SCC->LABEL... map
 partitioning the labels into strongly connected components (SCCs)."
@@ -232,6 +262,37 @@ connected components in sorted order."
     (((? (lambda (id) (eqv? id start))) . ids)
      (map (lambda (id) (intmap-ref components id)) ids))))
 
+(define (compute-reverse-control-flow-order preds)
+  "Return a LABEL->ORDER bijection where ORDER is a contiguous set of
+integers starting from 0 and incrementing in sort order.  There is a
+precondition that labels in PREDS are already renumbered in reverse post
+order."
+  (define (has-back-edge? preds)
+    (let/ec return
+      (intmap-fold (lambda (label labels)
+                     (intset-fold (lambda (pred)
+                                    (if (<= label pred)
+                                        (return #t)
+                                        (values)))
+                                  labels)
+                     (values))
+                   preds)
+      #f))
+  (if (has-back-edge? preds)
+      ;; This is more involved than forward control flow because not all
+      ;; live labels are reachable from the tail.
+      (persistent-intmap
+       (fold2 (lambda (component order n)
+                (intset-fold (lambda (label order n)
+                               (values (intmap-add! order label n)
+                                       (1+ n)))
+                             component order n))
+              (reverse (compute-sorted-strongly-connected-components preds))
+              empty-intmap 0))
+      ;; Just reverse forward control flow.
+      (let ((max (intmap-prev preds)))
+        (intmap-map (lambda (label labels) (- max label)) preds))))
+
 (define (intset-pop set)
   (match (intset-next set)
     (#f (values set #f))
@@ -274,3 +335,26 @@ SUBTRACT, ADD, and MEET operates on that state."
                 (run (intset-union worklist changed) in out)))
             (values (persistent-intmap in)
                     (persistent-intmap out)))))))
+
+(define (compute-live-variables preds defs uses)
+  "Compute and return two values mapping LABEL->VAR..., where VAR... are
+the definitions that are live before and after LABEL, as intsets."
+  (let* ((old->new (compute-reverse-control-flow-order preds))
+         (init (persistent-intmap (intmap-fold
+                                   (lambda (old new init)
+                                     (intmap-add! init new empty-intset))
+                                   old->new empty-intmap))))
+    (call-with-values
+        (lambda ()
+          (solve-flow-equations (rename-graph preds old->new)
+                                init init
+                                (rename-keys defs old->new)
+                                (rename-keys uses old->new)
+                                intset-subtract intset-union intset-union))
+      (lambda (in out)
+        ;; As a reverse control-flow problem, the values flowing into a
+        ;; node are actually the live values after the node executes.
+        ;; Funny, innit?  So we return them in the reverse order.
+        (let ((new->old (invert-bijection old->new)))
+          (values (rename-keys out new->old)
+                  (rename-keys in new->old)))))))
