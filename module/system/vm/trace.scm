@@ -73,7 +73,7 @@
                                    (max-indent (- width 40)))
   (define (apply-handler frame depth)
     (print-application frame depth width prefix max-indent))
-  (define (return-handler frame depth values)
+  (define (return-handler frame depth)
     (print-return frame depth width prefix max-indent))
   (trap-calls-to-procedure proc apply-handler return-handler))
 
