@@ -36,6 +36,7 @@
 #include "keywords.h"
 #include "modules.h"
 #include "numbers.h"
+#include "programs.h"
 #include "struct.h"
 #include "symbols.h"
 #include "threads.h"
@@ -433,8 +434,15 @@ static void error_wrong_number_of_values (uint32_t expected) SCM_NORETURN;
 static void
 error_wrong_num_args (scm_thread *thread)
 {
-  SCM callee = SCM_FRAME_LOCAL (thread->vm.fp, 0);
-  scm_wrong_num_args (callee);
+  struct scm_vm vm = thread->vm;
+  SCM local0 = SCM_FRAME_LOCAL (vm.fp, 0);
+
+  if (scm_is_true (scm_procedure_p (local0)))
+    scm_wrong_num_args (local0);
+  else if (scm_i_primitive_code_p (vm.ip))
+    scm_wrong_num_args (scm_i_primitive_name (vm.ip));
+  else
+    scm_wrong_num_args (SCM_BOOL_F);
 }
 
 static void
