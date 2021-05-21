@@ -307,10 +307,10 @@
               (else (values s (easy-flag s))))))))
 
 (define (clean name)
-  (let ((last-char-index (1- (string-length name))))
-    (if (char=? #\/ (string-ref name last-char-index))
-        (substring name 0 last-char-index)
-        name)))
+  (let ((end (- (string-length name) 1)))
+    (if (and (positive? end) (char=? #\/ (string-ref name end)))
+      (substring name 0 end)
+      name)))
 
 (define (ftw filename proc . options)
   (let* ((visited? (visited?-proc (cond ((memq 'hash-size options) => cadr)
