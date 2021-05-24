@@ -360,9 +360,9 @@ for a label, it isn't known to be constant at that label."
                  (_ bool))
                (match (and (< pred succ) (intmap-ref out pred))
                  (($ $kargs _ _ ($ $branch kf kt src 'eq-constant? c (v)))
-                  (if (eqv? kt succ)
-                      (adjoin-constant consts v c)
-                      consts))
+                  (if (eqv? kf succ)
+                      consts
+                      (adjoin-constant consts v c)))
                  (_ consts)))))))
 
 (define (propagate-analysis analysis label out)
