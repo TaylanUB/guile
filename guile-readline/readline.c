@@ -431,12 +431,17 @@ static void init_bouncing_parens ();
 static void
 init_bouncing_parens ()
 {
-  if (strncmp (rl_get_keymap_name (rl_get_keymap ()), "vi", 2))
-    {
-      rl_bind_key (')', match_paren);
-      rl_bind_key (']', match_paren);
-      rl_bind_key ('}', match_paren);
-    }
+  Keymap km = rl_get_keymap ();
+  if (km)
+    if (strncmp (rl_get_keymap_name (km), "vi", 2))
+      {
+        rl_bind_key (')', match_paren);
+        rl_bind_key (']', match_paren);
+        rl_bind_key ('}', match_paren);
+      }
+  else
+    scm_error (scm_misc_error_key, "", "readline has not been properly initialized",
+               SCM_EOL, SCM_EOL);
 }
 
 static int
