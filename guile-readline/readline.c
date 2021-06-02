@@ -433,12 +433,14 @@ init_bouncing_parens ()
 {
   Keymap km = rl_get_keymap ();
   if (km)
-    if (strncmp (rl_get_keymap_name (km), "vi", 2))
-      {
-        rl_bind_key (')', match_paren);
-        rl_bind_key (']', match_paren);
-        rl_bind_key ('}', match_paren);
-      }
+    {
+      if (strncmp (rl_get_keymap_name (km), "vi", 2))
+        {
+          rl_bind_key (')', match_paren);
+          rl_bind_key (']', match_paren);
+          rl_bind_key ('}', match_paren);
+        }
+    }
   else
     scm_error (scm_misc_error_key, "", "readline has not been properly initialized",
                SCM_EOL, SCM_EOL);
