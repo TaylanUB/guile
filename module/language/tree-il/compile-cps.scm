@@ -1581,6 +1581,15 @@ use as the proc slot."
        (letk ktail ($kargs ('tail) (tail) ,head))
        ($ (build-list ktail src vals))))))
 
+(define (sanitize-meta meta)
+  (match meta
+    (() '())
+    (((k . v) . meta)
+     (let ((meta (sanitize-meta meta)))
+       (case k
+         ((arg-representations) meta)
+         (else (acons k v meta)))))))
+
 ;;; The conversion from Tree-IL to CPS essentially wraps every
 ;;; expression in a $kreceive, which models the Tree-IL semantics that
 ;;; extra values are simply truncated.  In CPS, this means that the
@@ -1865,7 +1874,7 @@ use as the proc slot."
              (letv self)
              (letk ktail ($ktail))
              (let$ kclause (convert-clauses body ktail))
-             (letk kfun ($kfun fun-src meta self ktail kclause))
+             (letk kfun ($kfun fun-src (sanitize-meta meta) self ktail kclause))
              (let$ k (adapt-arity k fun-src 1))
              (build-term ($continue k fun-src ($fun kfun))))
            (let ((scope-id (fresh-scope-id)))
