@@ -1,4 +1,4 @@
-/* Copyright 2001,2009-2015,2018
+/* Copyright 2001,2009-2015,2018,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -231,7 +231,8 @@ enum stack_item_representation
     STACK_ITEM_SCM = 0,
     STACK_ITEM_F64 = 1,
     STACK_ITEM_U64 = 2,
-    STACK_ITEM_S64 = 3
+    STACK_ITEM_S64 = 3,
+    STACK_ITEM_PTR = 4
   };
 
 static enum stack_item_representation
@@ -245,6 +246,8 @@ scm_to_stack_item_representation (SCM x, const char *subr, int pos)
     return STACK_ITEM_U64;
   if (scm_is_eq (x, scm_from_latin1_symbol ("s64")))
     return STACK_ITEM_S64;
+  if (scm_is_eq (x, scm_from_latin1_symbol ("ptr")))
+    return STACK_ITEM_PTR;
 
   scm_wrong_type_arg (subr, pos, x);
   return 0;  /* Not reached.  */
@@ -279,6 +282,8 @@ scm_frame_local_ref (SCM frame, SCM index, SCM representation)
             return scm_from_uint64 (item->as_u64);
           case STACK_ITEM_S64:
             return scm_from_int64 (item->as_s64);
+          case STACK_ITEM_PTR:
+            return scm_from_uintptr_t (item->as_uint);
           default:
             abort();
         }
@@ -321,6 +326,8 @@ scm_frame_local_set_x (SCM frame, SCM index, SCM val, SCM representation)
           case STACK_ITEM_S64:
             item->as_s64 = scm_to_int64 (val);
             break;
+          case STACK_ITEM_PTR:
+            item->as_uint = scm_to_uintptr_t (val);
           default:
             abort();
         }
