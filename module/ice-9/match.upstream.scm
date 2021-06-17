@@ -210,6 +210,12 @@
 ;; performance can be found at
 ;;   http://synthcode.com/scheme/match-cond-expand.scm
 ;;
+;; 2021/06/21 - fix for `(a ...)' patterns where `a' is already bound
+;;              (thanks to Andy Wingo)
+;; 2020/09/04 - [OMITTED IN GUILE] perf fix for `not`; rename `..=', `..=', `..1' per SRFI 204
+;; 2020/08/21 - [OMITTED IN GUILE] fixing match-letrec with unhygienic insertion
+;; 2020/07/06 - [OMITTED IN GUILE] adding `..=' and `..=' patterns; fixing ,@ patterns
+;; 2016/10/05 - [OMITTED IN GUILE] treat keywords as literals, not identifiers, in Chicken
 ;; 2016/03/06 - fixing named match-let (thanks to Stefan Israelsson Tampe)
 ;; 2015/05/09 - fixing bug in var extraction of quasiquote patterns
 ;; 2014/11/24 - [OMITTED IN GUILE] adding Gauche's `@' pattern for named record field matching
@@ -509,9 +515,9 @@
     ((_ v p () g+s (sk ...) fk i ((id id-ls) ...))
      (match-check-identifier p
        ;; simplest case equivalent to (p ...), just bind the list
-       (let ((p v))
-         (if (list? p)
-             (sk ... i)
+       (let ((w v))
+         (if (list? w)
+             (match-one w p g+s (sk ...) fk i)
              fk))
        ;; simple case, match all elements of the list
        (let loop ((ls v) (id-ls '()) ...)
@@ -525,30 +531,47 @@
                          fk i)))
            (else
             fk)))))
-    ((_ v p r g+s (sk ...) fk i ((id id-ls) ...))
-     ;; general case, trailing patterns to match, keep track of the
-     ;; remaining list length so we don't need any backtracking
+    ((_ v p r g+s sk fk (i ...) ((id id-ls) ...))
      (match-verify-no-ellipsis
       r
-      (let* ((tail-len (length 'r))
-             (ls v)
-             (len (and (list? ls) (length ls))))
-        (if (or (not len) (< len tail-len))
-            fk
-            (let loop ((ls ls) (n len) (id-ls '()) ...)
-              (cond
+      (match-bound-identifier-memv
+       p
+       (i ...)
+       ;; p is bound, match the list up to the known length, then
+       ;; match the trailing patterns
+       (let loop ((ls v) (expect p))
+         (cond
+          ((null? expect)
+           (match-one ls r (#f #f) sk fk (i ...)))
+          ((pair? ls)
+           (let ((w (car ls))
+                 (e (car expect)))
+             (if (equal? (car ls) (car expect))
+                 (match-drop-ids (loop (cdr ls) (cdr expect)))
+                 fk)))
+          (else
+           fk)))
+       ;; general case, trailing patterns to match, keep track of the
+       ;; remaining list length so we don't need any backtracking
+       (let* ((tail-len (length 'r))
+              (ls v)
+              (len (and (list? ls) (length ls))))
+         (if (or (not len) (< len tail-len))
+             fk
+             (let loop ((ls ls) (n len) (id-ls '()) ...)
+               (cond
                 ((= n tail-len)
                  (let ((id (reverse id-ls)) ...)
-                   (match-one ls r (#f #f) (sk ...) fk i)))
+                   (match-one ls r (#f #f) sk fk (i ... id ...))))
                 ((pair? ls)
                  (let ((w (car ls)))
                    (match-one w p ((car ls) (set-car! ls))
                               (match-drop-ids
                                (loop (cdr ls) (- n 1) (cons id id-ls) ...))
                               fk
-                              i)))
+                              (i ...))))
                 (else
-                 fk)))))))))
+                 fk))))))))))
 
 ;; This is just a safety check.  Although unlike syntax-rules we allow
 ;; trailing patterns after an ellipsis, we explicitly disable multiple
@@ -915,3 +938,17 @@
              ;; otherwise x is a non-symbol datum
              ((sym? y sk fk) fk))))
        (sym? abracadabra success-k failure-k)))))
+
+(define-syntax match-bound-identifier-memv
+  (syntax-rules ()
+    ((match-bound-identifier-memv a (id ...) sk fk)
+     (match-check-identifier
+      a
+      (let-syntax
+          ((memv?
+            (syntax-rules (id ...)
+              ((memv? a sk2 fk2) fk2)
+              ((memv? anything-else sk2 fk2) sk2))))
+        (memv? random-sym-to-match sk fk))
+      fk))))
+
