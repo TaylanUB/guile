@@ -32,7 +32,7 @@
             repl-tm-stats repl-gc-stats repl-debug
             repl-welcome repl-prompt
             repl-read repl-compile repl-prepare-eval-thunk repl-eval
-            repl-expand repl-optimize
+            repl-expand repl-optimize repl-optimize-cps
             repl-parse repl-print repl-option-ref repl-option-set!
             repl-default-option-set! repl-default-prompt-set!
             puts ->string user-error
@@ -204,7 +204,7 @@ See <http://www.gnu.org/licenses/lgpl.html>, for more details.")
                         #:env (current-module))
                #:from lang #:to from)))
 
-(define* (repl-optimize repl form #:key (lang 'tree-il))
+(define (optimize* repl form lang print)
   (let ((from (repl-language repl))
         (make-lower (language-lowerer (lookup-language lang)))
         (optimization-level (repl-optimization-level repl))
@@ -212,13 +212,21 @@ See <http://www.gnu.org/licenses/lgpl.html>, for more details.")
         (opts (repl-compile-options repl)))
     (unless make-lower
       (error "language has no optimizer" lang))
-    (decompile ((make-lower optimization-level opts)
-                (compile form #:from from #:to lang #:opts opts
-                         #:optimization-level optimization-level
-                         #:warning-level warning-level
-                         #:env (current-module))
-                (current-module))
-               #:from lang #:to from)))
+    (print ((make-lower optimization-level opts)
+            (compile form #:from from #:to lang #:opts opts
+                     #:optimization-level optimization-level
+                     #:warning-level warning-level
+                     #:env (current-module))
+            (current-module)))))
+
+(define* (repl-optimize repl form #:key (lang 'tree-il))
+  (optimize* repl form lang
+            (lambda (exp)
+              (decompile exp #:from lang #:to (repl-language repl)))))
+
+(define* (repl-optimize-cps repl form)
+  (optimize* repl form 'cps
+            (module-ref (resolve-interface '(language cps dump)) 'dump)))
 
 (define (repl-parse repl form)
   (let ((parser (language-parser (repl-language repl))))

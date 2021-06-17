@@ -57,7 +57,7 @@
     (module   (module m) (import use) (load l) (reload re) (binding b) (in))
     (language (language L))
     (compile  (compile c) (compile-file cc)
-              (expand exp) (optimize opt)
+              (expand exp) (optimize opt) (optimize-cps optx)
 	      (disassemble x) (disassemble-file xx))
     (profile  (time t) (profile pr) (trace tr))
     (debug    (backtrace bt) (up) (down) (frame fr)
@@ -489,6 +489,11 @@ Run the optimizer on a piece of code and print the result."
   (let ((x (repl-optimize repl (repl-parse repl form))))
     (run-hook before-print-hook x)
     (pp x)))
+
+(define-meta-command (optimize-cps repl (form))
+  "optimize-cps EXP
+Run the CPS optimizer on a piece of code and print the result."
+  (repl-optimize-cps repl (repl-parse repl form)))
 
 (define-meta-command (disassemble repl (form))
   "disassemble EXP
