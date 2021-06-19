@@ -2014,7 +2014,7 @@ maximum, where type is a bitset as a fixnum."
                    (match (intmap-ref conts k)
                      (($ $kargs _ defs)
                       (infer-primcall types 0 name param args
-                                      (match defs ((var) var) (() #f))))
+                                      (match defs ((var) var) (_ #f))))
                      (_
                       ;; (pk 'warning-no-restrictions name)
                       types))))
