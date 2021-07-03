@@ -2157,6 +2157,7 @@
                       (lambda ()
                         (gen-syntax src #'(e1 e2 ...) r maps ellipsis? mod))
                     (lambda (e maps) (values (gen-vector e) maps))))
+                 (x (eq? (syntax->datum #'x) #nil) (values '(quote #nil) maps))
                  (() (values '(quote ()) maps))
                  (_ (values `(quote ,e) maps))))))
 

@@ -1684,6 +1684,16 @@
         (hash interpreted most-positive-fixnum)
       (hash compiled most-positive-fixnum))))
 
+(with-test-prefix "#nil in syntaxes"
+  (pass-if-equal "does not crash"
+      42
+    (let ()
+      (define-syntax foo
+        (syntax-rules ()
+          ;; In 3.0.7 this would crash with
+          ;;   unknown location: unexpected syntax in form ()
+          ((_ x) (when (eq? x #nil) 42))))
+      (foo #nil))))
 
 ;;; Local Variables:
 ;;; eval: (put 'pass-if-syntax-error 'scheme-indent-function 1)
