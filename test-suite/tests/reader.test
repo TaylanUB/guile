@@ -536,6 +536,11 @@
 
 (with-test-prefix "#{}#"
   (pass-if (equal? (read-string "#{}#") '#{}#))
+  ;; See <https://debbugs.gnu.org/cgi/bugreport.cgi?bug=49623>
+  (pass-if (equal? (read-string "#{}}#") (string->symbol "}")))
+  (pass-if (equal? (read-string "#{}}}#") (string->symbol "}}")))
+  (pass-if (equal? (read-string "#{{}}#") (string->symbol "{}")))
+  (pass-if (equal? (read-string "#{{}b}#") (string->symbol "{}b")))
   (pass-if (not (equal? (read-string "(a #{.}# b)") '(a . b))))
   (pass-if (equal? (read-string "#{a}#") 'a))
   (pass-if (equal? (read-string "#{a b}#") '#{a b}#))

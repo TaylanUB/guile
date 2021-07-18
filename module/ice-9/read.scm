@@ -556,12 +556,15 @@
     (string->symbol
      (list->string
       (let lp ((saw-brace? #f))
-        (let ((ch (next-not-eof)))
+        (let lp/inner ((ch (next-not-eof))
+                       (saw-brace? saw-brace?))
           (cond
            (saw-brace?
             (if (eqv? ch #\#)
                 '()
-                (cons #\} (lp #f))))
+                ;; Don't eat CH, see
+                ;; <https://debbugs.gnu.org/cgi/bugreport.cgi?bug=49623>.
+                (cons #\} (lp/inner ch #f))))
            ((eqv? ch #\})
             (lp #t))
            ((eqv? ch #\\)
