@@ -77,7 +77,6 @@
 #include "fports.h"
 #include "frames.h"
 #include "gc.h"
-#include "generalized-arrays.h"
 #include "generalized-vectors.h"
 #include "gettext.h"
 #include "goops.h"
@@ -446,7 +445,6 @@ scm_i_init_guile (void *base)
   scm_init_srcprop ();     /* requires smob_prehistory */
   scm_init_stackchk ();
 
-  scm_init_generalized_arrays ();
   scm_init_generalized_vectors ();
   scm_init_vectors ();  /* Requires array-handle, */
   scm_init_uniform ();

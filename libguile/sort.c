@@ -46,7 +46,6 @@
 #include "dynwind.h"
 #include "eval.h"
 #include "feature.h"
-#include "generalized-arrays.h"
 #include "gsubr.h"
 #include "list.h"
 #include "pairs.h"

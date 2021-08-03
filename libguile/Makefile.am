@@ -163,7 +163,6 @@ libguile_@GUILE_EFFECTIVE_VERSION@_la_SOURCES =				\
 	gc-malloc.c				\
 	gc.c					\
 	gettext.c				\
-	generalized-arrays.c			\
 	generalized-vectors.c			\
 	goops.c					\
 	gsubr.c					\
@@ -281,7 +280,6 @@ DOT_X_FILES =					\
 	gc-malloc.x				\
 	gc.x					\
 	gettext.x				\
-	generalized-arrays.x			\
 	generalized-vectors.x			\
 	goops.x					\
 	gsubr.x					\
@@ -388,7 +386,6 @@ DOT_DOC_FILES = 				\
 	gc-malloc.doc				\
 	gc.doc					\
 	gettext.doc				\
-	generalized-arrays.doc			\
 	generalized-vectors.doc			\
 	goops.doc				\
 	gsubr.doc				\
@@ -636,7 +633,6 @@ modinclude_HEADERS =				\
 	gc.h					\
 	gc-inline.h				\
 	gettext.h				\
-	generalized-arrays.h			\
 	generalized-vectors.h			\
 	goops.h					\
 	gsubr.h					\

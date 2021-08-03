@@ -58,7 +58,6 @@ extern "C" {
 #include "libguile/fports.h"
 #include "libguile/frames.h"
 #include "libguile/gc.h"
-#include "libguile/generalized-arrays.h"
 #include "libguile/generalized-vectors.h"
 #include "libguile/goops.h"
 #include "libguile/gsubr.h"

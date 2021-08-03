@@ -32,7 +32,7 @@
 #include "bytevectors.h"
 #include "eval.h"
 #include "foreign.h"
-#include "generalized-arrays.h"
+#include "arrays.h"
 #include "goops.h"
 #include "gsubr.h"
 #include "hashtab.h"
