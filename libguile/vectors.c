@@ -408,31 +408,53 @@ SCM_DEFINE (scm_vector_move_left_x, "vector-move-left!", 5, 0, 0,
 	    "@var{start1} is greater than @var{start2}.")
 #define FUNC_NAME s_scm_vector_move_left_x
 {
-  scm_t_array_handle handle1, handle2;
-  const SCM *elts1;
-  SCM *elts2;
-  size_t len1, len2;
-  ssize_t inc1, inc2;
-  size_t i, j, e;
-  
-  elts1 = scm_vector_elements (vec1, &handle1, &len1, &inc1);
-  elts2 = scm_vector_writable_elements (vec2, &handle2, &len2, &inc2);
+  if (SCM_I_IS_VECTOR (vec1) && SCM_I_IS_VECTOR (vec2))
+    {
+      SCM_VALIDATE_MUTABLE_VECTOR (1, vec2);
+      const SCM *elts1 = SCM_I_VECTOR_ELTS (vec1);
+      SCM *elts2 = SCM_I_VECTOR_WELTS (vec2);
+      size_t len1 = SCM_I_VECTOR_LENGTH (vec1);
+      size_t len2 = SCM_I_VECTOR_LENGTH (vec2);
 
-  i = scm_to_unsigned_integer (start1, 0, len1);
-  e = scm_to_unsigned_integer (end1, i, len1);
-  SCM_ASSERT_RANGE (SCM_ARG3, end1, (e-i) <= len2);
-  j = scm_to_unsigned_integer (start2, 0, len2);
-  SCM_ASSERT_RANGE (SCM_ARG5, start2, j <= len2 - (e - i));
-  
-  i *= inc1;
-  e *= inc1;
-  j *= inc2;
-  for (; i < e; i += inc1, j += inc2)
-    elts2[j] = elts1[i];
+      size_t i, j, e;
+      i = scm_to_unsigned_integer (start1, 0, len1);
+      e = scm_to_unsigned_integer (end1, i, len1);
+      SCM_ASSERT_RANGE (SCM_ARG3, end1, (e-i) <= len2);
+      j = scm_to_unsigned_integer (start2, 0, len2);
+      SCM_ASSERT_RANGE (SCM_ARG5, start2, j <= len2 - (e - i));
+      for (; i < e; ++i, ++j)
+        elts2[j] = elts1[i];
+    }
+  else
+    {
+      scm_t_array_handle handle1, handle2;
+      const SCM *elts1;
+      SCM *elts2;
+      size_t len1, len2;
+      ssize_t inc1, inc2;
+      size_t i, j, e;
 
-  scm_array_handle_release (&handle2);
-  scm_array_handle_release (&handle1);
+      elts1 = scm_vector_elements (vec1, &handle1, &len1, &inc1);
+      elts2 = scm_vector_writable_elements (vec2, &handle2, &len2, &inc2);
+      scm_c_issue_deprecation_warning
+        ("Using vector-move-left! on arrays is deprecated.  "
+         "Use array-copy-in-order! instead.");
 
+      i = scm_to_unsigned_integer (start1, 0, len1);
+      e = scm_to_unsigned_integer (end1, i, len1);
+      SCM_ASSERT_RANGE (SCM_ARG3, end1, (e-i) <= len2);
+      j = scm_to_unsigned_integer (start2, 0, len2);
+      SCM_ASSERT_RANGE (SCM_ARG5, start2, j <= len2 - (e - i));
+
+      i *= inc1;
+      e *= inc1;
+      j *= inc2;
+      for (; i < e; i += inc1, j += inc2)
+        elts2[j] = elts1[i];
+
+      scm_array_handle_release (&handle2);
+      scm_array_handle_release (&handle1);
+    }
   return SCM_UNSPECIFIED;
 }
 #undef FUNC_NAME
@@ -448,36 +470,65 @@ SCM_DEFINE (scm_vector_move_right_x, "vector-move-right!", 5, 0, 0,
 	    "@var{start1} is less than @var{start2}.")
 #define FUNC_NAME s_scm_vector_move_right_x
 {
-  scm_t_array_handle handle1, handle2;
-  const SCM *elts1;
-  SCM *elts2;
-  size_t len1, len2;
-  ssize_t inc1, inc2;
-  size_t i, j, e;
-  
-  elts1 = scm_vector_elements (vec1, &handle1, &len1, &inc1);
-  elts2 = scm_vector_writable_elements (vec2, &handle2, &len2, &inc2);
-
-  i = scm_to_unsigned_integer (start1, 0, len1);
-  e = scm_to_unsigned_integer (end1, i, len1);
-  SCM_ASSERT_RANGE (SCM_ARG3, end1, (e-i) <= len2);
-  j = scm_to_unsigned_integer (start2, 0, len2);
-  SCM_ASSERT_RANGE (SCM_ARG5, start2, j <= len2 - (e - i));
-  
-  j += (e - i);
-  
-  i *= inc1;
-  e *= inc1;
-  j *= inc2;
-  while (i < e)
+  if (SCM_I_IS_VECTOR (vec1) && SCM_I_IS_VECTOR (vec2))
     {
-      e -= inc1;
-      j -= inc2;
-      elts2[j] = elts1[e];
-    }
+      SCM_VALIDATE_MUTABLE_VECTOR (1, vec2);
+      const SCM *elts1 = SCM_I_VECTOR_ELTS (vec1);
+      SCM *elts2 = SCM_I_VECTOR_WELTS (vec2);
+      size_t len1 = SCM_I_VECTOR_LENGTH (vec1);
+      size_t len2 = SCM_I_VECTOR_LENGTH (vec2);
 
-  scm_array_handle_release (&handle2);
-  scm_array_handle_release (&handle1);
+      size_t i, j, e;
+      i = scm_to_unsigned_integer (start1, 0, len1);
+      e = scm_to_unsigned_integer (end1, i, len1);
+      SCM_ASSERT_RANGE (SCM_ARG3, end1, (e-i) <= len2);
+      j = scm_to_unsigned_integer (start2, 0, len2);
+      SCM_ASSERT_RANGE (SCM_ARG5, start2, j <= len2 - (e - i));
+      j += (e - i);
+
+      while (i < e)
+        {
+          --e;
+          --j;
+          elts2[j] = elts1[e];
+        }
+    }
+  else
+    {
+      scm_t_array_handle handle1, handle2;
+      const SCM *elts1;
+      SCM *elts2;
+      size_t len1, len2;
+      ssize_t inc1, inc2;
+      size_t i, j, e;
+
+      elts1 = scm_vector_elements (vec1, &handle1, &len1, &inc1);
+      elts2 = scm_vector_writable_elements (vec2, &handle2, &len2, &inc2);
+      scm_c_issue_deprecation_warning
+        ("Using vector-move-right! on arrays is deprecated.  "
+         "Use array-copy-in-order! instead.");
+
+      i = scm_to_unsigned_integer (start1, 0, len1);
+      e = scm_to_unsigned_integer (end1, i, len1);
+      SCM_ASSERT_RANGE (SCM_ARG3, end1, (e-i) <= len2);
+      j = scm_to_unsigned_integer (start2, 0, len2);
+      SCM_ASSERT_RANGE (SCM_ARG5, start2, j <= len2 - (e - i));
+
+      j += (e - i);
+
+      i *= inc1;
+      e *= inc1;
+      j *= inc2;
+      while (i < e)
+        {
+          e -= inc1;
+          j -= inc2;
+          elts2[j] = elts1[e];
+        }
+
+      scm_array_handle_release (&handle2);
+      scm_array_handle_release (&handle1);
+    }
 
   return SCM_UNSPECIFIED;
 }
