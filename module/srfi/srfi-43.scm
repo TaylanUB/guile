@@ -204,7 +204,6 @@ error for the number of seeds to vary between iterations."
 
 (define guile-vector-copy (@ (guile) vector-copy))
 
-;; TODO: Enhance Guile core 'vector-copy' to do this.
 (define vector-copy
   (case-lambda*
    "(vector-copy vec [start [end [fill]]]) -> vector
@@ -217,23 +216,20 @@ VEC, the slots in the new vector that obviously cannot be filled by
 elements from VEC are filled with FILL, whose default value is
 unspecified."
    ((v) (guile-vector-copy v))
-   ((v start)
-    (assert-vector v 'vector-copy)
-    (let ((len (vector-length v)))
-      (assert-valid-start start len 'vector-copy)
-      (let ((result (make-vector (- len start))))
-        (vector-move-left! v start len result 0)
-        result)))
+   ((v start) (guile-vector-copy v start))
    ((v start end #:optional (fill *unspecified*))
     (assert-vector v 'vector-copy)
     (let ((len (vector-length v)))
-      (unless (and (exact-integer? start)
-                   (exact-integer? end)
-                   (<= 0 start end))
-        (error-from 'vector-copy "invalid index range" start end))
-      (let ((result (make-vector (- end start) fill)))
-        (vector-move-left! v start (min end len) result 0)
-        result)))))
+      (if (<= end len)
+        (guile-vector-copy v start end)
+        (begin
+          (unless (and (exact-integer? start)
+                       (exact-integer? end)
+                       (<= 0 start end))
+            (error-from 'vector-copy "invalid index range" start end))
+          (let ((result (make-vector (- end start) fill)))
+            (vector-move-left! v start (min end len) result 0)
+            result)))))))
 
 (define vector-reverse-copy
   (let ()

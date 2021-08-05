@@ -6387,6 +6387,7 @@ Store @var{fill} in every position of @var{vec}.  The value
 returned by @code{vector-fill!} is unspecified.
 @end deffn
 
+@rnindex vector-copy
 @deffn {Scheme Procedure} vector-copy vec
 @deffnx {C Function} scm_vector_copy (vec)
 Return a copy of @var{vec}.

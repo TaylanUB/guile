@@ -88,7 +88,7 @@ SCM_API SCM *scm_vector_writable_elements (SCM vec,
 #define SCM_I_VECTOR_LENGTH(x) (((size_t) SCM_CELL_WORD_0 (x)) >> 8)
 
 SCM_INTERNAL SCM  scm_i_vector_equal_p (SCM x, SCM y);
-
+SCM_INTERNAL SCM scm_vector_copy_partial (SCM vec, SCM start, SCM end);
 
 SCM_INTERNAL void scm_init_vectors (void);
 

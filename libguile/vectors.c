@@ -265,17 +265,36 @@ scm_c_make_vector (size_t k, SCM fill)
 }
 #undef FUNC_NAME
 
-SCM_DEFINE (scm_vector_copy, "vector-copy", 1, 0, 0,
-	    (SCM vec),
-	    "Return a copy of @var{vec}.")
-#define FUNC_NAME s_scm_vector_copy
+SCM_DEFINE (scm_vector_copy_partial, "vector-copy", 1, 2, 0,
+	    (SCM vec, SCM start, SCM end),
+            "Returns a freshly allocated vector containing the elements\n"
+            "of @var{vec} between @var{start} and @var{end}.\n\n"
+            "@var{start} defaults to 0 and @var{end} defaults to the\n"
+            "length of @var{vec}.")
+#define FUNC_NAME s_scm_vector_copy_partial
 {
   SCM result;
   if (SCM_I_IS_VECTOR (vec))
     {
-      size_t len = SCM_I_VECTOR_LENGTH (vec);
+      size_t cstart = 0, cend = SCM_I_VECTOR_LENGTH (vec);
+      
+      if (!SCM_UNBNDP (start))
+        {
+          cstart = scm_to_size_t (start);
+          SCM_ASSERT_RANGE (SCM_ARG2, start, cstart<=cend);
+
+          if (!SCM_UNBNDP (end))
+            {
+              size_t e = scm_to_size_t (end);
+              SCM_ASSERT_RANGE (SCM_ARG3, end, e>=cstart && e<=cend);
+              cend = e;
+            }
+        }
+
+      size_t len = cend-cstart;
       result = make_vector (len);
-      memcpy (SCM_I_VECTOR_WELTS (result), SCM_I_VECTOR_ELTS (vec), len * sizeof(SCM));
+      memcpy (SCM_I_VECTOR_WELTS (result), SCM_I_VECTOR_ELTS (vec) + cstart,
+              len * sizeof(SCM));
     }
   else
     {
@@ -290,6 +309,9 @@ SCM_DEFINE (scm_vector_copy, "vector-copy", 1, 0, 0,
         ("Using vector-copy on arrays is deprecated.  "
          "Use array-copy instead.");
 
+      if (SCM_UNBNDP (start))
+        scm_misc_error (s_scm_vector_copy_partial, "Too many arguments", SCM_EOL);
+
       result = make_vector (len);
       dst = SCM_I_VECTOR_WELTS (result);
       for (i = 0; i < len; i++, src += inc)
@@ -300,6 +322,12 @@ SCM_DEFINE (scm_vector_copy, "vector-copy", 1, 0, 0,
   return result;
 }
 #undef FUNC_NAME
+
+SCM
+scm_vector_copy (SCM vec)
+{
+  return scm_vector_copy_partial (vec, SCM_UNDEFINED, SCM_UNDEFINED);
+}
 
 
 SCM_DEFINE (scm_vector_to_list, "vector->list", 1, 0, 0, 

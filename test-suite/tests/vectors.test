@@ -31,6 +31,15 @@
     exception:immutable-vector
     (vector-set! '#(1 2 3) 0 4)))
 
+(with-test-prefix "vector-copy"
+
+  (pass-if "defaults"
+    (equal? #(1 2 3) (vector-copy #(1 2 3))))
+  (pass-if "default end"
+    (equal? #(2 3) (vector-copy #(1 2 3) 1)))
+  (pass-if "start end"
+    (equal? #(2) (vector-copy #(1 2 3) 1 2))))
+
 (with-test-prefix "vector->list"
 
   (pass-if "simple vector"
