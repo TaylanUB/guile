@@ -57,7 +57,6 @@
             string->vector vector->string
             (r7:string->utf8 . string->utf8)
             (r7:vector->list . vector->list)
-            (r7:vector-fill! . vector-fill!)
             vector-copy! vector-append vector-for-each vector-map
             (r7:bytevector-copy . bytevector-copy)
             (r7:bytevector-copy! . bytevector-copy!)
@@ -115,7 +114,7 @@
    (char-ready? . u8-ready?)
    unless
    unquote unquote-splicing values
-   vector vector-copy
+   vector vector-copy vector-fill!
    vector-length vector-ref vector-set! vector?
    when with-exception-handler write-char
    zero?))
@@ -501,15 +500,6 @@ defaults to 0 and SEND defaults to the length of SOURCE."
     ((v) (list->string (vector->list v)))
     ((v start #:optional (end (vector-length v)))
      (vector->string (vector-copy v start end)))))
-
-(define r7:vector-fill!
-  (case-lambda*
-    ((vec fill) (vector-fill! vec fill))
-    ((vec fill start #:optional (end (vector-length vec)))
-     (let lp ((r start))
-       (unless (= r end)
-         (vector-set! vec r fill)
-         (lp (+ r 1)))))))
 
 (define (%subbytevector bv start end)
   (define mlen (- end start))
