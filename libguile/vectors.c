@@ -24,18 +24,19 @@
 # include <config.h>
 #endif
 
+#include <string.h>
+
 #include "array-handle.h"
 #include "bdw-gc.h"
 #include "boolean.h"
+#include "deprecation.h"
 #include "eq.h"
+#include "generalized-vectors.h"
 #include "gsubr.h"
 #include "list.h"
 #include "numbers.h"
 #include "pairs.h"
 #include "vectors.h"
-
-#include "generalized-vectors.h"
-
 
 
 
@@ -269,29 +270,41 @@ SCM_DEFINE (scm_vector_copy, "vector-copy", 1, 0, 0,
 	    "Return a copy of @var{vec}.")
 #define FUNC_NAME s_scm_vector_copy
 {
-  scm_t_array_handle handle;
-  size_t i, len;
-  ssize_t inc;
-  const SCM *src;
-  SCM result, *dst;
+  SCM result;
+  if (SCM_I_IS_VECTOR (vec))
+    {
+      size_t len = SCM_I_VECTOR_LENGTH (vec);
+      result = make_vector (len);
+      memcpy (SCM_I_VECTOR_WELTS (result), SCM_I_VECTOR_ELTS (vec), len * sizeof(SCM));
+    }
+  else
+    {
+      scm_t_array_handle handle;
+      size_t i, len;
+      ssize_t inc;
+      const SCM *src;
+      SCM *dst;
 
-  src = scm_vector_elements (vec, &handle, &len, &inc);
+      src = scm_vector_elements (vec, &handle, &len, &inc);
+      scm_c_issue_deprecation_warning
+        ("Using vector-copy on arrays is deprecated.  "
+         "Use array-copy instead.");
 
-  result = make_vector (len);
-  dst = SCM_I_VECTOR_WELTS (result);
-  for (i = 0; i < len; i++, src += inc)
-    dst[i] = *src;
+      result = make_vector (len);
+      dst = SCM_I_VECTOR_WELTS (result);
+      for (i = 0; i < len; i++, src += inc)
+        dst[i] = *src;
 
-  scm_array_handle_release (&handle);
-
+      scm_array_handle_release (&handle);
+    }
   return result;
 }
 #undef FUNC_NAME
 
 
 SCM_DEFINE (scm_vector_to_list, "vector->list", 1, 0, 0, 
-	    (SCM v),
-	    "Return a newly allocated list composed of the elements of @var{v}.\n"
+	    (SCM vec),
+	    "Return a newly allocated list composed of the elements of @var{vec}.\n"
 	    "\n"
 	    "@lisp\n"
 	    "(vector->list '#(dah dah didah)) @result{}  (dah dah didah)\n"
@@ -300,18 +313,33 @@ SCM_DEFINE (scm_vector_to_list, "vector->list", 1, 0, 0,
 #define FUNC_NAME s_scm_vector_to_list
 {
   SCM res = SCM_EOL;
-  const SCM *data;
-  scm_t_array_handle handle;
-  size_t i, count, len;
-  ssize_t inc;
 
-  data = scm_vector_elements (v, &handle, &len, &inc);
-  for (i = (len - 1) * inc, count = 0;
-       count < len;
-       i -= inc, count++)
-    res = scm_cons (data[i], res);
+  if (SCM_I_IS_VECTOR (vec))
+    {
+      ssize_t len = SCM_I_VECTOR_LENGTH (vec);
+      const SCM * data = SCM_I_VECTOR_ELTS (vec);
+      for (ssize_t i = len-1; i >= 0; --i)
+        res = scm_cons (data[i], res);
+    }
+  else
+    {
+      const SCM *data;
+      scm_t_array_handle handle;
+      size_t i, count, len;
+      ssize_t inc;
 
-  scm_array_handle_release (&handle);
+      data = scm_vector_elements (vec, &handle, &len, &inc);
+      scm_c_issue_deprecation_warning
+        ("Using vector->list on arrays is deprecated.  "
+         "Use array->list instead.");
+
+      for (i = (len - 1) * inc, count = 0;
+           count < len;
+           i -= inc, count++)
+        res = scm_cons (data[i], res);
+
+      scm_array_handle_release (&handle);
+    }
   return res;
 }
 #undef FUNC_NAME
