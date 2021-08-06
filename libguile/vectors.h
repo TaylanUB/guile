@@ -41,6 +41,8 @@ SCM_API SCM scm_vector_move_left_x (SCM vec1, SCM start1, SCM end1,
 SCM_API SCM scm_vector_move_right_x (SCM vec1, SCM start1, SCM end1, 
 				     SCM vec2, SCM start2);
 SCM_API SCM scm_vector_copy (SCM vec);
+SCM_API SCM scm_vector_copy_partial (SCM vec, SCM start, SCM end);
+SCM_API SCM scm_vector_copy_x (SCM dst, SCM at, SCM src, SCM start, SCM end);
 
 SCM_API int scm_is_vector (SCM obj);
 SCM_API int scm_is_simple_vector (SCM obj);
@@ -87,9 +89,7 @@ SCM_API SCM *scm_vector_writable_elements (SCM vec,
 #define SCM_I_VECTOR_WELTS(x)  (SCM_CELL_OBJECT_LOC (x, 1))
 #define SCM_I_VECTOR_LENGTH(x) (((size_t) SCM_CELL_WORD_0 (x)) >> 8)
 
-SCM_INTERNAL SCM  scm_i_vector_equal_p (SCM x, SCM y);
-SCM_INTERNAL SCM scm_vector_copy_partial (SCM vec, SCM start, SCM end);
-
+SCM_INTERNAL SCM scm_i_vector_equal_p (SCM x, SCM y);
 SCM_INTERNAL void scm_init_vectors (void);
 
 #endif  /* SCM_VECTORS_H */

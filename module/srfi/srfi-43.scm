@@ -22,7 +22,7 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-8)
   #:re-export (make-vector vector vector? vector-ref vector-set!
-                           vector-length vector-fill!)
+                           vector-length vector-fill! vector-copy!)
   #:replace (vector-copy list->vector vector->list)
   #:export (vector-empty? vector= vector-unfold vector-unfold-right
                           vector-reverse-copy
@@ -35,7 +35,7 @@
                           vector-binary-search
                           vector-any vector-every
                           vector-swap! vector-reverse!
-                          vector-copy! vector-reverse-copy!
+                          vector-reverse-copy!
                           reverse-vector->list
                           reverse-list->vector))
 
@@ -932,19 +932,6 @@ START defaults to 0 and END defaults to the length of VEC."
            (unless (>= tlen (+ tstart (- send sstart)))
              (error-from 'copy! "would write past end of target"))
            (%copy! target tstart source sstart send)))))))
-
-(define-vector-copier! vector-copy!
-  "(vector-copy! target tstart source [sstart [send]]) -> unspecified
-
-Copy a block of elements from SOURCE to TARGET, both of which must be
-vectors, starting in TARGET at TSTART and starting in SOURCE at
-SSTART, ending when SEND - SSTART elements have been copied.  It is an
-error for TARGET to have a length less than TSTART + (SEND - SSTART).
-SSTART defaults to 0 and SEND defaults to the length of SOURCE."
-  (lambda (target tstart source sstart send)
-    (if (< tstart sstart)
-        (vector-move-left!  source sstart send target tstart)
-        (vector-move-right! source sstart send target tstart))))
 
 (define-vector-copier! vector-reverse-copy!
   "(vector-reverse-copy! target tstart source [sstart [send]]) -> unspecified

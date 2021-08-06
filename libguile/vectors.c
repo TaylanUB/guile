@@ -329,6 +329,48 @@ scm_vector_copy (SCM vec)
   return scm_vector_copy_partial (vec, SCM_UNDEFINED, SCM_UNDEFINED);
 }
 
+SCM_DEFINE (scm_vector_copy_x, "vector-copy!", 3, 2, 0,
+	    (SCM dst, SCM at, SCM src, SCM start, SCM end),
+            "Copy a block of elements from @var{src} to @var{dst}, both of which must be\n"
+            "vectors, starting in @var{dst} at @var{at} and starting in @var{src} at\n"
+            "@var{start} and ending at @var{end}.\n\n"
+            "It is an error for @var{dst} to have a length less than\n"
+            "@var{at} + (@var{end} - @var{start}). @var{at} and @var{start} default\n"
+            "to 0 and @var{end} defaults to the length of @var{src}.\n\n"
+            "The order in which elements are copied is unspecified, except that if the\n"
+            "source and destination overlap, copying takes place as if the source is\n"
+            "first copied into a temporary vector and then into the destination.")
+#define FUNC_NAME s_scm_vector_copy_x
+{
+  SCM_VALIDATE_MUTABLE_VECTOR (1, dst);
+  SCM_VALIDATE_VECTOR (3, src);
+  size_t src_org = 0;
+  size_t dst_org = scm_to_size_t (at);
+  size_t src_end = SCM_I_VECTOR_LENGTH (src);
+  size_t dst_end = SCM_I_VECTOR_LENGTH (dst);
+
+  if (!SCM_UNBNDP (start))
+    {
+      src_org = scm_to_size_t (start);
+      SCM_ASSERT_RANGE (SCM_ARG4, start, src_org<=src_end);
+
+      if (!SCM_UNBNDP (end))
+        {
+          size_t e = scm_to_size_t (end);
+          SCM_ASSERT_RANGE (SCM_ARG5, end, e>=src_org && e<=src_end);
+          src_end = e;
+        }
+    }
+  size_t len = src_end-src_org;
+  SCM_ASSERT_RANGE (SCM_ARG2, at, dst_org<=dst_end && len<=dst_end-dst_org);
+
+  memmove (SCM_I_VECTOR_WELTS (dst) + dst_org, SCM_I_VECTOR_ELTS (src) + src_org,
+           len * sizeof(SCM));
+
+  return SCM_UNSPECIFIED;
+}
+#undef FUNC_NAME
+
 
 SCM_DEFINE (scm_vector_to_list, "vector->list", 1, 0, 0, 
 	    (SCM vec),

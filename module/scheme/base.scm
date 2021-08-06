@@ -57,7 +57,7 @@
             string->vector vector->string
             (r7:string->utf8 . string->utf8)
             (r7:vector->list . vector->list)
-            vector-copy! vector-append vector-for-each vector-map
+            vector-append vector-for-each vector-map
             (r7:bytevector-copy . bytevector-copy)
             (r7:bytevector-copy! . bytevector-copy!)
             (r7:utf8->string . utf8->string)
@@ -114,7 +114,7 @@
    (char-ready? . u8-ready?)
    unless
    unquote unquote-splicing values
-   vector vector-copy vector-fill!
+   vector vector-copy vector-copy! vector-fill!
    vector-length vector-ref vector-set! vector?
    when with-exception-handler write-char
    zero?))
@@ -430,19 +430,6 @@
     ((str start end) (string->utf8 (substring str start end)))))
 
 ;;; vector
-
-(define* (vector-copy! target tstart source
-                       #:optional (sstart 0) (send (vector-length source)))
-  "Copy a block of elements from SOURCE to TARGET, both of which must be
-vectors, starting in TARGET at TSTART and starting in SOURCE at SSTART,
-ending when SEND - SSTART elements have been copied.  It is an error for
-TARGET to have a length less than TSTART + (SEND - SSTART).  SSTART
-defaults to 0 and SEND defaults to the length of SOURCE."
-  (let ((tlen (vector-length target))
-        (slen (vector-length source)))
-    (if (< tstart sstart)
-        (vector-move-left!  source sstart send target tstart)
-        (vector-move-right! source sstart send target tstart))))
 
 (define r7:vector->list
   (case-lambda*

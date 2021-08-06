@@ -6381,16 +6381,38 @@ Store @var{obj} in position @var{k} (a @code{size_t}) of @var{vec}.
 @end deftypefn
 
 @rnindex vector-fill!
-@deffn {Scheme Procedure} vector-fill! vec fill
+@deffn {Scheme Procedure} vector-fill! vec fill [start [end]]
 @deffnx {C Function} scm_vector_fill_x (vec, fill)
-Store @var{fill} in every position of @var{vec}.  The value
-returned by @code{vector-fill!} is unspecified.
+Store @var{fill} in every position of @var{vec} in the range
+[@var{start} ... @var{end}). @var{start} defaults to 0 and @var{end}
+defaults to the length of @var{vec}.
+
+The value returned by @code{vector-fill!} is unspecified.
 @end deffn
 
 @rnindex vector-copy
-@deffn {Scheme Procedure} vector-copy vec
+@deffn {Scheme Procedure} vector-copy vec [start [end]]
 @deffnx {C Function} scm_vector_copy (vec)
-Return a copy of @var{vec}.
+Returns a freshly allocated vector containing the elements of @var{vec}
+in the range [@var{start} ... @var{end}). @var{start} defaults to 0 and
+@var{end} defaults to the length of @var{vec}.
+@end deffn
+
+@rnindex vector-copy!
+@deffn {Scheme Procedure} vector-copy! dst at src [start [end]]
+Copy the block of elements from vector @var{src} in the range
+[@var{start} ... @var{end}) into vector @var{dst}, starting at position
+@var{at}. @var{at} and @var{start} default to 0 and @var{end} defaults
+to the length of @var{src}.
+
+It is an error for @var{dst} to have a length less than @var{at} +
+(@var{end} - @var{start}).  
+
+The order in which elements are copied is unspecified, except that if the
+source and destination overlap, copying takes place as if the source is
+first copied into a temporary vector and then into the destination.
+
+The value returned by @code{vector-copy!} is unspecified.
 @end deffn
 
 @deffn {Scheme Procedure} vector-move-left! vec1 start1 end1 vec2 start2
@@ -6403,6 +6425,8 @@ to @var{vec2} starting at position @var{start2}.  @var{start1} and
 Therefore, in the case where @var{vec1} and @var{vec2} refer to the
 same vector, @code{vector-move-left!} is usually appropriate when
 @var{start1} is greater than @var{start2}.
+
+The value returned by @code{vector-move-left!} is unspecified.
 @end deffn
 
 @deffn {Scheme Procedure} vector-move-right! vec1 start1 end1 vec2 start2
@@ -6415,6 +6439,8 @@ to @var{vec2} starting at position @var{start2}.  @var{start1} and
 Therefore, in the case where @var{vec1} and @var{vec2} refer to the
 same vector, @code{vector-move-right!} is usually appropriate when
 @var{start1} is less than @var{start2}.
+
+The value returned by @code{vector-move-right!} is unspecified.
 @end deffn
 
 @node Vector Accessing from C
