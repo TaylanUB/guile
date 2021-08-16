@@ -23,7 +23,6 @@
 
 
 #include "libguile/print.h"
-#include "libguile/array-handle.h"
 
 
 
@@ -85,25 +84,30 @@ SCM_API SCM scm_array_ref (SCM v, SCM args);
 SCM_API SCM scm_array_set_x (SCM v, SCM obj, SCM args);
 SCM_API SCM scm_array_to_list (SCM v);
 
+typedef struct scm_t_array_dim
+{
+  ssize_t lbnd;
+  ssize_t ubnd;
+  ssize_t inc;
+} scm_t_array_dim;
+
 /* internal. */
 
-/* see scm_from_contiguous_array  for these three */
-#define SCM_I_ARRAY_FLAG_CONTIGUOUS (1 << 0)  
-#define SCM_SET_ARRAY_CONTIGUOUS_FLAG(x) \
-  (SCM_SET_CELL_WORD_0 ((x), SCM_CELL_WORD_0 (x) | (SCM_I_ARRAY_FLAG_CONTIGUOUS << 16)))
-#define SCM_CLR_ARRAY_CONTIGUOUS_FLAG(x) \
-  (SCM_SET_CELL_WORD_0 ((x), SCM_CELL_WORD_0 (x) & ~(SCM_I_ARRAY_FLAG_CONTIGUOUS << 16)))
-
 #define SCM_I_ARRAYP(a)	    SCM_TYP16_PREDICATE (scm_tc7_array, a)
-#define SCM_I_ARRAY_NDIM(x)  ((size_t) (SCM_CELL_WORD_0 (x)>>17))
-#define SCM_I_ARRAY_CONTP(x) (SCM_CELL_WORD_0 (x) & (SCM_I_ARRAY_FLAG_CONTIGUOUS << 16))
-
+#define SCM_I_ARRAY_NDIM(x)  ((size_t) (SCM_CELL_WORD_0 (x)>>16))
 #define SCM_I_ARRAY_V(a)    SCM_CELL_OBJECT_1 (a)
 #define SCM_I_ARRAY_BASE(a) ((size_t) SCM_CELL_WORD_2 (a))
 #define SCM_I_ARRAY_DIMS(a) ((scm_t_array_dim *) SCM_CELL_OBJECT_LOC (a, 3))
-
 #define SCM_I_ARRAY_SET_V(a, v)       SCM_SET_CELL_OBJECT_1(a, v)
 #define SCM_I_ARRAY_SET_BASE(a, base) SCM_SET_CELL_WORD_2(a, base)
+
+/* See the array cases in system/vm/assembler.scm. */
+
+static inline SCM
+scm_i_raw_array (int ndim)
+{
+  return scm_words (((scm_t_bits) ndim << 16) + scm_tc7_array, 3 + ndim*3);
+}
 
 SCM_INTERNAL SCM scm_i_make_array (int ndim);
 SCM_INTERNAL int scm_i_print_array (SCM array, SCM port, scm_print_state *pstate);

@@ -1,7 +1,7 @@
 #ifndef SCM_ARRAY_HANDLE_H
 #define SCM_ARRAY_HANDLE_H
 
-/* Copyright 1995-1997,1999-2001,2004,2006,2008-2009,2011,2013-2014,2018
+/* Copyright 1995-1997,1999-2001,2004,2006,2008-2009,2011,2013-2014,2018,2021
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -25,18 +25,12 @@
 #include "libguile/error.h"
 #include "libguile/inline.h"
 #include "libguile/numbers.h"
+#include "libguile/arrays.h"
 
 
 
 typedef SCM (*scm_t_vector_ref) (SCM, size_t);
 typedef void (*scm_t_vector_set) (SCM, size_t, SCM);
-
-typedef struct scm_t_array_dim
-{
-  ssize_t lbnd;
-  ssize_t ubnd;
-  ssize_t inc;
-} scm_t_array_dim;
 
 typedef enum
   {

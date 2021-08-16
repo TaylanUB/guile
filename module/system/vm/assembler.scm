@@ -2061,8 +2061,9 @@ should be .data or .rodata), and return the resulting linker object.
 
        ((array? obj)
         (let-values
-            ;; array tag + rank + contp flag: see libguile/arrays.h .
-            (((tag) (logior tc7-array (ash (array-rank obj) 17) (ash 1 16)))
+            ;; array tag + rank
+            ;; see libguile/arrays.h: SCM_I_ARRAY_NDIM, SCM_I_ARRAYP, scm_i_raw_array
+            (((tag) (logior tc7-array (ash (array-rank obj) 16)))
              ((bv-set! bvs-set!)
               (case word-size
                 ((4) (values bytevector-u32-set! bytevector-s32-set!))

@@ -667,7 +667,7 @@ SCM
 scm_i_array_rebase (SCM a, size_t base)
 {
     size_t ndim = SCM_I_ARRAY_NDIM (a);
-    SCM b = scm_words (((scm_t_bits) ndim << 17) + scm_tc7_array, 3 + ndim*3);
+    SCM b = scm_i_raw_array (ndim);
     SCM_I_ARRAY_SET_V (b, SCM_I_ARRAY_V (a));
 /* FIXME do check base */
     SCM_I_ARRAY_SET_BASE (b, base);

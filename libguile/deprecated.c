@@ -608,7 +608,6 @@ scm_from_contiguous_typed_array (SCM type, SCM bounds, const void *bytes,
      "to copy data to the new array.");
 
   ra = scm_i_shap2ra (bounds);
-  SCM_SET_ARRAY_CONTIGUOUS_FLAG (ra);
   s = SCM_I_ARRAY_DIMS (ra);
   k = SCM_I_ARRAY_NDIM (ra);
 

@@ -52,7 +52,6 @@
 #include "strings.h"
 #include "uniform.h"
 #include "vectors.h"
-#include "verify.h"
 
 #include "arrays.h"
 
@@ -493,16 +492,11 @@ SCM_DEFINE (scm_shared_array_increments, "shared-array-increments", 1, 0, 0,
 }
 #undef FUNC_NAME
 
-/* FIXME: to avoid this assumption, fix the accessors in arrays.h,
-   scm_i_make_array, and the array cases in system/vm/assembler.scm. */
 
-verify (sizeof (scm_t_array_dim) == 3*sizeof (scm_t_bits));
-
-/* Matching SCM_I_ARRAY accessors in arrays.h */
 SCM
 scm_i_make_array (int ndim)
 {
-  SCM ra = scm_words (((scm_t_bits) ndim << 17) + scm_tc7_array, 3 + ndim*3);
+  SCM ra = scm_i_raw_array (ndim);
   SCM_I_ARRAY_SET_V (ra, SCM_BOOL_F);
   SCM_I_ARRAY_SET_BASE (ra, 0);
   /* dimensions are unset */
@@ -566,7 +560,6 @@ SCM_DEFINE (scm_make_typed_array, "make-typed-array", 2, 0, 1,
   SCM ra;
 
   ra = scm_i_shap2ra (bounds);
-  SCM_SET_ARRAY_CONTIGUOUS_FLAG (ra);
   s = SCM_I_ARRAY_DIMS (ra);
   k = SCM_I_ARRAY_NDIM (ra);
 
@@ -599,28 +592,6 @@ SCM_DEFINE (scm_make_array, "make-array", 1, 0, 1,
   return scm_make_typed_array (SCM_BOOL_T, fill, bounds);
 }
 #undef FUNC_NAME
-
-/* see scm_from_contiguous_array */
-static void
-scm_i_ra_set_contp (SCM ra)
-{
-  size_t k = SCM_I_ARRAY_NDIM (ra);
-  if (k)
-    {
-      ssize_t inc = SCM_I_ARRAY_DIMS (ra)[k - 1].inc;
-      while (k--)
-        {
-          if (inc != SCM_I_ARRAY_DIMS (ra)[k].inc)
-            {
-              SCM_CLR_ARRAY_CONTIGUOUS_FLAG (ra);
-              return;
-            }
-          inc *= (SCM_I_ARRAY_DIMS (ra)[k].ubnd
-                  - SCM_I_ARRAY_DIMS (ra)[k].lbnd + 1);
-        }
-    }
-  SCM_SET_ARRAY_CONTIGUOUS_FLAG (ra);
-}
 
 
 SCM_DEFINE (scm_make_shared_array, "make-shared-array", 2, 0, 1,
@@ -735,7 +706,6 @@ SCM_DEFINE (scm_make_shared_array, "make-shared-array", 2, 0, 1,
         return scm_make_generalized_vector (scm_array_type (ra), SCM_INUM0,
                                             SCM_UNDEFINED);
     }
-  scm_i_ra_set_contp (ra);
   return ra;
 }
 #undef FUNC_NAME
@@ -1006,7 +976,6 @@ SCM_DEFINE (scm_transpose_array, "transpose-array", 1, 0, 1,
         }
       if (ndim > 0)
         SCM_MISC_ERROR ("bad argument list", SCM_EOL);
-      scm_i_ra_set_contp (res);
       return res;
     }
 }
