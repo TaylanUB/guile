@@ -6214,12 +6214,12 @@ accessed element in the list.
 
 Vectors can contain any kind of Scheme object; it is even possible to
 have different types of objects in the same vector.  For vectors
-containing vectors, you may wish to use arrays, instead.  Note, too,
-that vectors are the special case of one dimensional non-uniform arrays
-and that most array procedures operate happily on vectors
-(@pxref{Arrays}).
+containing vectors, you may wish to use @ref{Arrays,arrays} instead.
+Note, too, that vectors are a special case of one dimensional
+non-uniform arrays and that array procedures operate happily on vectors.
 
-Also see @ref{SRFI-43}, for a comprehensive vector library.
+Also see @ref{SRFI-43}, @ref{R6RS Support}, or @ref{R7RS Support}, for
+more comprehensive vector libraries.
 
 @menu
 * Vector Syntax::               Read syntax for vectors.
@@ -6349,6 +6349,7 @@ Return the contents of position @var{k} of @var{vec}.
 @end lisp
 @end deffn
 
+@anchor{x-scm_c_vector_ref}
 @deftypefn {C Function} SCM scm_c_vector_ref (SCM vec, size_t k)
 Return the contents of position @var{k} (a @code{size_t}) of
 @var{vec}.
@@ -6376,6 +6377,7 @@ The value returned by @samp{vector-set!} is unspecified.
 @end lisp
 @end deffn
 
+@anchor{x-scm_c_vector_set_x}
 @deftypefn {C Function} void scm_c_vector_set_x (SCM vec, size_t k, SCM obj)
 Store @var{obj} in position @var{k} (a @code{size_t}) of @var{vec}.
 @end deftypefn
@@ -6447,58 +6449,48 @@ The value returned by @code{vector-move-right!} is unspecified.
 @subsubsection Vector Accessing from C
 
 A vector can be read and modified from C with the functions
-@code{scm_c_vector_ref} and @code{scm_c_vector_set_x}, for example.  In
-addition to these functions, there are two more ways to access vectors
-from C that might be more efficient in certain situations: you can
-restrict yourself to @dfn{simple vectors} and then use the very fast
-@emph{simple vector macros}; or you can use the very general framework
-for accessing all kinds of arrays (@pxref{Accessing Arrays from C}),
-which is more verbose, but can deal efficiently with all kinds of
-vectors (and arrays).  For vectors, you can use the
-@code{scm_vector_elements} and @code{scm_vector_writable_elements}
-functions as shortcuts.
-
-@deftypefn {C Function} int scm_is_simple_vector (SCM obj)
-Return non-zero if @var{obj} is a simple vector, else return zero.  A
-simple vector is a vector that can be used with the @code{SCM_SIMPLE_*}
-macros below.
-
-The following functions are guaranteed to return simple vectors:
-@code{scm_make_vector}, @code{scm_c_make_vector}, @code{scm_vector},
-@code{scm_list_to_vector}.
-@end deftypefn
+@ref{x-scm_c_vector_ref,@code{scm_c_vector_ref}} and
+@ref{x-scm_c_vector_set_x,@code{scm_c_vector_set_x}}.  In addition to
+these functions, there are two other ways to access vectors from C that
+might be more efficient in certain situations: you can use the unsafe
+@emph{vector macros}; or you can use the general framework for accessing
+all kinds of arrays (@pxref{Accessing Arrays from C}), which is more
+verbose, but can deal efficiently with all kinds of vectors (and
+arrays).  For arrays of rank 1 whose backing store is a vector, you can
+use the @code{scm_vector_elements} and
+@code{scm_vector_writable_elements} functions as shortcuts.
 
 @deftypefn {C Macro} size_t SCM_SIMPLE_VECTOR_LENGTH (SCM vec)
-Evaluates to the length of the simple vector @var{vec}.  No type
+Evaluates to the length of the vector @var{vec}.  No type
 checking is done.
 @end deftypefn
 
 @deftypefn {C Macro} SCM SCM_SIMPLE_VECTOR_REF (SCM vec, size_t idx)
-Evaluates to the element at position @var{idx} in the simple vector
-@var{vec}.  No type or range checking is done.
+Evaluates to the element at position @var{idx} in the vector @var{vec}.
+No type or range checking is done.
 @end deftypefn
 
 @deftypefn {C Macro} void SCM_SIMPLE_VECTOR_SET (SCM vec, size_t idx, SCM val)
-Sets the element at position @var{idx} in the simple vector
-@var{vec} to @var{val}.  No type or range checking is done.
+Sets the element at position @var{idx} in the vector @var{vec} to
+@var{val}.  No type or range checking is done.
 @end deftypefn
 
-@deftypefn {C Function} {const SCM *} scm_vector_elements (SCM vec, scm_t_array_handle *handle, size_t *lenp, ssize_t *incp)
-Acquire a handle for the vector @var{vec} and return a pointer to the
-elements of it.  This pointer can only be used to read the elements of
-@var{vec}.  When @var{vec} is not a vector, an error is signaled.  The
-handle must eventually be released with
-@code{scm_array_handle_release}.
+@deftypefn {C Function} {const SCM *} scm_vector_elements (SCM array, scm_t_array_handle *handle, size_t *lenp, ssize_t *incp)
+Acquire a @ref{Accessing Arrays from C,handle} for @var{array} and
+return a read-only pointer to its elements.  @var{array} must be either
+a vector, or an array of rank 1 whose backing store is a vector;
+otherwise an error is signaled.  The handle must eventually be released
+with @ref{x-scm_array_handle_release,@code{scm_array_handle_release}}.
 
 The variables pointed to by @var{lenp} and @var{incp} are filled with
-the number of elements of the vector and the increment (number of
+the number of elements of the array and the increment (number of
 elements) between successive elements, respectively.  Successive
-elements of @var{vec} need not be contiguous in their underlying
+elements of @var{array} need not be contiguous in their underlying
 ``root vector'' returned here; hence the increment is not necessarily
 equal to 1 and may well be negative too (@pxref{Shared Arrays}).
 
 The following example shows the typical way to use this function.  It
-creates a list of all elements of @var{vec} (in reverse order).
+creates a list of all elements of @var{array} (in reverse order).
 
 @example
 scm_t_array_handle handle;
@@ -6507,7 +6499,7 @@ ssize_t inc;
 const SCM *elt;
 SCM list;
 
-elt = scm_vector_elements (vec, &handle, &len, &inc);
+elt = scm_vector_elements (array, &handle, &len, &inc);
 list = SCM_EOL;
 for (i = 0; i < len; i++, elt += inc)
   list = scm_cons (*elt, list);
@@ -6516,12 +6508,12 @@ scm_array_handle_release (&handle);
 
 @end deftypefn
 
-@deftypefn {C Function} {SCM *} scm_vector_writable_elements (SCM vec, scm_t_array_handle *handle, size_t *lenp, ssize_t *incp)
+@deftypefn {C Function} {SCM *} scm_vector_writable_elements (SCM array, scm_t_array_handle *handle, size_t *lenp, ssize_t *incp)
 Like @code{scm_vector_elements} but the pointer can be used to modify
-the vector.
+the array.
 
 The following example shows the typical way to use this function.  It
-fills a vector with @code{#t}.
+fills an array with @code{#t}.
 
 @example
 scm_t_array_handle handle;
@@ -6529,7 +6521,7 @@ size_t i, len;
 ssize_t inc;
 SCM *elt;
 
-elt = scm_vector_writable_elements (vec, &handle, &len, &inc);
+elt = scm_vector_writable_elements (array, &handle, &len, &inc);
 for (i = 0; i < len; i++, elt += inc)
   *elt = SCM_BOOL_T;
 scm_array_handle_release (&handle);
@@ -8024,6 +8016,7 @@ by @var{handle} does not need to be initialized before calling this
 function.
 @end deftypefn
 
+@anchor{x-scm_array_handle_release}
 @deftypefn {C Function} void scm_array_handle_release (scm_t_array_handle *handle)
 End the array reservation represented by @var{handle}.  After a call to
 this function, @var{handle} might be used for another reservation.

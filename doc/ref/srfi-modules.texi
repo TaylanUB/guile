@@ -1734,9 +1734,9 @@ indicated kind.
 @deftypefnx {C Function} {double *} scm_f64vector_writable_elements (SCM vec, scm_t_array_handle *handle, size_t *lenp, ssize_t *incp)
 @deftypefnx {C Function} {float *} scm_c32vector_writable_elements (SCM vec, scm_t_array_handle *handle, size_t *lenp, ssize_t *incp)
 @deftypefnx {C Function} {double *} scm_c64vector_writable_elements (SCM vec, scm_t_array_handle *handle, size_t *lenp, ssize_t *incp)
-Like @code{scm_vector_writable_elements} (@pxref{Vector Accessing from
-C}), but returns a pointer to the elements of a uniform numeric vector
-of the indicated kind.
+Like @code{scm_vector_writable_elements} (@pxref{Vector Accessing from C}),
+but returns a pointer to the elements of a uniform numeric vector of the
+indicated kind.
 @end deftypefn
 
 @node SRFI-4 and Bytevectors

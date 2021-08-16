@@ -74,7 +74,7 @@ typedef struct scm_print_state {
   unsigned long ceiling;	/* Max size of reference stack */
   SCM ref_vect;	 	        /* Stack of references used during
 				   circular reference detection;
-				   a simple vector. */
+				   a vector. */
   SCM highlight_objects;        /* List of objects to be highlighted */
 } scm_print_state;
 

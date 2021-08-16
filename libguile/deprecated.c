@@ -42,6 +42,7 @@
 #include "srfi-4.h"
 #include "strings.h"
 #include "symbols.h"
+#include "vectors.h"
 
 #include "deprecated.h"
 
@@ -95,6 +96,14 @@ scm_find_executable (const char *name)
 
 
 
+
+int
+scm_is_simple_vector (SCM obj)
+{
+  scm_c_issue_deprecation_warning
+    ("scm_is_simple_vector is deprecated. Use scm_is_vector instead.");
+  return SCM_I_IS_VECTOR (obj);
+}
 
 SCM
 scm_bitvector_p (SCM vec)

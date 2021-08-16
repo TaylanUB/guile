@@ -55,21 +55,15 @@ scm_is_vector (SCM obj)
   return SCM_I_IS_VECTOR (obj);
 }
 
-int
-scm_is_simple_vector (SCM obj)
-{
-  return SCM_I_IS_VECTOR (obj);
-}
-
 const SCM *
-scm_vector_elements (SCM vec, scm_t_array_handle *h,
+scm_vector_elements (SCM array, scm_t_array_handle *h,
 		     size_t *lenp, ssize_t *incp)
 {
-  scm_array_get_handle (vec, h);
+  scm_array_get_handle (array, h);
   if (1 != scm_array_handle_rank (h))
     {
       scm_array_handle_release (h);
-      scm_wrong_type_arg_msg (NULL, 0, vec, "rank 1 array of Scheme values");
+      scm_wrong_type_arg_msg (NULL, 0, array, "rank 1 array of Scheme values");
     }
   
   if (lenp)
@@ -82,13 +76,13 @@ scm_vector_elements (SCM vec, scm_t_array_handle *h,
 }
 
 SCM *
-scm_vector_writable_elements (SCM vec, scm_t_array_handle *h,
+scm_vector_writable_elements (SCM array, scm_t_array_handle *h,
 			      size_t *lenp, ssize_t *incp)
 {
-  const SCM *ret = scm_vector_elements (vec, h, lenp, incp);
+  const SCM *ret = scm_vector_elements (array, h, lenp, incp);
 
   if (h->writable_elements != h->elements)
-    scm_wrong_type_arg_msg (NULL, 0, vec, "mutable vector");
+    scm_wrong_type_arg_msg (NULL, 0, array, "mutable rank 1 array of Scheme values");
 
   return (SCM *) ret;
 }

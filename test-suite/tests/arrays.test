@@ -419,7 +419,7 @@
        (eq? a (array-contents (make-shared-array a (const '(0)))))
        (eq? a (array-contents (make-shared-array a (const '(0))) #t)))))
 
-  (pass-if "simple vector"
+  (pass-if "plain vector"
     (let* ((a (make-array 0 4)))
       (eq? a (array-contents a))))
 

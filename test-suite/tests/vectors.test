@@ -42,7 +42,7 @@
 
 (with-test-prefix "vector->list"
 
-  (pass-if "simple vector"
+  (pass-if "plain vector"
     (equal? '(1 2 3) (vector->list #(1 2 3))))
 
   (pass-if "string vector 1"

@@ -45,15 +45,14 @@ SCM_API SCM scm_vector_copy_partial (SCM vec, SCM start, SCM end);
 SCM_API SCM scm_vector_copy_x (SCM dst, SCM at, SCM src, SCM start, SCM end);
 
 SCM_API int scm_is_vector (SCM obj);
-SCM_API int scm_is_simple_vector (SCM obj);
 SCM_API SCM scm_c_make_vector (size_t len, SCM fill);
 SCM_API size_t scm_c_vector_length (SCM vec);
 SCM_API SCM scm_c_vector_ref (SCM vec, size_t k);
 SCM_API void scm_c_vector_set_x (SCM vec, size_t k, SCM obj);
-SCM_API const SCM *scm_vector_elements (SCM vec,
+SCM_API const SCM *scm_vector_elements (SCM array,
 					scm_t_array_handle *h,
 					size_t *lenp, ssize_t *incp);
-SCM_API SCM *scm_vector_writable_elements (SCM vec,
+SCM_API SCM *scm_vector_writable_elements (SCM array,
 					   scm_t_array_handle *h,
 					   size_t *lenp, ssize_t *incp);
 
@@ -67,7 +66,7 @@ SCM_API SCM *scm_vector_writable_elements (SCM vec,
     SCM_ASSERT (scm_is_vector (v) && len == scm_c_vector_length (v), v, pos, FUNC_NAME); \
   } while (0)
 
-/* Fast, non-checking accessors for simple vectors.
+/* Fast, non-checking accessors
  */
 #define SCM_SIMPLE_VECTOR_LENGTH(x)      SCM_I_VECTOR_LENGTH(x)
 #define SCM_SIMPLE_VECTOR_REF(x,idx)     ((SCM_I_VECTOR_ELTS(x))[idx])
