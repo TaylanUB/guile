@@ -5,18 +5,18 @@
 
    This file is part of gnulib.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU Lesser General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
+   This file is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation; either version 2.1 of the
+   License, or (at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
+   This file is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU Lesser General Public License along
-   with this program; if not, see <https://www.gnu.org/licenses/>.  */
+   You should have received a copy of the GNU Lesser General Public License
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <config.h>
 
@@ -530,12 +530,13 @@ restart:
       if (h != handle_array[nhandles])
         {
           /* Perform handle->descriptor mapping.  */
-          WSAEventSelect ((SOCKET) h, NULL, 0);
-          if (FD_ISSET (h, &handle_rfds))
+          SOCKET s = (SOCKET) h;
+          WSAEventSelect (s, NULL, 0);
+          if (FD_ISSET (s, &handle_rfds))
             FD_SET (i, rfds);
-          if (FD_ISSET (h, &handle_wfds))
+          if (FD_ISSET (s, &handle_wfds))
             FD_SET (i, wfds);
-          if (FD_ISSET (h, &handle_xfds))
+          if (FD_ISSET (s, &handle_xfds))
             FD_SET (i, xfds);
         }
       else

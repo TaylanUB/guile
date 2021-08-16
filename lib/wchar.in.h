@@ -2,18 +2,18 @@
 
    Copyright (C) 2007-2021 Free Software Foundation, Inc.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU Lesser General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
+   This file is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation; either version 2.1 of the
+   License, or (at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
+   This file is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with this program; if not, see <https://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Eric Blake.  */
 
@@ -72,6 +72,9 @@
 # include <stddef.h>
 #endif
 
+/* Get free().  */
+#include <stdlib.h>
+
 /* Include the original <wchar.h> if it exists.
    Some builds of uClibc lack it.  */
 /* The include_next requires a split double-inclusion guard.  */
@@ -111,7 +114,7 @@
 /* mingw and MSVC define wint_t as 'unsigned short' in <crtdefs.h> or
    <stddef.h>.  This is too small: ISO C 99 section 7.24.1.(2) says that
    wint_t must be "unchanged by default argument promotions".  Override it.  */
-# if @GNULIB_OVERRIDES_WINT_T@
+# if @GNULIBHEADERS_OVERRIDE_WINT_T@
 #  if !GNULIB_defined_wint_t
 #   if @HAVE_CRTDEFS_H@
 #    include <crtdefs.h>
@@ -941,36 +944,48 @@ _GL_WARN_ON_USE (wcsxfrm, "wcsxfrm is unportable - "
 #  endif
 _GL_CXXALIAS_MDA (wcsdup, wchar_t *, (const wchar_t *s));
 # else
-#  if !@HAVE_WCSDUP@
-_GL_FUNCDECL_SYS (wcsdup, wchar_t *, (const wchar_t *s));
+#  if !@HAVE_WCSDUP@ || __GNUC__ >= 11
+_GL_FUNCDECL_SYS (wcsdup, wchar_t *,
+                  (const wchar_t *s)
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
 #  endif
 _GL_CXXALIAS_SYS (wcsdup, wchar_t *, (const wchar_t *s));
 # endif
 _GL_CXXALIASWARN (wcsdup);
-#elif defined GNULIB_POSIXCHECK
-# undef wcsdup
-# if HAVE_RAW_DECL_WCSDUP
+#else
+# if __GNUC__ >= 11 && !defined wcsdup
+/* For -Wmismatched-dealloc: Associate wcsdup with free or rpl_free.  */
+_GL_FUNCDECL_SYS (wcsdup, wchar_t *,
+                  (const wchar_t *s)
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
+# endif
+# if defined GNULIB_POSIXCHECK
+#  undef wcsdup
+#  if HAVE_RAW_DECL_WCSDUP
 _GL_WARN_ON_USE (wcsdup, "wcsdup is unportable - "
                  "use gnulib module wcsdup for portability");
-# endif
-#elif @GNULIB_MDA_WCSDUP@
+#  endif
+# elif @GNULIB_MDA_WCSDUP@
 /* On native Windows, map 'wcsdup' to '_wcsdup', so that -loldnames is not
    required.  In C++ with GNULIB_NAMESPACE, avoid differences between
    platforms by defining GNULIB_NAMESPACE::wcsdup always.  */
-# if defined _WIN32 && !defined __CYGWIN__
-#  if !(defined __cplusplus && defined GNULIB_NAMESPACE)
-#   undef wcsdup
-#   define wcsdup _wcsdup
-#  endif
+#  if defined _WIN32 && !defined __CYGWIN__
+#   if !(defined __cplusplus && defined GNULIB_NAMESPACE)
+#    undef wcsdup
+#    define wcsdup _wcsdup
+#   endif
 _GL_CXXALIAS_MDA (wcsdup, wchar_t *, (const wchar_t *s));
-# else
-_GL_FUNCDECL_SYS (wcsdup, wchar_t *, (const wchar_t *s));
-#  if @HAVE_DECL_WCSDUP@
+#  else
+_GL_FUNCDECL_SYS (wcsdup, wchar_t *,
+                  (const wchar_t *s)
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
+#   if @HAVE_DECL_WCSDUP@
 _GL_CXXALIAS_SYS (wcsdup, wchar_t *, (const wchar_t *s));
+#   endif
 #  endif
-# endif
-# if (defined _WIN32 && !defined __CYGWIN__) || @HAVE_DECL_WCSDUP@
+#  if (defined _WIN32 && !defined __CYGWIN__) || @HAVE_DECL_WCSDUP@
 _GL_CXXALIASWARN (wcsdup);
+#  endif
 # endif
 #endif
 

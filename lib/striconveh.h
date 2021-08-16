@@ -2,12 +2,12 @@
    Copyright (C) 2001-2007, 2009-2021 Free Software Foundation, Inc.
    Written by Bruno Haible and Simon Josefsson.
 
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU Lesser General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+   This file is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation; either version 2.1 of the
+   License, or (at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
+   This file is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Lesser General Public License for more details.
@@ -18,7 +18,7 @@
 #ifndef _STRICONVEH_H
 #define _STRICONVEH_H
 
-#include <stddef.h>
+#include <stdlib.h>
 #if HAVE_ICONV
 #include <iconv.h>
 #endif
@@ -95,7 +95,8 @@ extern int
 extern char *
        str_cd_iconveh (const char *src,
                        const iconveh_t *cd,
-                       enum iconv_ilseq_handler handler);
+                       enum iconv_ilseq_handler handler)
+       _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE;
 
 #endif
 
@@ -129,7 +130,8 @@ extern int
 extern char *
        str_iconveh (const char *src,
                     const char *from_codeset, const char *to_codeset,
-                    enum iconv_ilseq_handler handler);
+                    enum iconv_ilseq_handler handler)
+       _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE;
 
 
 #ifdef __cplusplus

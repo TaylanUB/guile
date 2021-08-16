@@ -2,12 +2,12 @@
 
    Copyright (C) 1995, 2001-2004, 2006-2021 Free Software Foundation, Inc.
 
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU Lesser General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+   This file is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation; either version 2.1 of the
+   License, or (at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
+   This file is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Lesser General Public License for more details.
@@ -149,6 +149,28 @@ _GL_WARN_ON_USE (_Exit, "_Exit is unportable - "
 #endif
 
 
+#if @GNULIB_FREE_POSIX@
+# if @REPLACE_FREE@
+#  if !(defined __cplusplus && defined GNULIB_NAMESPACE)
+#   undef free
+#   define free rpl_free
+#  endif
+_GL_FUNCDECL_RPL (free, void, (void *ptr));
+_GL_CXXALIAS_RPL (free, void, (void *ptr));
+# else
+_GL_CXXALIAS_SYS (free, void, (void *ptr));
+# endif
+# if __GLIBC__ >= 2
+_GL_CXXALIASWARN (free);
+# endif
+#elif defined GNULIB_POSIXCHECK
+# undef free
+/* Assume free is always declared.  */
+_GL_WARN_ON_USE (free, "free is not future POSIX compliant everywhere - "
+                 "use gnulib module free for portability");
+#endif
+
+
 /* Allocate memory with indefinite extent and specified alignment.  */
 #if @GNULIB_ALIGNED_ALLOC@
 # if @REPLACE_ALIGNED_ALLOC@
@@ -156,21 +178,37 @@ _GL_WARN_ON_USE (_Exit, "_Exit is unportable - "
 #   undef aligned_alloc
 #   define aligned_alloc rpl_aligned_alloc
 #  endif
-_GL_FUNCDECL_RPL (aligned_alloc, void *, (size_t alignment, size_t size));
+_GL_FUNCDECL_RPL (aligned_alloc, void *,
+                  (size_t alignment, size_t size)
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
 _GL_CXXALIAS_RPL (aligned_alloc, void *, (size_t alignment, size_t size));
 # else
 #  if @HAVE_ALIGNED_ALLOC@
+#   if __GNUC__ >= 11
+/* For -Wmismatched-dealloc: Associate aligned_alloc with free or rpl_free.  */
+_GL_FUNCDECL_SYS (aligned_alloc, void *,
+                  (size_t alignment, size_t size)
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
+#   endif
 _GL_CXXALIAS_SYS (aligned_alloc, void *, (size_t alignment, size_t size));
 #  endif
 # endif
 # if @HAVE_ALIGNED_ALLOC@
 _GL_CXXALIASWARN (aligned_alloc);
 # endif
-#elif defined GNULIB_POSIXCHECK
-# undef aligned_alloc
-# if HAVE_RAW_DECL_ALIGNED_ALLOC
+#else
+# if @GNULIB_FREE_POSIX@ && __GNUC__ >= 11 && !defined aligned_alloc
+/* For -Wmismatched-dealloc: Associate aligned_alloc with free or rpl_free.  */
+_GL_FUNCDECL_SYS (aligned_alloc, void *,
+                  (size_t alignment, size_t size)
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
+# endif
+# if defined GNULIB_POSIXCHECK
+#  undef aligned_alloc
+#  if HAVE_RAW_DECL_ALIGNED_ALLOC
 _GL_WARN_ON_USE (aligned_alloc, "aligned_alloc is not portable - "
                  "use gnulib module aligned_alloc for portability");
+#  endif
 # endif
 #endif
 
@@ -198,19 +236,35 @@ _GL_WARN_ON_USE (atoll, "atoll is unportable - "
 #   undef calloc
 #   define calloc rpl_calloc
 #  endif
-_GL_FUNCDECL_RPL (calloc, void *, (size_t nmemb, size_t size));
+_GL_FUNCDECL_RPL (calloc, void *,
+                  (size_t nmemb, size_t size)
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
 _GL_CXXALIAS_RPL (calloc, void *, (size_t nmemb, size_t size));
 # else
+#  if __GNUC__ >= 11
+/* For -Wmismatched-dealloc: Associate calloc with free or rpl_free.  */
+_GL_FUNCDECL_SYS (calloc, void *,
+                  (size_t nmemb, size_t size)
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
+#  endif
 _GL_CXXALIAS_SYS (calloc, void *, (size_t nmemb, size_t size));
 # endif
 # if __GLIBC__ >= 2
 _GL_CXXALIASWARN (calloc);
 # endif
-#elif defined GNULIB_POSIXCHECK
-# undef calloc
+#else
+# if @GNULIB_FREE_POSIX@ && __GNUC__ >= 11 && !defined calloc
+/* For -Wmismatched-dealloc: Associate calloc with free or rpl_free.  */
+_GL_FUNCDECL_SYS (calloc, void *,
+                  (size_t nmemb, size_t size)
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
+# endif
+# if defined GNULIB_POSIXCHECK
+#  undef calloc
 /* Assume calloc is always declared.  */
 _GL_WARN_ON_USE (calloc, "calloc is not POSIX compliant everywhere - "
                  "use gnulib module calloc-posix for portability");
+# endif
 #endif
 
 #if @GNULIB_CANONICALIZE_FILE_NAME@
@@ -218,13 +272,17 @@ _GL_WARN_ON_USE (calloc, "calloc is not POSIX compliant everywhere - "
 #  if !(defined __cplusplus && defined GNULIB_NAMESPACE)
 #   define canonicalize_file_name rpl_canonicalize_file_name
 #  endif
-_GL_FUNCDECL_RPL (canonicalize_file_name, char *, (const char *name)
-                                                  _GL_ARG_NONNULL ((1)));
+_GL_FUNCDECL_RPL (canonicalize_file_name, char *,
+                  (const char *name)
+                  _GL_ARG_NONNULL ((1))
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
 _GL_CXXALIAS_RPL (canonicalize_file_name, char *, (const char *name));
 # else
-#  if !@HAVE_CANONICALIZE_FILE_NAME@
-_GL_FUNCDECL_SYS (canonicalize_file_name, char *, (const char *name)
-                                                  _GL_ARG_NONNULL ((1)));
+#  if !@HAVE_CANONICALIZE_FILE_NAME@ || __GNUC__ >= 11
+_GL_FUNCDECL_SYS (canonicalize_file_name, char *,
+                  (const char *name)
+                  _GL_ARG_NONNULL ((1))
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
 #  endif
 _GL_CXXALIAS_SYS (canonicalize_file_name, char *, (const char *name));
 # endif
@@ -233,12 +291,22 @@ _GL_CXXALIAS_SYS (canonicalize_file_name, char *, (const char *name));
      (!@HAVE_CANONICALIZE_FILE_NAME@ || @REPLACE_CANONICALIZE_FILE_NAME@)
 # endif
 _GL_CXXALIASWARN (canonicalize_file_name);
-#elif defined GNULIB_POSIXCHECK
-# undef canonicalize_file_name
-# if HAVE_RAW_DECL_CANONICALIZE_FILE_NAME
+#else
+# if @GNULIB_FREE_POSIX@ && __GNUC__ >= 11 && !defined canonicalize_file_name
+/* For -Wmismatched-dealloc: Associate canonicalize_file_name with free or
+   rpl_free.  */
+_GL_FUNCDECL_SYS (canonicalize_file_name, char *,
+                  (const char *name)
+                  _GL_ARG_NONNULL ((1))
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
+# endif
+# if defined GNULIB_POSIXCHECK
+#  undef canonicalize_file_name
+#  if HAVE_RAW_DECL_CANONICALIZE_FILE_NAME
 _GL_WARN_ON_USE (canonicalize_file_name,
                  "canonicalize_file_name is unportable - "
                  "use gnulib module canonicalize-lgpl for portability");
+#  endif
 # endif
 #endif
 
@@ -286,27 +354,6 @@ _GL_CXXALIAS_SYS (fcvt, char *,
 # if (defined _WIN32 && !defined __CYGWIN__) || @HAVE_DECL_FCVT@
 _GL_CXXALIASWARN (fcvt);
 # endif
-#endif
-
-#if @GNULIB_FREE_POSIX@
-# if @REPLACE_FREE@
-#  if !(defined __cplusplus && defined GNULIB_NAMESPACE)
-#   undef free
-#   define free rpl_free
-#  endif
-_GL_FUNCDECL_RPL (free, void, (void *ptr));
-_GL_CXXALIAS_RPL (free, void, (void *ptr));
-# else
-_GL_CXXALIAS_SYS (free, void, (void *ptr));
-# endif
-# if __GLIBC__ >= 2
-_GL_CXXALIASWARN (free);
-# endif
-#elif defined GNULIB_POSIXCHECK
-# undef free
-/* Assume free is always declared.  */
-_GL_WARN_ON_USE (free, "free is not future POSIX compliant everywhere - "
-                 "use gnulib module free for portability");
 #endif
 
 #if @GNULIB_MDA_GCVT@
@@ -404,19 +451,35 @@ _GL_WARN_ON_USE (grantpt, "grantpt is not portable - "
 #   undef malloc
 #   define malloc rpl_malloc
 #  endif
-_GL_FUNCDECL_RPL (malloc, void *, (size_t size));
+_GL_FUNCDECL_RPL (malloc, void *,
+                  (size_t size)
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
 _GL_CXXALIAS_RPL (malloc, void *, (size_t size));
 # else
+#  if __GNUC__ >= 11
+/* For -Wmismatched-dealloc: Associate malloc with free or rpl_free.  */
+_GL_FUNCDECL_SYS (malloc, void *,
+                  (size_t size)
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
+#  endif
 _GL_CXXALIAS_SYS (malloc, void *, (size_t size));
 # endif
 # if __GLIBC__ >= 2
 _GL_CXXALIASWARN (malloc);
 # endif
-#elif defined GNULIB_POSIXCHECK && !_GL_USE_STDLIB_ALLOC
-# undef malloc
+#else
+# if @GNULIB_FREE_POSIX@ && __GNUC__ >= 11 && !defined malloc
+/* For -Wmismatched-dealloc: Associate malloc with free or rpl_free.  */
+_GL_FUNCDECL_SYS (malloc, void *,
+                  (size_t size)
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
+# endif
+# if defined GNULIB_POSIXCHECK && !_GL_USE_STDLIB_ALLOC
+#  undef malloc
 /* Assume malloc is always declared.  */
 _GL_WARN_ON_USE (malloc, "malloc is not POSIX compliant everywhere - "
                  "use gnulib module malloc-posix for portability");
+# endif
 #endif
 
 /* Convert a multibyte character to a wide character.  */
@@ -1015,29 +1078,53 @@ _GL_WARN_ON_USE (setstate_r, "setstate_r is unportable - "
 #   undef realloc
 #   define realloc rpl_realloc
 #  endif
-_GL_FUNCDECL_RPL (realloc, void *, (void *ptr, size_t size));
+_GL_FUNCDECL_RPL (realloc, void *, (void *ptr, size_t size)
+                                   _GL_ATTRIBUTE_DEALLOC_FREE);
 _GL_CXXALIAS_RPL (realloc, void *, (void *ptr, size_t size));
 # else
+#  if __GNUC__ >= 11
+/* For -Wmismatched-dealloc: Associate realloc with free or rpl_free.  */
+_GL_FUNCDECL_SYS (realloc, void *, (void *ptr, size_t size)
+                                   _GL_ATTRIBUTE_DEALLOC_FREE);
+#  endif
 _GL_CXXALIAS_SYS (realloc, void *, (void *ptr, size_t size));
 # endif
 # if __GLIBC__ >= 2
 _GL_CXXALIASWARN (realloc);
 # endif
-#elif defined GNULIB_POSIXCHECK && !_GL_USE_STDLIB_ALLOC
-# undef realloc
+#else
+# if @GNULIB_FREE_POSIX@ && __GNUC__ >= 11 && !defined realloc
+/* For -Wmismatched-dealloc: Associate realloc with free or rpl_free.  */
+_GL_FUNCDECL_SYS (realloc, void *, (void *ptr, size_t size)
+                                   _GL_ATTRIBUTE_DEALLOC_FREE);
+# endif
+# if defined GNULIB_POSIXCHECK && !_GL_USE_STDLIB_ALLOC
+#  undef realloc
 /* Assume realloc is always declared.  */
 _GL_WARN_ON_USE (realloc, "realloc is not POSIX compliant everywhere - "
                  "use gnulib module realloc-posix for portability");
+# endif
 #endif
 
 
 #if @GNULIB_REALLOCARRAY@
-# if ! @HAVE_REALLOCARRAY@
+# if @REPLACE_REALLOCARRAY@
+#  if !(defined __cplusplus && defined GNULIB_NAMESPACE)
+#   undef reallocarray
+#   define reallocarray rpl_reallocarray
+#  endif
+_GL_FUNCDECL_RPL (reallocarray, void *,
+                  (void *ptr, size_t nmemb, size_t size));
+_GL_CXXALIAS_RPL (reallocarray, void *,
+                  (void *ptr, size_t nmemb, size_t size));
+# else
+#  if ! @HAVE_REALLOCARRAY@
 _GL_FUNCDECL_SYS (reallocarray, void *,
                   (void *ptr, size_t nmemb, size_t size));
-# endif
+#  endif
 _GL_CXXALIAS_SYS (reallocarray, void *,
                   (void *ptr, size_t nmemb, size_t size));
+# endif
 _GL_CXXALIASWARN (reallocarray);
 #elif defined GNULIB_POSIXCHECK
 # undef reallocarray

@@ -2,18 +2,18 @@
 
    Copyright (C) 1995-1996, 2001-2021 Free Software Foundation, Inc.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU Lesser General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
+   This file is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation; either version 2.1 of the
+   License, or (at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
+   This file is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with this program; if not, see <https://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #if __GNUC__ >= 3
 @PRAGMA_SYSTEM_HEADER@
@@ -46,6 +46,9 @@
 
 /* NetBSD 5.0 mis-defines NULL.  */
 #include <stddef.h>
+
+/* Get free().  */
+#include <stdlib.h>
 
 /* MirBSD defines mbslen as a macro.  */
 #if @GNULIB_MBSLEN@ && defined __MirBSD__
@@ -418,7 +421,10 @@ _GL_WARN_ON_USE (strchrnul, "strchrnul is unportable - "
 #   undef strdup
 #   define strdup rpl_strdup
 #  endif
-_GL_FUNCDECL_RPL (strdup, char *, (char const *__s) _GL_ARG_NONNULL ((1)));
+_GL_FUNCDECL_RPL (strdup, char *,
+                  (char const *__s)
+                  _GL_ARG_NONNULL ((1))
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
 _GL_CXXALIAS_RPL (strdup, char *, (char const *__s));
 # elif defined _WIN32 && !defined __CYGWIN__
 #  if !(defined __cplusplus && defined GNULIB_NAMESPACE)
@@ -431,35 +437,47 @@ _GL_CXXALIAS_MDA (strdup, char *, (char const *__s));
     /* strdup exists as a function and as a macro.  Get rid of the macro.  */
 #   undef strdup
 #  endif
-#  if !(@HAVE_DECL_STRDUP@ || defined strdup)
-_GL_FUNCDECL_SYS (strdup, char *, (char const *__s) _GL_ARG_NONNULL ((1)));
+#  if (!@HAVE_DECL_STRDUP@ || __GNUC__ >= 11) && !defined strdup
+_GL_FUNCDECL_SYS (strdup, char *,
+                  (char const *__s)
+                  _GL_ARG_NONNULL ((1))
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
 #  endif
 _GL_CXXALIAS_SYS (strdup, char *, (char const *__s));
 # endif
 _GL_CXXALIASWARN (strdup);
-#elif defined GNULIB_POSIXCHECK
-# undef strdup
-# if HAVE_RAW_DECL_STRDUP
+#else
+# if __GNUC__ >= 11 && !defined strdup
+/* For -Wmismatched-dealloc: Associate strdup with free or rpl_free.  */
+_GL_FUNCDECL_SYS (strdup, char *,
+                  (char const *__s)
+                  _GL_ARG_NONNULL ((1))
+                  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE);
+# endif
+# if defined GNULIB_POSIXCHECK
+#  undef strdup
+#  if HAVE_RAW_DECL_STRDUP
 _GL_WARN_ON_USE (strdup, "strdup is unportable - "
                  "use gnulib module strdup for portability");
-# endif
-#elif @GNULIB_MDA_STRDUP@
+#  endif
+# elif @GNULIB_MDA_STRDUP@
 /* On native Windows, map 'creat' to '_creat', so that -loldnames is not
    required.  In C++ with GNULIB_NAMESPACE, avoid differences between
-   platforms by defining GNULIB_NAMESPACE::creat always.  */
-# if defined _WIN32 && !defined __CYGWIN__
-#  if !(defined __cplusplus && defined GNULIB_NAMESPACE)
-#   undef strdup
-#   define strdup _strdup
-#  endif
+   platforms by defining GNULIB_NAMESPACE::strdup always.  */
+#  if defined _WIN32 && !defined __CYGWIN__
+#   if !(defined __cplusplus && defined GNULIB_NAMESPACE)
+#    undef strdup
+#    define strdup _strdup
+#   endif
 _GL_CXXALIAS_MDA (strdup, char *, (char const *__s));
-# else
-#  if defined __cplusplus && defined GNULIB_NAMESPACE && defined strdup
-#   undef strdup
-#  endif
+#  else
+#   if defined __cplusplus && defined GNULIB_NAMESPACE && defined strdup
+#    undef strdup
+#   endif
 _GL_CXXALIAS_SYS (strdup, char *, (char const *__s));
-# endif
+#  endif
 _GL_CXXALIASWARN (strdup);
+# endif
 #endif
 
 /* Append no more than N characters from SRC onto DEST.  */

@@ -1,4 +1,4 @@
-# gnulib-common.m4 serial 63
+# gnulib-common.m4 serial 67
 dnl Copyright (C) 2007-2021 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
@@ -85,12 +85,12 @@ AC_DEFUN([gl_COMMON_BODY], [
 # define _GL_ATTR_fallthrough _GL_GNUC_PREREQ (7, 0)
 # define _GL_ATTR_format _GL_GNUC_PREREQ (2, 7)
 # define _GL_ATTR_leaf _GL_GNUC_PREREQ (4, 6)
+# define _GL_ATTR_malloc _GL_GNUC_PREREQ (3, 0)
 # ifdef _ICC
 #  define _GL_ATTR_may_alias 0
 # else
 #  define _GL_ATTR_may_alias _GL_GNUC_PREREQ (3, 3)
 # endif
-# define _GL_ATTR_malloc _GL_GNUC_PREREQ (3, 0)
 # define _GL_ATTR_noinline _GL_GNUC_PREREQ (3, 1)
 # define _GL_ATTR_nonnull _GL_GNUC_PREREQ (3, 3)
 # define _GL_ATTR_nonstring _GL_GNUC_PREREQ (8, 0)
@@ -101,6 +101,12 @@ AC_DEFUN([gl_COMMON_BODY], [
 # define _GL_ATTR_sentinel _GL_GNUC_PREREQ (4, 0)
 # define _GL_ATTR_unused _GL_GNUC_PREREQ (2, 7)
 # define _GL_ATTR_warn_unused_result _GL_GNUC_PREREQ (3, 4)
+#endif
+
+#ifdef __has_c_attribute
+# define _GL_HAS_C_ATTRIBUTE(attr) __has_c_attribute (__##attr##__)
+#else
+# define _GL_HAS_C_ATTRIBUTE(attr) 0
 #endif
 
 ]dnl There is no _GL_ATTRIBUTE_ALIGNED; use stdalign's _Alignas instead.
@@ -142,7 +148,20 @@ AC_DEFUN([gl_COMMON_BODY], [
 # define _GL_ATTRIBUTE_CONST
 #endif
 
-#if 201710L < __STDC_VERSION__
+/* _GL_ATTRIBUTE_DEALLOC (F, I) is for functions returning pointers
+   that can be freed by passing them as the Ith argument to the
+   function F.  _GL_ATTRIBUTE_DEALLOC_FREE is for functions that
+   return pointers that can be freed via 'free'; it can be used
+   only after including stdlib.h.  These macros cannot be used on
+   inline functions.  */
+#if _GL_GNUC_PREREQ (11, 0)
+# define _GL_ATTRIBUTE_DEALLOC(f, i) __attribute__ ((__malloc__ (f, i)))
+#else
+# define _GL_ATTRIBUTE_DEALLOC(f, i)
+#endif
+#define _GL_ATTRIBUTE_DEALLOC_FREE _GL_ATTRIBUTE_DEALLOC (free, 1)
+
+#if _GL_HAS_C_ATTRIBUTE (deprecated)
 # define _GL_ATTRIBUTE_DEPRECATED [[__deprecated__]]
 #elif _GL_HAS_ATTRIBUTE (deprecated)
 # define _GL_ATTRIBUTE_DEPRECATED __attribute__ ((__deprecated__))
@@ -168,7 +187,7 @@ AC_DEFUN([gl_COMMON_BODY], [
 #endif
 
 /* FALLTHROUGH is special, because it always expands to something.  */
-#if 201710L < __STDC_VERSION__
+#if _GL_HAS_C_ATTRIBUTE (fallthrough)
 # define _GL_ATTRIBUTE_FALLTHROUGH [[__fallthrough__]]
 #elif _GL_HAS_ATTRIBUTE (fallthrough)
 # define _GL_ATTRIBUTE_FALLTHROUGH __attribute__ ((__fallthrough__))
@@ -188,6 +207,12 @@ AC_DEFUN([gl_COMMON_BODY], [
 # define _GL_ATTRIBUTE_LEAF
 #endif
 
+#if _GL_HAS_ATTRIBUTE (malloc)
+# define _GL_ATTRIBUTE_MALLOC __attribute__ ((__malloc__))
+#else
+# define _GL_ATTRIBUTE_MALLOC
+#endif
+
 /* Oracle Studio 12.6 mishandles may_alias despite __has_attribute OK.  */
 #if _GL_HAS_ATTRIBUTE (may_alias) && !defined __SUNPRO_C
 # define _GL_ATTRIBUTE_MAY_ALIAS __attribute__ ((__may_alias__))
@@ -195,24 +220,15 @@ AC_DEFUN([gl_COMMON_BODY], [
 # define _GL_ATTRIBUTE_MAY_ALIAS
 #endif
 
-#if 201710L < __STDC_VERSION__
+#if _GL_HAS_C_ATTRIBUTE (maybe_unused)
 # define _GL_ATTRIBUTE_MAYBE_UNUSED [[__maybe_unused__]]
-#elif _GL_HAS_ATTRIBUTE (unused)
-# define _GL_ATTRIBUTE_MAYBE_UNUSED __attribute__ ((__unused__))
 #else
-# define _GL_ATTRIBUTE_MAYBE_UNUSED
+# define _GL_ATTRIBUTE_MAYBE_UNUSED _GL_ATTRIBUTE_UNUSED
 #endif
 /* Earlier spellings of this macro.  */
-#define _GL_UNUSED _GL_ATTRIBUTE_MAYBE_UNUSED
 #define _UNUSED_PARAMETER_ _GL_ATTRIBUTE_MAYBE_UNUSED
 
-#if _GL_HAS_ATTRIBUTE (malloc)
-# define _GL_ATTRIBUTE_MALLOC __attribute__ ((__malloc__))
-#else
-# define _GL_ATTRIBUTE_MALLOC
-#endif
-
-#if 201710L < __STDC_VERSION__
+#if _GL_HAS_C_ATTRIBUTE (nodiscard)
 # define _GL_ATTRIBUTE_NODISCARD [[__nodiscard__]]
 #elif _GL_HAS_ATTRIBUTE (warn_unused_result)
 # define _GL_ATTRIBUTE_NODISCARD __attribute__ ((__warn_unused_result__))
@@ -270,11 +286,19 @@ AC_DEFUN([gl_COMMON_BODY], [
 # define _GL_ATTRIBUTE_SENTINEL(pos)
 #endif
 
+#if _GL_HAS_ATTRIBUTE (unused)
+# define _GL_ATTRIBUTE_UNUSED __attribute__ ((__unused__))
+#else
+# define _GL_ATTRIBUTE_UNUSED
+#endif
+/* Earlier spellings of this macro.  */
+#define _GL_UNUSED _GL_ATTRIBUTE_UNUSED
+
 ]dnl There is no _GL_ATTRIBUTE_VISIBILITY; see m4/visibility.m4 instead.
 [
 /* To support C++ as well as C, use _GL_UNUSED_LABEL with trailing ';'.  */
 #if !defined __cplusplus || _GL_GNUC_PREREQ (4, 5)
-# define _GL_UNUSED_LABEL _GL_ATTRIBUTE_MAYBE_UNUSED
+# define _GL_UNUSED_LABEL _GL_ATTRIBUTE_UNUSED
 #else
 # define _GL_UNUSED_LABEL
 #endif
@@ -357,6 +381,16 @@ AC_DEFUN([gl_COMMON_BODY], [
   export LIBC_FATAL_STDERR_
 ])
 
+# gl_MODULE_INDICATOR_INIT_VARIABLE([variablename])
+# gl_MODULE_INDICATOR_INIT_VARIABLE([variablename], [initialvalue])
+# initializes the shell variable that indicates the presence of the given module
+# as a C preprocessor expression.
+AC_DEFUN([gl_MODULE_INDICATOR_INIT_VARIABLE],
+[
+  GL_MODULE_INDICATOR_PREFIX[]_[$1]=m4_if([$2], , [0], [$2])
+  AC_SUBST(GL_MODULE_INDICATOR_PREFIX[]_[$1])
+])
+
 # gl_MODULE_INDICATOR_CONDITION
 # expands to a C preprocessor expression that evaluates to 1 or 0, depending
 # whether a gnulib module that has been requested shall be considered present
@@ -369,9 +403,9 @@ m4_define([gl_MODULE_INDICATOR_CONDITION], [1])
 AC_DEFUN([gl_MODULE_INDICATOR_SET_VARIABLE],
 [
   gl_MODULE_INDICATOR_SET_VARIABLE_AUX(
-    [GNULIB_[]m4_translit([[$1]],
-                          [abcdefghijklmnopqrstuvwxyz./-],
-                          [ABCDEFGHIJKLMNOPQRSTUVWXYZ___])],
+    [GL_MODULE_INDICATOR_PREFIX[]_GNULIB_[]m4_translit([[$1]],
+                                                       [abcdefghijklmnopqrstuvwxyz./-],
+                                                       [ABCDEFGHIJKLMNOPQRSTUVWXYZ___])],
     [gl_MODULE_INDICATOR_CONDITION])
 ])
 
@@ -654,6 +688,72 @@ AC_DEFUN([gl_CACHE_VAL_SILENT],
   gl_SILENT([
     AC_CACHE_VAL([$1], [$2])
   ])
+])
+
+# gl_CC_ALLOW_WARNINGS
+# sets and substitutes a variable GL_CFLAG_ALLOW_WARNINGS, to a $(CC) option
+# that reverts a preceding '-Werror' option, if available.
+# This is expected to be '-Wno-error' on gcc, clang (except clang/MSVC), xlclang
+# and empty otherwise.
+AC_DEFUN([gl_CC_ALLOW_WARNINGS],
+[
+  AC_REQUIRE([AC_PROG_CC])
+  AC_CACHE_CHECK([for C compiler option to allow warnings],
+    [gl_cv_cc_wallow],
+    [rm -f conftest*
+     echo 'int dummy;' > conftest.c
+     AC_TRY_COMMAND([${CC-cc} $CFLAGS $CPPFLAGS -c conftest.c 2>conftest1.err]) >/dev/null
+     AC_TRY_COMMAND([${CC-cc} $CFLAGS $CPPFLAGS -Wno-error -c conftest.c 2>conftest2.err]) >/dev/null
+     dnl Test the number of error output lines, because AIX xlc accepts the
+     dnl option '-Wno-error', just to produce a warning
+     dnl "Option -Wno-error was incorrectly specified. The option will be ignored."
+     dnl afterwards.
+     if test $? = 0 && test `wc -l < conftest1.err` = `wc -l < conftest2.err`; then
+       gl_cv_cc_wallow='-Wno-error'
+     else
+       gl_cv_cc_wallow=none
+     fi
+     rm -f conftest*
+    ])
+  case "$gl_cv_cc_wallow" in
+    none) GL_CFLAG_ALLOW_WARNINGS='' ;;
+    *)    GL_CFLAG_ALLOW_WARNINGS="$gl_cv_cc_wallow" ;;
+  esac
+  AC_SUBST([GL_CFLAG_ALLOW_WARNINGS])
+])
+
+# gl_CXX_ALLOW_WARNINGS
+# sets and substitutes a variable GL_CXXFLAG_ALLOW_WARNINGS, to a $(CC) option
+# that reverts a preceding '-Werror' option, if available.
+AC_DEFUN([gl_CXX_ALLOW_WARNINGS],
+[
+  dnl Requires AC_PROG_CXX or gl_PROG_ANSI_CXX.
+  if test -n "$CXX" && test "$CXX" != no; then
+    AC_CACHE_CHECK([for C++ compiler option to allow warnings],
+      [gl_cv_cxx_wallow],
+      [rm -f conftest*
+       echo 'int dummy;' > conftest.cc
+       AC_TRY_COMMAND([${CXX-c++} $CXXFLAGS $CPPFLAGS -c conftest.cc 2>conftest1.err]) >/dev/null
+       AC_TRY_COMMAND([${CXX-c++} $CXXFLAGS $CPPFLAGS -Wno-error -c conftest.cc 2>conftest2.err]) >/dev/null
+       dnl Test the number of error output lines, because AIX xlC accepts the
+       dnl option '-Wno-error', just to produce a warning
+       dnl "Option -Wno-error was incorrectly specified. The option will be ignored."
+       dnl afterwards.
+       if test $? = 0 && test `wc -l < conftest1.err` = `wc -l < conftest2.err`; then
+         gl_cv_cxx_wallow='-Wno-error'
+       else
+         gl_cv_cxx_wallow=none
+       fi
+       rm -f conftest*
+      ])
+    case "$gl_cv_cxx_wallow" in
+      none) GL_CXXFLAG_ALLOW_WARNINGS='' ;;
+      *)    GL_CXXFLAG_ALLOW_WARNINGS="$gl_cv_cxx_wallow" ;;
+    esac
+  else
+    GL_CXXFLAG_ALLOW_WARNINGS=''
+  fi
+  AC_SUBST([GL_CXXFLAG_ALLOW_WARNINGS])
 ])
 
 dnl Expands to some code for use in .c programs that, on native Windows, defines

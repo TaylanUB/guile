@@ -259,9 +259,7 @@
 # define __attribute_const__ /* Ignore */
 #endif
 
-#if defined __STDC_VERSION__ && 201710L < __STDC_VERSION__
-# define __attribute_maybe_unused__ [[__maybe_unused__]]
-#elif __GNUC_PREREQ (2,7) || __glibc_has_attribute (__unused__)
+#if __GNUC_PREREQ (2,7) || __glibc_has_attribute (__unused__)
 # define __attribute_maybe_unused__ __attribute__ ((__unused__))
 #else
 # define __attribute_maybe_unused__ /* Ignore */
@@ -320,7 +318,9 @@
 #endif
 
 /* The nonnull function attribute marks pointer parameters that
-   must not be NULL.  */
+   must not be NULL.  This has the name __nonnull in glibc,
+   and __attribute_nonnull__ in files shared with Gnulib to avoid
+   collision with a different __nonnull in DragonFlyBSD 5.9.  */
 #ifndef __attribute_nonnull__
 # if __GNUC_PREREQ (3,3) || __glibc_has_attribute (__nonnull__)
 #  define __attribute_nonnull__(params) __attribute__ ((__nonnull__ params))
@@ -330,6 +330,16 @@
 #endif
 #ifndef __nonnull
 # define __nonnull(params) __attribute_nonnull__ (params)
+#endif
+
+/* The returns_nonnull function attribute marks the return type of the function
+   as always being non-null.  */
+#ifndef __returns_nonnull
+# if __GNUC_PREREQ (4, 9) || __glibc_has_attribute (__returns_nonnull__)
+# define __returns_nonnull __attribute__ ((__returns_nonnull__))
+# else
+# define __returns_nonnull
+# endif
 #endif
 
 /* If fortification mode, we warn about unused results of certain
@@ -485,9 +495,9 @@
       [!!sizeof (struct { int __error_if_negative: (expr) ? 2 : -1; })]
 #endif
 
-/* The #ifndef lets Gnulib avoid including these on non-glibc
-   platforms, where the includes typically do not exist.  */
-#ifndef __WORDSIZE
+/* Gnulib avoids including these, as they don't work on non-glibc or
+   older glibc platforms.  */
+#ifndef __GNULIB_CDEFS
 # include <bits/wordsize.h>
 # include <bits/long-double.h>
 #endif
@@ -594,9 +604,26 @@ _Static_assert (0, "IEEE 128-bits long double requires redirection on this platf
    array according to access mode, or at least one element when
    size-index is not provided:
      access (access-mode, <ref-index> [, <size-index>])  */
-#define __attr_access(x) __attribute__ ((__access__ x))
+#  define __attr_access(x) __attribute__ ((__access__ x))
+#  if __GNUC_PREREQ (11, 0)
+#    define __attr_access_none(argno) __attribute__ ((__access__ (__none__, argno)))
+#  else
+#    define __attr_access_none(argno)
+#  endif
 #else
 #  define __attr_access(x)
+#  define __attr_access_none(argno)
+#endif
+
+#if __GNUC_PREREQ (11, 0)
+/* Designates dealloc as a function to call to deallocate objects
+   allocated by the declared function.  */
+# define __attr_dealloc(dealloc, argno) \
+    __attribute__ ((__malloc__ (dealloc, argno)))
+# define __attr_dealloc_free __attr_dealloc (__builtin_free, 1)
+#else
+# define __attr_dealloc(dealloc, argno)
+# define __attr_dealloc_free
 #endif
 
 /* Specify that a function such as setjmp or vfork may return
