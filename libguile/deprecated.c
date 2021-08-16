@@ -28,12 +28,15 @@
 #define SCM_BUILDING_DEPRECATED_CODE
 
 #include "alist.h"
+#include "array-handle.h"
+#include "arrays.h"
 #include "boolean.h"
 #include "bitvectors.h"
 #include "deprecation.h"
 #include "dynl.h"
 #include "eval.h"
 #include "foreign.h"
+#include "generalized-vectors.h"
 #include "gc.h"
 #include "gsubr.h"
 #include "modules.h"
@@ -42,6 +45,7 @@
 #include "srfi-4.h"
 #include "strings.h"
 #include "symbols.h"
+#include "uniform.h"
 #include "vectors.h"
 
 #include "deprecated.h"
@@ -585,6 +589,70 @@ scm_istr2bve (SCM str)
   scm_remember_upto_here_1 (str);
   return res;
 }
+
+SCM
+scm_from_contiguous_typed_array (SCM type, SCM bounds, const void *bytes,
+                                 size_t byte_len)
+#define FUNC_NAME "scm_from_contiguous_typed_array"
+{
+  size_t k, rlen = 1;
+  scm_t_array_dim *s;
+  SCM ra;
+  scm_t_array_handle h;
+  void *elts;
+  size_t sz;
+
+  scm_c_issue_deprecation_warning
+    ("scm_from_contiguous_typed_array is deprecated.  "
+     "Instead, use scm_make_typed_array() and the array handle functions "
+     "to copy data to the new array.");
+
+  ra = scm_i_shap2ra (bounds);
+  SCM_SET_ARRAY_CONTIGUOUS_FLAG (ra);
+  s = SCM_I_ARRAY_DIMS (ra);
+  k = SCM_I_ARRAY_NDIM (ra);
+
+  while (k--)
+    {
+      s[k].inc = rlen;
+      SCM_ASSERT_RANGE (1, bounds, s[k].lbnd <= s[k].ubnd + 1);
+      rlen = (s[k].ubnd - s[k].lbnd + 1) * s[k].inc;
+    }
+  SCM_I_ARRAY_SET_V (ra, scm_make_generalized_vector (type, scm_from_size_t (rlen), SCM_UNDEFINED));
+
+
+  scm_array_get_handle (ra, &h);
+  elts = h.writable_elements;
+  sz = scm_array_handle_uniform_element_bit_size (&h);
+  scm_array_handle_release (&h);
+
+  if (sz >= 8 && ((sz % 8) == 0))
+    {
+      if (byte_len % (sz / 8))
+        SCM_MISC_ERROR ("byte length not a multiple of the unit size", SCM_EOL);
+      if (byte_len / (sz / 8) != rlen)
+        SCM_MISC_ERROR ("byte length and dimensions do not match", SCM_EOL);
+    }
+  else if (sz < 8)
+    {
+      /* Elements of sub-byte size (bitvectors) are addressed in 32-bit
+         units.  */
+      if (byte_len != ((rlen * sz + 31) / 32) * 4)
+        SCM_MISC_ERROR ("byte length and dimensions do not match", SCM_EOL);
+    }
+  else
+    /* an internal guile error, really */
+    SCM_MISC_ERROR ("uniform elements larger than 8 bits must fill whole bytes", SCM_EOL);
+
+  memcpy (elts, bytes, byte_len);
+
+  if (1 == SCM_I_ARRAY_NDIM (ra) && 0 == SCM_I_ARRAY_BASE (ra))
+    if (0 == s->lbnd)
+      return SCM_I_ARRAY_V (ra);
+  return ra;
+}
+#undef FUNC_NAME
+
 
 SCM_GLOBAL_SYMBOL (scm_sym_copy, "copy");
 

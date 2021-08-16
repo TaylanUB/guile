@@ -131,6 +131,9 @@ SCM_DEPRECATED SCM scm_bit_count_star (SCM v, SCM kv, SCM obj);
 SCM_DEPRECATED SCM scm_bit_position (SCM item, SCM v, SCM k);
 SCM_DEPRECATED SCM scm_bit_set_star_x (SCM v, SCM kv, SCM obj);
 SCM_DEPRECATED SCM scm_istr2bve (SCM str);
+SCM_DEPRECATED SCM scm_from_contiguous_typed_array (SCM type, SCM bounds,
+                                                    const void *bytes,
+                                                    size_t byte_len);
 
 #define SCM_SOURCE_PROPERTY_FLAG_BREAK 1
 
