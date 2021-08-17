@@ -65,6 +65,20 @@
       (bytevector-fill! bv -128)
       bv))
 
+  ;; This is a Guile-specific extension.
+  (pass-if-equal "bytevector-fill! range arguments I"
+      #vu8(0 0 1 1 1)
+    (let ((bv (make-bytevector 5 0)))
+      (bytevector-fill! bv 1 2)
+      bv))
+
+  ;; This is a Guile-specific extension.
+  (pass-if-equal "bytevector-fill! range arguments II"
+      #vu8(0 0 1 1 0)
+    (let ((bv (make-bytevector 5 0)))
+      (bytevector-fill! bv 1 2 4)
+      bv))
+  
   (pass-if "bytevector-copy! overlapping"
     ;; See <http://debbugs.gnu.org/10070>.
     (let ((b (u8-list->bytevector '(1 2 3 4 5 6 7 8))))

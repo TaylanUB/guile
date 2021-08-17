@@ -565,31 +565,45 @@ SCM_DEFINE (scm_bytevector_eq_p, "bytevector=?", 2, 0, 0,
 }
 #undef FUNC_NAME
 
-SCM_DEFINE (scm_bytevector_fill_x, "bytevector-fill!", 2, 0, 0,
-	    (SCM bv, SCM fill),
-	    "Fill bytevector @var{bv} with @var{fill}, a byte.")
-#define FUNC_NAME s_scm_bytevector_fill_x
-{
-  size_t c_len, i;
-  uint8_t *c_bv, c_fill;
-  int value;
+static SCM scm_bytevector_fill_partial_x (SCM bv, SCM fill, SCM start, SCM end);
 
+SCM_DEFINE (scm_bytevector_fill_partial_x, "bytevector-fill!", 2, 2, 0,
+	    (SCM bv, SCM fill, SCM start, SCM end),
+	    "Fill positions [@var{start} ... @var{end}) of bytevector "
+            "@var{bv} with @var{fill}, a byte. @var{start} defaults to 0 "
+            "and @var{end} defaults to the length of @var{bv}. "
+            "The return value is unspecified.")
+#define FUNC_NAME s_scm_bytevector_fill_partial_x
+{
   SCM_VALIDATE_MUTABLE_BYTEVECTOR (1, bv);
 
-  value = scm_to_int (fill);
+  int value  = scm_to_int (fill);
   if (SCM_UNLIKELY ((value < -128) || (value > 255)))
     scm_out_of_range (FUNC_NAME, fill);
-  c_fill = (uint8_t) value;
+  
+  size_t i = 0;
+  size_t c_end = SCM_BYTEVECTOR_LENGTH (bv);
+  uint8_t *c_bv = (uint8_t *) SCM_BYTEVECTOR_CONTENTS (bv);
 
-  c_len = SCM_BYTEVECTOR_LENGTH (bv);
-  c_bv = (uint8_t *) SCM_BYTEVECTOR_CONTENTS (bv);
+  if (!SCM_UNBNDP (start))
+    i = scm_to_unsigned_integer (start, 0, c_end);
+  if (!SCM_UNBNDP (end))
+    c_end = scm_to_unsigned_integer (end, i, c_end);
 
-  for (i = 0; i < c_len; i++)
-    c_bv[i] = c_fill;
+  memset (c_bv + i, value, c_end-i);
 
   return SCM_UNSPECIFIED;
 }
 #undef FUNC_NAME
+
+SCM
+scm_bytevector_fill_x (SCM bv, SCM fill)
+#define FUNC_NAME s_scm_bytevector_fill_x
+{
+  return scm_bytevector_fill_partial_x (bv, fill, SCM_UNDEFINED, SCM_UNDEFINED);
+}
+#undef FUNC_NAME
+
 
 SCM_DEFINE (scm_bytevector_copy_x, "bytevector-copy!", 5, 0, 0,
 	    (SCM source, SCM source_start, SCM target, SCM target_start,

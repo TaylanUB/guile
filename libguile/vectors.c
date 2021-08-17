@@ -412,27 +412,24 @@ static SCM scm_vector_fill_partial_x (SCM vec, SCM fill, SCM start, SCM end);
 
 SCM_DEFINE_STATIC (scm_vector_fill_partial_x, "vector-fill!", 2, 2, 0,
             (SCM vec, SCM fill, SCM start, SCM end),
-            "Assign the value of every location in vector @var{vec} between\n"
-            "@var{start} and @var{end} to @var{fill}.  @var{start} defaults\n"
+            "Assign the value of every location in vector @var{vec} in the range\n"
+            "[@var{start} ... @var{end}) to @var{fill}.  @var{start} defaults\n"
             "to 0 and @var{end} defaults to the length of @var{vec}.  The value\n"
             "returned by @code{vector-fill!} is unspecified.")
 #define FUNC_NAME s_scm_vector_fill_partial_x
 {
   SCM_VALIDATE_MUTABLE_VECTOR(1, vec);
 
-  SCM *data;
   size_t i = 0;
-  size_t len = SCM_I_VECTOR_LENGTH (vec);
-
-  data = SCM_I_VECTOR_WELTS (vec);
+  size_t c_end = SCM_I_VECTOR_LENGTH (vec);
+  SCM *data = SCM_I_VECTOR_WELTS (vec);
 
   if (!SCM_UNBNDP (start))
-    i = scm_to_unsigned_integer (start, 0, len);
-
+    i = scm_to_unsigned_integer (start, 0, c_end);
   if (!SCM_UNBNDP (end))
-    len = scm_to_unsigned_integer (end, i, len);
+    c_end = scm_to_unsigned_integer (end, i, c_end);
 
-  for (; i < len; ++i)
+  for (; i < c_end; ++i)
     data[i] = fill;
 
   return SCM_UNSPECIFIED;

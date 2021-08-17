@@ -3424,6 +3424,7 @@ Like @code{scm_string_set_x}, but the index is given as a @code{size_t}.
 @end deftypefn
 
 @rnindex string-fill!
+@anchor{x-string-fill!}
 @deffn {Scheme Procedure} string-fill! str chr [start [end]]
 @deffnx {C Function} scm_substring_fill_x (str, chr, start, end)
 @deffnx {C Function} scm_string_fill_x (str, chr)
@@ -6383,6 +6384,7 @@ Store @var{obj} in position @var{k} (a @code{size_t}) of @var{vec}.
 @end deftypefn
 
 @rnindex vector-fill!
+@anchor{x-vector-fill!}
 @deffn {Scheme Procedure} vector-fill! vec fill [start [end]]
 @deffnx {C Function} scm_vector_fill_x (vec, fill)
 Store @var{fill} in every position of @var{vec} in the range
@@ -6821,17 +6823,25 @@ Return is @var{bv1} equals to @var{bv2}---i.e., if they have the same
 length and contents.
 @end deffn
 
-@deffn {Scheme Procedure} bytevector-fill! bv fill
+@deffn {Scheme Procedure} bytevector-fill! bv fill [start [end]]
 @deffnx {C Function} scm_bytevector_fill_x (bv, fill)
-Fill bytevector @var{bv} with @var{fill}, a byte.
+Fill positions [@var{start} ... @var{end}) of bytevector @var{bv} with
+byte @var{fill}. @var{start} defaults to 0 and @var{end} defaults to the
+length of @var{bv}.@footnote{R6RS defines @code{(bytevector-fill! bv
+fill)}. Arguments @var{start} and @var{end} are a Guile extension
+(cf. @ref{x-vector-fill!,@code{vector-fill!}},
+@ref{x-string-fill!,@code{string-fill!}}).}
 @end deffn
 
 @deffn {Scheme Procedure} bytevector-copy! source source-start target target-start len
 @deffnx {C Function} scm_bytevector_copy_x (source, source_start, target, target_start, len)
 Copy @var{len} bytes from @var{source} into @var{target}, starting
 reading from @var{source-start} (a positive index within @var{source})
-and start writing at @var{target-start}.  It is permitted for the
-@var{source} and @var{target} regions to overlap.
+and writing at @var{target-start}.
+
+It is permitted for the @var{source} and @var{target} regions to
+overlap. In that case, copying takes place as if the source is first
+copied into a temporary bytevector and then into the destination.
 @end deffn
 
 @deffn {Scheme Procedure} bytevector-copy bv
