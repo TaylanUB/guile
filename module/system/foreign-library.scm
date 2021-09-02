@@ -48,7 +48,7 @@
 
 (define system-library-extensions
   (cond
-   ((string-contains %host-type "-darwin-")
+   ((string-contains %host-type "-darwin")
     '(".bundle" ".so" ".dylib"))
    ((or (string-contains %host-type "cygwin")
         (string-contains %host-type "mingw")
