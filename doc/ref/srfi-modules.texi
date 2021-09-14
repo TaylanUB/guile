@@ -5280,7 +5280,7 @@ By default, @var{equal-proc} is @code{equal?}.  It can be any
 two-argument procedure, and should answer whether two keys are the
 same for this table's purposes.
 
-My default @var{hash-proc} assumes that @code{equal-proc} is no
+By default @var{hash-proc} assumes that @code{equal-proc} is no
 coarser than @code{equal?}  unless it is literally @code{string-ci=?}.
 If provided, @var{hash-proc} should be a two-argument procedure that
 takes a key and the current table size, and answers a reasonably good
