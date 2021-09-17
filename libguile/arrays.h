@@ -94,7 +94,7 @@ typedef struct scm_t_array_dim
 /* internal. */
 
 #define SCM_I_ARRAYP(a)	    SCM_TYP16_PREDICATE (scm_tc7_array, a)
-#define SCM_I_ARRAY_NDIM(x)  ((size_t) (SCM_CELL_WORD_0 (x)>>16))
+#define SCM_I_ARRAY_NDIM(x)  ((size_t) (SCM_CELL_WORD_0 (x)>>17))
 #define SCM_I_ARRAY_V(a)    SCM_CELL_OBJECT_1 (a)
 #define SCM_I_ARRAY_BASE(a) ((size_t) SCM_CELL_WORD_2 (a))
 #define SCM_I_ARRAY_DIMS(a) ((scm_t_array_dim *) SCM_CELL_OBJECT_LOC (a, 3))
@@ -106,7 +106,7 @@ typedef struct scm_t_array_dim
 static inline SCM
 scm_i_raw_array (int ndim)
 {
-  return scm_words (((scm_t_bits) ndim << 16) + scm_tc7_array, 3 + ndim*3);
+  return scm_words (((scm_t_bits) ndim << 17) + scm_tc7_array, 3 + ndim*3);
 }
 
 SCM_INTERNAL SCM scm_i_make_array (int ndim);
