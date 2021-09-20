@@ -1,6 +1,6 @@
 ;;; srfi-1.scm --- List Library
 
-;; 	Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2009, 2010, 2011, 2014, 2020 Free Software Foundation, Inc.
+;; 	Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2009, 2010, 2011, 2014, 2020, 2021 Free Software Foundation, Inc.
 ;;
 ;; This library is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public
@@ -734,7 +734,7 @@ the list returned."
 (define (find-tail pred lst)
   "Return the first pair of @var{lst} whose @sc{car} satisfies the
 predicate @var{pred}, or return @code{#f} if no such element is found."
-  (check-arg procedure? pred find)
+  (check-arg procedure? pred find-tail)
   (let loop ((lst lst))
     (and (not (null? lst))
          (let ((head (car lst)))
