@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Guile Reference Manual.
-@c Copyright (C) 2013, 2017 Free Software Foundation, Inc.
+@c Copyright (C) 2013, 2017, 2021 Free Software Foundation, Inc.
 @c See the file guile.texi for copying conditions.
 
 @c SXPath documentation based on SXPath.scm by Oleg Kiselyov,
@@ -26,7 +26,7 @@ may be represented with the following SXML:
 
 SXML is very general, and is capable of representing all of XML.
 Formally, this means that SXML is a conforming implementation of the
-@uref{XML Information Set,http://www.w3.org/TR/xml-infoset/} standard.
+@uref{http://www.w3.org/TR/xml-infoset/,XML Information Set} standard.
 
 Guile includes several facilities for working with XML and SXML:
 parsers, serializers, and transformers.
