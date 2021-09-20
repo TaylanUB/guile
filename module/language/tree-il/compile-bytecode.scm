@@ -461,8 +461,8 @@
        ;; Transform "ash" to lsh / rsh.
        (($ <primcall> src 'ash (x ($ <const> src* (? exact-integer? y))))
         (if (negative? y)
-            (make-primcall src 'lsh (list x (make-const src* (- y))))
-            (make-primcall src 'rsh (list x (make-const src* y)))))
+            (make-primcall src 'rsh (list x (make-const src* (- y))))
+            (make-primcall src 'lsh (list x (make-const src* y)))))
 
        ;; (throw key subr msg (list x) (list x))
        (($ <primcall> src 'throw

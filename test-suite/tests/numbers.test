@@ -1,6 +1,6 @@
 ;;;; numbers.test --- tests guile's numbers     -*- scheme -*-
 ;;;; Copyright (C) 2000, 2001, 2003-2006, 2009-2013,
-;;;;   2015, 2018  Free Software Foundation, Inc.
+;;;;   2015, 2018, 2021  Free Software Foundation, Inc.
 ;;;;
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -19,6 +19,7 @@
 (define-module (test-suite test-numbers)
   #:use-module (test-suite lib)
   #:use-module (ice-9 documentation)
+  #:autoload   (system base compile) (compile)
   #:use-module (srfi srfi-1)    ; list library
   #:use-module (srfi srfi-11))  ; let-values
 
@@ -5468,7 +5469,15 @@
         (ash-variant 123 (expt 2 1000)))))
 
   (test-ash-variant       'ash       ash floor #f)
-  (test-ash-variant 'round-ash round-ash round #t))
+  (test-ash-variant 'round-ash round-ash round #t)
+
+  (pass-if-equal "ash at -O1"         ;https://issues.guix.gnu.org/50696
+      '(4 1)
+    (compile '((lambda (x y)
+                 (list (ash x 2) (ash y -2))) 1 4)
+             #:to 'value
+             #:opts '(#:cps? #f #:partial-eval? #f)
+             #:optimization-level 1)))
 
 ;;;
 ;;; regressions
