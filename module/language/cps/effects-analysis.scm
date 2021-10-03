@@ -221,7 +221,7 @@
    (logior &all-effect-kinds (&object &unknown-memory-kinds))))
 
 (define-inlinable (causes-effect? x effects)
-  (not (zero? (logand x effects))))
+  (logtest x effects))
 
 (define-inlinable (causes-all-effects? x)
   (eqv? x &all-effects))
@@ -238,8 +238,8 @@ is or might be a read or a write to the same location as A."
                ;; A negative field indicates "the whole object".
                ;; Non-negative fields indicate only part of the object.
                (or (< a 0) (< b 0) (= a b))))))
-  (and (not (zero? (logand a &write)))
-       (not (zero? (logand b (logior &read &write))))
+  (and (logtest a &write)
+       (logtest b (logior &read &write))
        (locations-same?)))
 
 (define (compute-clobber-map effects)
