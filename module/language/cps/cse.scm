@@ -735,7 +735,7 @@ for a label, it isn't known to be constant at that label."
   ;; post-order, so the intmap-fold will visit definitions before
   ;; uses.
   (let* ((effects (synthesize-definition-effects (compute-effects conts)))
-         (clobbers (compute-clobber-map effects))
+         (clobbers (compute-clobber-map conts effects))
          (succs (compute-successors conts kfun))
          (preds (invert-graph succs))
          (avail (compute-available-expressions succs kfun clobbers))

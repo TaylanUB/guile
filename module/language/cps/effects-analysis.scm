@@ -242,9 +242,74 @@ is or might be a read or a write to the same location as A."
        (logtest b (logior &read &write))
        (locations-same?)))
 
-(define (compute-clobber-map effects)
+(define (compute-known-allocations conts effects)
+  "Return a map of ACCESS-LABEL to ALLOC-LABEL, indicating stores to and
+loads from objects created at known allocation sites."
+  ;; VAR -> ALLOC map of defining allocations, where ALLOC is a label or
+  ;; #f.  Possibly sparse.
+  (define allocations
+    (intmap-fold
+     (lambda (label fx out)
+       (match (intmap-ref conts label)
+         (($ $kargs _ _ ($ $continue k))
+          (match (intmap-ref conts k)
+            (($ $kargs (_) (var))
+             (intmap-add out var
+                         (and (not (causes-all-effects? fx))
+                              (logtest fx &allocation)
+                              label)
+                         (lambda (old new) #f)))
+            (_ out)))
+         (_ out)))
+     effects empty-intmap))
+
+  (persistent-intmap
+   (intmap-fold
+    (lambda (label fx out)
+      (cond
+       ((causes-all-effects? fx) out)
+       ((logtest fx (logior &read &write))
+        (match (intmap-ref conts label)
+          ;; Assume that instructions which cause a known set of effects
+          ;; and which
+          (($ $kargs names vars
+              ($ $continue k src
+                 ($ $primcall name param (obj . args))))
+           (match (intmap-ref allocations obj (lambda (_) #f))
+             (#f out)
+             (allocation-label
+              (intmap-add! out label allocation-label))))
+          (_ out)))
+       (else out)))
+    effects empty-intmap)))
+
+(define (compute-clobber-map conts effects)
   "For the map LABEL->EFFECTS, compute a map LABEL->LABELS indicating
 the LABELS that are clobbered by the effects of LABEL."
+  (define known-allocations (compute-known-allocations conts effects))
+  (define (filter-may-alias write-label clobbered-labels)
+    ;; We may be able to remove some entries from CLOBBERED-LABELS, if
+    ;; we can prove they are not aliased by WRITE-LABEL.
+    (match (intmap-ref known-allocations write-label (lambda (_) #f))
+      (#f
+       ;; We don't know what object WRITE-LABEL refers to; can't refine.
+       clobbered-labels)
+      (clobber-alloc
+       (intset-fold
+        (lambda (clobbered-label clobbered-labels)
+          (match (intmap-ref known-allocations clobbered-label (lambda (_) #f))
+            (#f
+             ;; We don't know what object CLOBBERED-LABEL refers to;
+             ;; can't refine.
+             clobbered-labels)
+            (clobbered-alloc
+             ;; We know that WRITE-LABEL and CLOBBERED-LABEL refer to
+             ;; known allocations.  The write will only clobber the read
+             ;; if the two allocations are the same.
+             (if (eqv? clobber-alloc clobbered-alloc)
+                 clobbered-labels
+                 (intset-remove clobbered-labels clobbered-label)))))
+        clobbered-labels clobbered-labels))))
   (let ((clobbered-by-write (make-hash-table)))
     (intmap-fold
      (lambda (label fx)
@@ -269,9 +334,11 @@ the LABELS that are clobbered by the effects of LABEL."
      effects)
     (intmap-map (lambda (label fx)
                   (if (causes-effect? fx &write)
-                      (hashv-ref clobbered-by-write
-                                 (ash fx (- &effect-kind-bits))
-                                 empty-intset)
+                      (filter-may-alias
+                       label
+                       (hashv-ref clobbered-by-write
+                                  (ash fx (- &effect-kind-bits))
+                                  empty-intset))
                       empty-intset))
                 effects)))
 
