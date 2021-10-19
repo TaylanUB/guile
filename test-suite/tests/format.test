@@ -121,7 +121,13 @@
   ;; in guile prior to 1.6.9 and 1.8.1, leading zeros were incorrectly
   ;; stripped, moving the decimal point and giving "25.0" here
   (pass-if "string 02.5"
-    (string=? "2.5" (format #f "~f" "02.5"))))
+    (string=? "2.5" (format #f "~f" "02.5")))
+
+  (pass-if "scale with few leading zeros"
+    (string=? "1.23" (format #f "~,,3f" "0.00123")))
+
+  (pass-if "scale with many leading zeros"
+    (string=? "0.0123" (format #f "~,,1f" "0.00123"))))
 
 ;;;
 ;;; ~h

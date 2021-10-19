@@ -1359,10 +1359,10 @@
                       (else
                        (if (> left-zeros 0)
                            (if (<= left-zeros shift) ; shift always > 0 here
-                               (format:fn-shiftleft shift) ; shift out 0s
                                (begin
                                  (format:fn-shiftleft left-zeros)
-                                 (set! format:fn-dot (- shift left-zeros))))
+                                 (set! format:fn-dot (- shift left-zeros)))
+                               (format:fn-shiftleft shift)) ; shift out 0s
                            (set! format:fn-dot (+ format:fn-dot shift))))))))
 
                (let ((negexp          ; expon format m.nnnEee
