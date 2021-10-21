@@ -6395,6 +6395,7 @@ The value returned by @code{vector-fill!} is unspecified.
 @end deffn
 
 @rnindex vector-copy
+@anchor{x-vector-copy}
 @deffn {Scheme Procedure} vector-copy vec [start [end]]
 @deffnx {C Function} scm_vector_copy (vec)
 Returns a freshly allocated vector containing the elements of @var{vec}
@@ -6403,6 +6404,7 @@ in the range [@var{start} ... @var{end}). @var{start} defaults to 0 and
 @end deffn
 
 @rnindex vector-copy!
+@anchor{x-vector-copy!}
 @deffn {Scheme Procedure} vector-copy! dst at src [start [end]]
 Copy the block of elements from vector @var{src} in the range
 [@var{start} ... @var{end}) into vector @var{dst}, starting at position

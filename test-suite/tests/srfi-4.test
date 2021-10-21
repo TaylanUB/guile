@@ -540,3 +540,27 @@
       (u16vector-set! v 2 0)
       (u16vector-set! v 3 0)
       (equal? v #u32(#xFFFFFFFF 0)))))
+
+(with-test-prefix "typed vector copies (srfi srfi-4 gnu)"
+
+  (pass-if "f64vector-copy"
+    (equal? #f64(1 2 3 4) (f64vector-copy #f64(9 7 1 2 3 4 0 8) 2 6)))
+
+  (pass-if "c64vector-copy"
+    (equal? #c64(1 2 3 4 0 8) (c64vector-copy #c64(9 7 1 2 3 4 0 8) 2)))
+
+  (pass-if "s32vector-copy! (both optional args)"
+    (let ((v (s32vector 9 7 1 2 3 4 0 8)))
+      (s32vector-copy! v 2 #s32(-1 -2 -3 -4 -5 -6 -7 -8) 3 7)
+      (equal? #s32(9 7 -4 -5 -6 -7 0 8) v)))
+
+  (pass-if "s16vector-copy! (one optional arg)"
+    (let ((v (s16vector 9 7 1 2 3 4 0 8)))
+      (s16vector-copy! v 2 #s16(-1 -2 -3 -4 -5 -6 -7 -8) 3)
+      (equal? #s16(9 7 -4 -5 -6 -7 -8 8) v)))
+
+  (pass-if "s8vector-copy! (no optional args)"
+    (let ((v (s8vector 9 7 1 2 3 4 0 8)))
+      (s8vector-copy! v 2 #s8(-1 -2 -3 -4 -5))
+      (equal? #s8(9 7 -1 -2 -3 -4 -5 8) v))))
+

@@ -609,9 +609,13 @@ SCM_DEFINE (scm_bytevector_copy_x, "bytevector-copy!", 5, 0, 0,
 	    (SCM source, SCM source_start, SCM target, SCM target_start,
 	     SCM len),
 	    "Copy @var{len} bytes from @var{source} into @var{target}, "
-	    "starting reading from @var{source_start} (a positive index "
-	    "within @var{source}) and start writing at "
-	    "@var{target_start}.")
+	    "reading from a block starting at @var{source_start} (a positive "
+            "index within @var{source}) and writing to a block starting at "
+	    "@var{target_start}.\n\n"
+            "It is permitted for the @var{source} and @var{target} regions to "
+            "overlap. In that case, copying takes place as if the source is "
+            "first copied into a temporary bytevector and then into the "
+            "destination. ")
 #define FUNC_NAME s_scm_bytevector_copy_x
 {
   size_t c_len, c_source_len, c_target_len;

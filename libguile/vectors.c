@@ -331,9 +331,8 @@ SCM_DEFINE (scm_vector_copy_x, "vector-copy!", 3, 2, 0,
             "It is an error for @var{dst} to have a length less than\n"
             "@var{at} + (@var{end} - @var{start}). @var{at} and @var{start} default\n"
             "to 0 and @var{end} defaults to the length of @var{src}.\n\n"
-            "The order in which elements are copied is unspecified, except that if the\n"
-            "source and destination overlap, copying takes place as if the source is\n"
-            "first copied into a temporary vector and then into the destination.")
+            "If source and destination overlap, copying takes place as if the source\n"
+            "is first copied into a temporary vector and then into the destination.")
 #define FUNC_NAME s_scm_vector_copy_x
 {
   SCM_VALIDATE_MUTABLE_VECTOR (1, dst);

@@ -1806,6 +1806,53 @@ a vector, or a uniform vector.  When @var{obj} is already a suitable
 uniform numeric vector, it is returned unchanged.
 @end deffn
 
+@deffn  {Scheme Procedure} u8vector-copy! dst at src [start [end]]
+@deffnx {Scheme Procedure} s8vector-copy! dst at src [start [end]]
+@deffnx {Scheme Procedure} u16vector-copy! dst at src [start [end]]
+@deffnx {Scheme Procedure} s16vector-copy! dst at src [start [end]]
+@deffnx {Scheme Procedure} u32vector-copy! dst at src [start [end]]
+@deffnx {Scheme Procedure} s32vector-copy! dst at src [start [end]]
+@deffnx {Scheme Procedure} u64vector-copy! dst at src [start [end]]
+@deffnx {Scheme Procedure} s64vector-copy! dst at src [start [end]]
+@deffnx {Scheme Procedure} f32vector-copy! dst at src [start [end]]
+@deffnx {Scheme Procedure} f64vector-copy! dst at src [start [end]]
+@deffnx {Scheme Procedure} c32vector-copy! dst at src [start [end]]
+@deffnx {Scheme Procedure} c64vector-copy! dst at src [start [end]]
+Copy a block of elements from @var{src} to @var{dst}, both of which must
+be vectors of the indicated type, starting in @var{dst} at @var{at} and
+starting in @var{src} at @var{start} and ending at @var{end}.  It is an
+error for @var{dst} to have a length less than @var{at} + (@var{end} -
+@var{start}). @var{at} and @var{start} default to 0 and @var{end}
+defaults to the length of @var{src}.
+
+If source and destination overlap, copying takes place as if the
+source is first copied into a temporary vector and then into the
+destination.
+
+See also @ref{x-vector-copy!,@code{vector-copy!}}.
+@end deffn
+
+@deffn  {Scheme Procedure} u8vector-copy src [start [end]]
+@deffnx {Scheme Procedure} s8vector-copy src [start [end]]
+@deffnx {Scheme Procedure} u16vector-copy src [start [end]]
+@deffnx {Scheme Procedure} s16vector-copy src [start [end]]
+@deffnx {Scheme Procedure} u32vector-copy src [start [end]]
+@deffnx {Scheme Procedure} s32vector-copy src [start [end]]
+@deffnx {Scheme Procedure} u64vector-copy src [start [end]]
+@deffnx {Scheme Procedure} s64vector-copy src [start [end]]
+@deffnx {Scheme Procedure} f32vector-copy src [start [end]]
+@deffnx {Scheme Procedure} f64vector-copy src [start [end]]
+@deffnx {Scheme Procedure} c32vector-copy src [start [end]]
+@deffnx {Scheme Procedure} c64vector-copy src [start [end]]
+Returns a freshly allocated vector of the indicated type, which must be
+the same as that of @var{src}, containing the elements of @var{src}
+between @var{start} and @var{end}. @var{src} must be a vector of the
+indicated type. @var{start} defaults to 0 and @var{end} defaults to the
+length of @var{src}.
+
+See also @ref{x-vector-copy,@code{vector-copy}}.
+@end deffn
+
 
 @node SRFI-6
 @subsection SRFI-6 - Basic String Ports
