@@ -1846,9 +1846,8 @@ See also @ref{x-vector-copy!,@code{vector-copy!}}.
 @deffnx {Scheme Procedure} c64vector-copy src [start [end]]
 Returns a freshly allocated vector of the indicated type, which must be
 the same as that of @var{src}, containing the elements of @var{src}
-between @var{start} and @var{end}. @var{src} must be a vector of the
-indicated type. @var{start} defaults to 0 and @var{end} defaults to the
-length of @var{src}.
+between @var{start} and @var{end}. @var{start} defaults to 0 and
+@var{end} defaults to the length of @var{src}.
 
 See also @ref{x-vector-copy,@code{vector-copy}}.
 @end deffn
