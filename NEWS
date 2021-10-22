@@ -5,6 +5,15 @@ See the end for copying conditions.
 Please send Guile bug reports to bug-guile@gnu.org.
 
 
+Changes in 3.0.8 (since 3.0.7)
+
+* Bug fixes
+
+** Fix compilation of (ash x N), where N is a literal, at -O1 and below
+** Texinfo and XML parsers are now thread-safe
+   (<https://bugs.gnu.org/51264>)
+
+
 Changes in 3.0.7 (since 3.0.6)
 
 * New interfaces and functionality
