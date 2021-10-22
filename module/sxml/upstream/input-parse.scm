@@ -154,9 +154,8 @@
 ; (e.g., during XML parsing).
 
 (define input-parse:init-buffer
-  (let ((buffer (make-string 512)))
-    (lambda () buffer)))
-  
+  (lambda () (make-string 512)))
+
 
 		; See a better version below
 (define-opt (next-token-old prefix-skipped-chars break-chars
