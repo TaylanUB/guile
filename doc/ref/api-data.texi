@@ -7767,7 +7767,7 @@ have smaller rank than @var{array}.
 
 @cindex array cell
 
-Mathematically, one can see an array of rank @math{n} (an
+One can see an array of rank @math{n} (an
 @math{n}-array) as an array of lower rank where the elements are
 themselves arrays (`cells').
 

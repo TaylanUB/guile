@@ -13,6 +13,42 @@ Changes in 3.0.8 (since 3.0.7)
 ** Texinfo and XML parsers are now thread-safe
    (<https://bugs.gnu.org/51264>)
 
+* New deprecations
+
+** Vector functions require vector arguments
+
+Passing arrays that are not vectors (arrays for which `(vector? array)'
+returns false) to functions `vector-move-left!', `vector-move-right!',
+`vector->list', and `vector-copy' is deprecated. Use `array-copy!',
+`array-copy', and `array->list' for such arguments.
+
+** `scm_from_contiguous_typed_array' is deprecated
+
+This function was undocumented.
+
+* New interfaces and functionality
+
+** Typed vector copy functions
+
+The functions `u8vector-copy' `s8vector-copy' `u16vector-copy'
+`s16vector-copy' `u32vector-copy' `s32vector-copy' `u64vector-copy'
+`s64vector-copy' `f32vector-copy' `f64vector-copy' `c32vector-copy'
+`c64vector-copy' `u8vector-copy!'  `s8vector-copy!'  `u16vector-copy!'
+`s16vector-copy!'  `u32vector-copy!'  `s32vector-copy!'
+`u64vector-copy!'  `s64vector-copy!'  `f32vector-copy!'
+`f64vector-copy!'  `c32vector-copy!'  `c64vector-copy!' have been
+added. See SRFI-4 - Guile extensions" in the manual.
+
+** `bytevector-fill!' supports partial fill through optional arguments
+
+This is an extension to the r6rs procedure. See "Manipulating
+Bytevectors" in the manual.
+
+** `vector-copy!' and `vector-copy' from (rnrs base) included in core
+
+Compared to the previous versions, these accept range arguments. See
+"Accessing and Modifying Vector Contents" in the manual.
+
 
 Changes in 3.0.7 (since 3.0.6)
 
